@@ -67,6 +67,17 @@ void bte_hci_nop(BteHci *hci, BteHciDoneCb callback)
     _bte_hci_send_command(b);
 }
 
+void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
+                            BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_SET_EV_MASK_OCF, HCI_HC_BB_OGF, HCI_SET_EV_MASK_PLEN,
+        command_complete_cb, callback);
+    uint64_t le_mask = htole64(mask);
+    memcpy(b->data + HCI_CMD_HDR_LEN, &le_mask, sizeof(le_mask));
+    _bte_hci_send_command(b);
+}
+
 void bte_hci_reset(BteHci *hci, BteHciDoneCb callback)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(

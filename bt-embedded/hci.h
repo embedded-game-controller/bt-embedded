@@ -4,6 +4,8 @@
 #include "hci_proto.h"
 #include "types.h"
 
+typedef uint64_t BteHciEventMask;
+
 BteHci *bte_hci_get(BteClient *client);
 
 BteClient *bte_hci_get_client(BteHci *hci);
@@ -29,6 +31,8 @@ typedef void (*BteHciDoneCb)(BteHci *hci, const BteHciReply *reply,
                              void *userdata);
 
 void bte_hci_nop(BteHci *hci, BteHciDoneCb callback);
+void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
+                            BteHciDoneCb callback);
 void bte_hci_reset(BteHci *hci, BteHciDoneCb callback);
 
 void bte_hci_write_local_name(BteHci *hci, const char *name,
