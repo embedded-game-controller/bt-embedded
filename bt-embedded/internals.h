@@ -29,7 +29,7 @@ typedef enum {
     BTE_HCI_INFO_GOT_BUFFER_SIZE = 1 << 1,
 } BteHciInfo;
 
-typedef struct bte_hci_pending_command BteHciPendingCommand;
+typedef struct bte_hci_pending_command_t BteHciPendingCommand;
 typedef void (*BteHciCommandCb)(BteHci *hci, BteBuffer *buffer,
                                 void *client_cb);
 
@@ -38,7 +38,7 @@ typedef struct bte_hci_dev_t {
     BteHciInfo info_flags;
 
     uint16_t num_pending_commands;
-    struct bte_hci_pending_command {
+    struct bte_hci_pending_command_t {
         /* When a result is received, we will look at the opcode (and possibly
          * other data) to deliver the reply to the correct client */
         BteBuffer *buffer;
