@@ -17,6 +17,14 @@
  * must be 2 at the very least. */
 #define BTE_HCI_MAX_CLIENTS 4
 
+/* This is the last (in the sense of its numerical value) event that we
+ * support. It could be decreased is we are sure that our clients don't need
+ * support a certain event, and then we could free up some bytes in the event
+ * handler array. */
+#ifndef BTE_HCI_EVENT_LAST
+#  define BTE_HCI_EVENT_LAST HCI_REMOTE_HOST_FEATURES_NOTIFY
+#endif
+
 typedef enum {
     BTE_HCI_INIT_STATUS_UNINITIALIZED = 0,
     BTE_HCI_INIT_STATUS_INITIALIZING,
@@ -32,6 +40,9 @@ typedef enum {
 typedef struct bte_hci_pending_command_t BteHciPendingCommand;
 typedef void (*BteHciCommandCb)(BteHci *hci, BteBuffer *buffer,
                                 void *client_cb);
+
+typedef struct bte_hci_event_handler_t BteHciEventHandler;
+typedef void (*BteHciEventHandlerCb)(BteBuffer *buffer, void *cb_data);
 
 typedef struct bte_hci_dev_t {
     BteHciInitStatus init_status;
@@ -56,6 +67,18 @@ typedef struct bte_hci_dev_t {
     uint8_t sco_mtu;
     uint16_t acl_max_packets;
     uint16_t sco_max_packets;
+
+    /* Ongoing inquiry data */
+    struct bte_hci_inquiry_data_t {
+        uint8_t num_responses;
+        BteHciInquiryResponse *responses;
+    } inquiry;
+
+    /* We use the 0-index element for vendor-specific events */
+    struct bte_hci_event_handler_t {
+        BteHciEventHandlerCb handler_cb;
+        void *cb_data; /* TODO: we can probably change this to be a BteHci* */
+    } event_handlers[BTE_HCI_EVENT_LAST];
 } BteHciDev;
 
 struct bte_client_t {
@@ -94,10 +117,17 @@ void _bte_hci_dev_set_status(BteHciInitStatus status);
 int _bte_hci_dev_handle_event(BteBuffer *buf);
 int _bte_hci_dev_handle_data(BteBuffer *buf);
 
+/* Called by the HCI layer */
 BteBuffer *_bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
                                             uint8_t ogf, uint8_t len,
                                             BteHciCommandCb command_cb,
                                             void *client_cb);
 int _bte_hci_send_command(BteBuffer *buffer);
+
+void _bte_hci_dev_install_event_handler(uint8_t event_code,
+                                        BteHciEventHandlerCb handler_cb,
+                                        void *cb_data);
+
+void _bte_hci_dev_inquiry_cleanup(void);
 
 #endif /* BTE_INTERNALS_H */

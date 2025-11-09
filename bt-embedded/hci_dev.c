@@ -9,6 +9,15 @@
 
 BteHciDev _bte_hci_dev;
 
+static BteHciEventHandler *handler_for_event(uint8_t event_code)
+{
+    if (UNLIKELY(event_code > BTE_HCI_EVENT_LAST)) {
+        return NULL;
+    }
+    if (event_code == HCI_VENDOR_SPECIFIC_EVENT) event_code = 0;
+    return &_bte_hci_dev.event_handlers[event_code];
+}
+
 static uint16_t build_opcode(uint16_t ocf, uint8_t ogf)
 {
     uint16_t opcode_h = (ocf & 0x3ff) | (ogf << 10);
@@ -109,6 +118,10 @@ int _bte_hci_dev_handle_event(BteBuffer *buf)
     uint8_t *data = buf->data + 2;
     uint16_t opcode;
     switch (code) {
+    case HCI_INQUIRY_COMPLETE:
+        opcode = build_opcode(HCI_INQUIRY_OCF, HCI_LINK_CTRL_OGF);
+        deliver_reply_to_client(opcode, buf);
+        break;
     case HCI_COMMAND_COMPLETE:
         _bte_hci_dev.num_packets = data[0];
         if (len < 3) break;
@@ -127,7 +140,22 @@ int _bte_hci_dev_handle_event(BteBuffer *buf)
         }
         deliver_reply_to_client(opcode, buf);
         break;
+    case HCI_COMMAND_STATUS:
+        uint8_t status = data[0];
+        _bte_hci_dev.num_packets = data[1];
+        if (status != 0) {
+            opcode = *(uint16_t *)(data + 2);
+            deliver_reply_to_client(opcode, buf);
+        }
+        break;
     }
+
+    BteHciEventHandler *handler = handler_for_event(code);
+    if (handler && handler->handler_cb) {
+        handler->handler_cb(buf, handler->cb_data);
+    }
+
+    /* The event buffer is unreferenced by the platform backend */
     return 0;
 }
 
@@ -256,4 +284,26 @@ BteBuffer *_bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
 
     /* This should never happen, unless num_pending_commands is wrong */
     return NULL;
+}
+
+void _bte_hci_dev_install_event_handler(uint8_t event_code,
+                                        BteHciEventHandlerCb handler_cb,
+                                        void *cb_data)
+{
+    BteHciEventHandler *h = handler_for_event(event_code);
+    if (UNLIKELY(!h)) return;
+
+    if (UNLIKELY(handler_cb && h->handler_cb)) {
+        BTE_WARN("Handler already installed for event %02x!", event_code);
+    }
+    h->handler_cb = handler_cb;
+    h->cb_data = cb_data;
+}
+
+void _bte_hci_dev_inquiry_cleanup(void)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+    free(dev->inquiry.responses);
+    dev->inquiry.responses = NULL;
+    dev->inquiry.num_responses = 0;
 }

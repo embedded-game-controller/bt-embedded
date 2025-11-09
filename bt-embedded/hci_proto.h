@@ -380,4 +380,7 @@
 
 #define HCI_MAX_NAME_LEN 248
 
+#define BTE_LAP_GIAC 0x009E8B33
+#define BTE_LAP_LIAC 0x009E8B00
+
 #endif /* BTE_HCI_PROTO_H */

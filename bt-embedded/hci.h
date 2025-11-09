@@ -31,6 +31,32 @@ typedef void (*BteHciDoneCb)(BteHci *hci, const BteHciReply *reply,
                              void *userdata);
 
 void bte_hci_nop(BteHci *hci, BteHciDoneCb callback);
+
+/* Link control commands */
+
+typedef struct {
+    BteBdAddr address;
+    uint8_t page_scan_rep_mode;
+    uint8_t page_scan_period_mode;
+    uint8_t reserved;
+    BteClassOfDevice class_of_device;
+    uint16_t clock_offset;
+} BTE_PACKED BteHciInquiryResponse;
+
+typedef struct {
+    uint8_t status;
+    uint8_t num_responses;
+    const BteHciInquiryResponse *responses;
+} BteHciInquiryReply;
+
+typedef void (*BteHciInquiryCb)(BteHci *hci,
+                                const BteHciInquiryReply *reply,
+                                void *userdata);
+void bte_hci_inquiry(BteHci *hci, uint32_t lap, uint8_t len, uint8_t max_resp,
+                     BteHciInquiryCb callback);
+
+/* Controller & baseband commands */
+
 void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
                             BteHciDoneCb callback);
 void bte_hci_reset(BteHci *hci, BteHciDoneCb callback);
@@ -50,6 +76,8 @@ void bte_hci_read_local_name(BteHci *hci, BteHciReadLocalNameCb callback);
 
 void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
                                    BteHciDoneCb callback);
+
+/* Informational parameters */
 
 typedef struct {
     uint8_t status;

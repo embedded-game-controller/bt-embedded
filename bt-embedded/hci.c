@@ -6,6 +6,7 @@
 
 #define HCI_CMD_REPLY_POS_CODE    0
 #define HCI_CMD_REPLY_POS_LEN     1
+#define HCI_CMD_REPLY_POS_HDR_LEN 2
 #define HCI_CMD_REPLY_POS_PACKETS 2
 #define HCI_CMD_REPLY_POS_OPCODE  3
 #define HCI_CMD_REPLY_POS_STATUS  5
@@ -64,6 +65,96 @@ void bte_hci_nop(BteHci *hci, BteHciDoneCb callback)
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, 0, 0, 3,
         command_complete_cb, callback);
+    _bte_hci_send_command(b);
+}
+
+static void inquiry_result_cb(BteBuffer *buffer, void *cb_data)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+
+    uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_HDR_LEN;
+    int num_responses = data[0];
+    data++;
+
+    int allocated_blocks = (dev->inquiry.num_responses + 31) / 32;
+    int needed_blocks =
+        (dev->inquiry.num_responses + num_responses + 31) / 32;
+    if (needed_blocks > allocated_blocks) {
+        /* Allocate one more chunk of responses */
+        int n = needed_blocks * 32;
+        dev->inquiry.responses =
+            realloc(dev->inquiry.responses, sizeof(BteHciInquiryResponse) * n);
+        if (UNLIKELY(!dev->inquiry.responses)) return;
+    }
+
+    BteHciInquiryResponse *responses = dev->inquiry.responses;
+    int i_tail = dev->inquiry.num_responses;
+    for (int i = 0; i < num_responses; i++) {
+        BteHciInquiryResponse *r = &responses[i_tail];
+        uint8_t *ptr = data;
+        memcpy(&r->address, ptr + sizeof(r->address) * i, sizeof(r->address));
+        ptr += sizeof(r->address) * num_responses;
+        r->page_scan_rep_mode = ptr[i];
+        ptr += num_responses;
+        r->page_scan_period_mode = ptr[i];
+        ptr += num_responses;
+        r->reserved = ptr[i];
+        ptr += num_responses;
+        int cod_size = sizeof(r->class_of_device);
+        memcpy(&r->class_of_device, ptr + cod_size * i, cod_size);
+        ptr += cod_size * num_responses;
+        r->clock_offset = le16toh(*((uint16_t*)ptr + i));
+        /* Check if the record is a duplicate */
+        bool duplicate = false;
+        for (int j = 0; j < dev->inquiry.num_responses; j++) {
+            if (memcmp(r, &responses[j], sizeof(*r)) == 0) {
+                duplicate = true;
+                break;
+            }
+        }
+        if (!duplicate) i_tail++;
+    }
+    dev->inquiry.num_responses = i_tail;
+}
+
+static void inquiry_complete_cb(BteHci *hci, BteBuffer *buffer,
+                                void *client_cb)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+    uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_HDR_LEN;
+    BteHciInquiryReply reply;
+
+    if (buffer->data[0] == HCI_COMMAND_STATUS) {
+        /* The command failed */
+        reply.status = data[0];
+    } else { /* must be HCI_INQUIRY_COMPLETE */
+        reply.status = data[0];
+        reply.num_responses = dev->inquiry.num_responses;
+        reply.responses = dev->inquiry.responses;
+    }
+    _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT, NULL, NULL);
+
+    BteHciInquiryCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+    _bte_hci_dev_inquiry_cleanup();
+}
+
+void bte_hci_inquiry(BteHci *hci, uint32_t lap, uint8_t len, uint8_t max_resp,
+                     BteHciInquiryCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_INQUIRY_OCF, HCI_LINK_CTRL_OGF, HCI_INQUIRY_PLEN,
+        inquiry_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
+
+    _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT,
+                                       inquiry_result_cb, hci);
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    data[0] = lap & 0xff;
+    data[1] = (lap >> 8) & 0xff;
+    data[2] = (lap >> 16) & 0xff;
+    data[3] = len;
+    data[4] = max_resp;
     _bte_hci_send_command(b);
 }
 
