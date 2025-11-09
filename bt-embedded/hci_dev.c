@@ -9,12 +9,17 @@
 
 BteHciDev _bte_hci_dev;
 
+static uint16_t build_opcode(uint16_t ocf, uint8_t ogf)
+{
+    uint16_t opcode_h = (ocf & 0x3ff) | (ogf << 10);
+    return htole16(opcode_h);
+}
+
 static BteBuffer *hci_command_alloc(uint16_t ocf, uint8_t ogf, uint8_t len)
 {
     BteBuffer *b = bte_buffer_alloc_contiguous(len);
     uint8_t *ptr = b->data;
-    ptr[0] = ocf & 0xff;
-    ptr[1] = (ocf >> 8) | (ogf << 2);
+    *(uint16_t*)ptr = build_opcode(ocf, ogf);
     ptr[2] = len - HCI_CMD_HDR_LEN;
     return b;
 }
@@ -24,32 +29,32 @@ static inline uint16_t hci_command_opcode(BteBuffer *buffer)
     return *(uint16_t *)buffer->data;
 }
 
-static inline uint16_t hci_command_reply_opcode(BteBuffer *buffer)
+static BteHciPendingCommand *find_pending_command(uint16_t opcode)
 {
-    return *(uint16_t *)(buffer->data + 3);
+    BteHciDev *dev = &_bte_hci_dev;
+
+    for (int i = 0; i < BTE_HCI_MAX_PENDING_COMMANDS; i++) {
+        BteHciPendingCommand *pc = &dev->pending_commands[i];
+        if (pc->buffer && hci_command_opcode(pc->buffer) == opcode) {
+            return pc;
+        }
+    }
+    return NULL;
 }
 
-static void deliver_reply_to_client(BteBuffer *buffer)
+static void deliver_reply_to_client(uint16_t opcode, BteBuffer *buffer)
 {
     BteHciDev *dev = &_bte_hci_dev;
 
     BTE_DEBUG("%s, %d pending commands, got opcode %02x \n", __func__,
-              dev->num_pending_commands, hci_command_reply_opcode(buffer));
-    for (int i = 0; i < BTE_HCI_MAX_PENDING_COMMANDS; i++) {
-        BteHciPendingCommand *pc = &dev->pending_commands[i];
-        if (pc->buffer) {
-            BTE_DEBUG("Found HCI %p with opcode %04x\n", pc->hci,
-                      hci_command_opcode(pc->buffer));
-        }
-        if (pc->buffer &&
-            hci_command_opcode(pc->buffer) == hci_command_reply_opcode(buffer)) {
-            bte_buffer_unref(pc->buffer);
-            pc->buffer = NULL;
-            dev->num_pending_commands--;
+              dev->num_pending_commands, opcode);
+    BteHciPendingCommand *pc = find_pending_command(opcode);
+    if (LIKELY(pc)) {
+        bte_buffer_unref(pc->buffer);
+        pc->buffer = NULL;
+        dev->num_pending_commands--;
 
-            pc->command_cb(pc->hci, buffer, pc->client_cb);
-            break;
-        }
+        pc->command_cb(pc->hci, buffer, pc->client_cb);
     }
 }
 
@@ -102,13 +107,15 @@ int _bte_hci_dev_handle_event(BteBuffer *buf)
     uint8_t code = buf->data[0];
     uint8_t len = buf->data[1];
     uint8_t *data = buf->data + 2;
+    uint16_t opcode;
     switch (code) {
     case HCI_COMMAND_COMPLETE:
         _bte_hci_dev.num_packets = data[0];
         if (len < 3) break;
-        uint16_t opcode = le16toh(*(uint16_t *)(data + 1));
-        uint16_t ocf = opcode & 0x03ff;
-        uint8_t ogf = opcode >> 10;
+        opcode = *(uint16_t *)(data + 1);
+        uint16_t opcode_h = le16toh(opcode);
+        uint16_t ocf = opcode_h & 0x03ff;
+        uint8_t ogf = opcode_h >> 10;
         BTE_DEBUG("opcode %04x, ogf %02x, ocf %04x\n", opcode, ogf, ocf);
         switch (ogf) {
         case HCI_INFO_PARAM_OGF:
@@ -118,7 +125,8 @@ int _bte_hci_dev_handle_event(BteBuffer *buf)
             handle_host_control(ocf, data + 3, len - 3);
             break;
         }
-        deliver_reply_to_client(buf);
+        deliver_reply_to_client(opcode, buf);
+        break;
     }
     return 0;
 }
