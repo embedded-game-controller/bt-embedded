@@ -73,6 +73,7 @@ void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_SET_EV_MASK_OCF, HCI_HC_BB_OGF, HCI_SET_EV_MASK_PLEN,
         command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
     uint64_t le_mask = htole64(mask);
     memcpy(b->data + HCI_CMD_HDR_LEN, &le_mask, sizeof(le_mask));
     _bte_hci_send_command(b);
@@ -92,6 +93,7 @@ void bte_hci_write_local_name(BteHci *hci, const char *name,
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_LOCAL_NAME_OCF, HCI_HC_BB_OGF, HCI_W_LOCAL_NAME_PLEN,
         command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
     strncpy((char *)b->data + HCI_CMD_HDR_LEN, name, HCI_MAX_NAME_LEN);
     _bte_hci_send_command(b);
 }
@@ -122,6 +124,7 @@ void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_COD_OCF, HCI_HC_BB_OGF, HCI_W_COD_PLEN,
         command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
     memcpy(b->data + HCI_CMD_HDR_LEN, cod, sizeof(*cod));
     _bte_hci_send_command(b);
 }
