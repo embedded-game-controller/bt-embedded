@@ -6,6 +6,8 @@
 
 /* Common **public** types used by the library and its clients */
 
+#define BTE_PACKED __attribute__((packed))
+
 typedef struct bte_buffer_t BteBuffer;
 typedef struct bte_client_t BteClient;
 typedef struct bte_hci_t BteHci;
