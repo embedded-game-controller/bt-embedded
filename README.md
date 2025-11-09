@@ -87,6 +87,23 @@ driver call the `bte_hci_read_local_name()` function, the code to parse the HCI
 "Read Local Name" command result will not be included into the program's
 binary.
 
+### Support for multiple concurrent clients
+
+There might be cases where different parts of a program need to interact with
+the Bluetooth controller for different needs, without knowing of each other;
+for example, in the Nintendo Wii the libogc library communicates with the
+Bluetooth controller to read the Wiimote's data, while other code in the
+application might need Bluetooth for talking to a keyboard. In such cases it's
+important that these different parts of the code don't step onto each other
+feet, which would typically happen if one part of the code registers a callback
+for some HCI event that is also interesting for the other part. BtEmbedded is
+designed to support these use cases: different clients can issue different
+commands at the same time, and the result will be delivered to the correct
+client. In cases where properly delivering concurrent messages is impossible,
+BtEmbedded will return an error to the second client, simulating a situation
+where the HCI controller is busy (clients need to be able to handle this
+situation anyway).
+
 
 ## Compilation
 
