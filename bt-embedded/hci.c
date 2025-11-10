@@ -226,6 +226,31 @@ void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
     _bte_hci_send_command(b);
 }
 
+static void read_local_version_cb(BteHci *hci, BteBuffer *buffer,
+                                  void *client_cb)
+{
+    uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
+
+    BteHciReadLocalVersionReply reply;
+    reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    reply.hci_version = data[0];
+    reply.hci_revision = le16toh(*(uint16_t *)&data[1]);
+    reply.lmp_version = data[3];
+    reply.manufacturer = le16toh(*(uint16_t *)&data[4]);
+    reply.lmp_subversion = le16toh(*(uint16_t *)&data[6]);
+    BteHciReadLocalVersionCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_read_local_version(BteHci *hci,
+                                BteHciReadLocalVersionCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(hci,
+        HCI_R_LOC_VERS_INFO_OCF, HCI_INFO_PARAM_OGF, HCI_R_LOC_VERS_INFO_PLEN,
+        read_local_version_cb, callback);
+    _bte_hci_send_command(b);
+}
+
 static void read_local_features_cb(BteHci *hci, BteBuffer *buffer,
                                    void *client_cb)
 {

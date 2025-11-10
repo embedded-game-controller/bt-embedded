@@ -83,6 +83,20 @@ void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
 
 typedef struct {
     uint8_t status;
+    uint8_t hci_version;
+    uint16_t hci_revision;
+    uint8_t lmp_version;
+    uint16_t manufacturer;
+    uint16_t lmp_subversion;
+} BteHciReadLocalVersionReply;
+
+typedef void (*BteHciReadLocalVersionCb)(
+    BteHci *hci, const BteHciReadLocalVersionReply *reply, void *userdata);
+void bte_hci_read_local_version(BteHci *hci,
+                                BteHciReadLocalVersionCb callback);
+
+typedef struct {
+    uint8_t status;
     BteHciSupportedFeatures features;
 } BteHciReadLocalFeaturesReply;
 
