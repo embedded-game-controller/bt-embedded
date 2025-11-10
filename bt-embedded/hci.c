@@ -164,6 +164,57 @@ void bte_hci_inquiry_cancel(BteHci *hci, BteHciDoneCb callback)
     _bte_hci_send_command(b);
 }
 
+static void periodic_inquiry_event_cb(BteBuffer *buffer, void *cb_data)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+    BteHci *hci = cb_data;
+
+    uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_HDR_LEN;
+    BteHciInquiryReply reply;
+    reply.status = data[0];
+    reply.num_responses = dev->inquiry.num_responses;
+    reply.responses = dev->inquiry.responses;
+
+    hci->inquiry_cb(hci, &reply, hci_userdata(hci));
+    _bte_hci_dev_inquiry_cleanup();
+}
+
+static void periodic_inquiry_complete_cb(BteHci *hci, BteBuffer *buffer,
+                                         void *client_cb)
+{
+    uint8_t status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    if (status == 0) {
+        _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT,
+                                           inquiry_result_cb, hci);
+        _bte_hci_dev_install_event_handler(HCI_INQUIRY_COMPLETE,
+                                           periodic_inquiry_event_cb, hci);
+    }
+    command_complete_cb(hci, buffer, client_cb);
+}
+
+void bte_hci_periodic_inquiry(BteHci *hci,
+                              uint16_t min_period, uint16_t max_period,
+                              uint32_t lap, uint8_t len, uint8_t max_resp,
+                              BteHciDoneCb status_cb, BteHciInquiryCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci,
+        HCI_PERIODIC_INQUIRY_OCF, HCI_LINK_CTRL_OGF, HCI_PERIODIC_INQUIRY_PLEN,
+        periodic_inquiry_complete_cb, status_cb);
+    if (UNLIKELY(!b)) return;
+
+    hci->inquiry_cb = callback;
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    *(uint16_t *)&data[0] = htole16(max_period);
+    *(uint16_t *)&data[2] = htole16(min_period);
+    data[4] = lap & 0xff;
+    data[5] = (lap >> 8) & 0xff;
+    data[6] = (lap >> 16) & 0xff;
+    data[7] = len;
+    data[8] = max_resp;
+    _bte_hci_send_command(b);
+}
+
 void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
                             BteHciDoneCb callback)
 {
