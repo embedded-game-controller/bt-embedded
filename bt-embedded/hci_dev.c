@@ -51,6 +51,31 @@ static BteHciPendingCommand *find_pending_command(uint16_t opcode)
     return NULL;
 }
 
+static void deliver_status_to_client(uint16_t opcode, uint8_t status)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+
+    BTE_DEBUG("%s, %d pending commands, got opcode %02x \n", __func__,
+              dev->num_pending_commands, opcode);
+    BteHciPendingCommand *pc = find_pending_command(opcode);
+    if (LIKELY(pc)) {
+        if (status != 0) {
+            /* The operation failed, no more events will be emitted */
+            bte_buffer_unref(pc->buffer);
+            pc->buffer = NULL;
+            dev->num_pending_commands--;
+
+            /* Invoke the callback with a NULL buffer to signal that the
+             * operation has been canceled */
+            pc->command_cb(pc->hci, NULL, NULL);
+        }
+
+        BteHciReply reply;
+        reply.status = status;
+        pc->client_status_cb(pc->hci, &reply, hci_userdata(pc->hci));
+    }
+}
+
 static void deliver_reply_to_client(uint16_t opcode, BteBuffer *buffer)
 {
     BteHciDev *dev = &_bte_hci_dev;
@@ -143,10 +168,8 @@ int _bte_hci_dev_handle_event(BteBuffer *buf)
     case HCI_COMMAND_STATUS:
         uint8_t status = data[0];
         _bte_hci_dev.num_packets = data[1];
-        if (status != 0) {
-            opcode = *(uint16_t *)(data + 2);
-            deliver_reply_to_client(opcode, buf);
-        }
+        opcode = *(uint16_t *)(data + 2);
+        deliver_status_to_client(opcode, status);
         break;
     }
 
@@ -232,14 +255,15 @@ void _bte_hci_dev_set_status(BteHciInitStatus status)
     }
 }
 
-BteBuffer *_bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
-                                            uint8_t ogf, uint8_t len,
-                                            BteHciCommandCb command_cb,
-                                            void *client_cb)
+BteBuffer *_bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
+                                                  uint8_t ogf, uint8_t len,
+                                                  BteHciCommandCb command_cb,
+                                                  BteHciDoneCb status_cb,
+                                                  void *client_cb)
 {
     BteHciDev *dev = &_bte_hci_dev;
 
-    BteHciDoneCb base_cb = client_cb;
+    BteHciDoneCb base_cb = status_cb ? status_cb : client_cb;
     BteBuffer *buffer = hci_command_alloc(ocf, ogf, len);
     if (UNLIKELY(!buffer ||
                  dev->num_pending_commands >= BTE_HCI_MAX_PENDING_COMMANDS)) {
@@ -278,12 +302,22 @@ BteBuffer *_bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
         pending_command->command_cb = command_cb;
         pending_command->hci = hci;
         pending_command->client_cb = client_cb;
+        pending_command->client_status_cb = status_cb;
         dev->num_pending_commands++;
         return buffer;
     }
 
     /* This should never happen, unless num_pending_commands is wrong */
     return NULL;
+}
+
+BteBuffer *_bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
+                                            uint8_t ogf, uint8_t len,
+                                            BteHciCommandCb command_cb,
+                                            void *client_cb)
+{
+    return _bte_hci_dev_add_pending_async_command(
+        hci, ocf, ogf, len, command_cb, NULL, client_cb);
 }
 
 void _bte_hci_dev_install_event_handler(uint8_t event_code,

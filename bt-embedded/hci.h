@@ -53,6 +53,7 @@ typedef void (*BteHciInquiryCb)(BteHci *hci,
                                 const BteHciInquiryReply *reply,
                                 void *userdata);
 void bte_hci_inquiry(BteHci *hci, uint32_t lap, uint8_t len, uint8_t max_resp,
+                     BteHciDoneCb status_cb,
                      BteHciInquiryCb callback);
 
 /* Controller & baseband commands */

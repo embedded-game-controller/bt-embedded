@@ -56,6 +56,7 @@ typedef struct bte_hci_dev_t {
         BteHciCommandCb command_cb;
         BteHci *hci;
         void *client_cb;
+        BteHciDoneCb client_status_cb; /* Only for async commands */
     } pending_commands[BTE_HCI_MAX_PENDING_COMMANDS];
 
     BteClient *clients[BTE_HCI_MAX_CLIENTS];
@@ -118,6 +119,11 @@ int _bte_hci_dev_handle_event(BteBuffer *buf);
 int _bte_hci_dev_handle_data(BteBuffer *buf);
 
 /* Called by the HCI layer */
+BteBuffer *_bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
+                                                  uint8_t ogf, uint8_t len,
+                                                  BteHciCommandCb command_cb,
+                                                  BteHciDoneCb status_cb,
+                                                  void *client_cb);
 BteBuffer *_bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
                                             uint8_t ogf, uint8_t len,
                                             BteHciCommandCb command_cb,
