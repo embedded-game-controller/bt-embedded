@@ -144,6 +144,7 @@
 
 /* Link Control Commands */
 #define HCI_INQUIRY_PLEN               8
+#define HCI_INQUIRY_CANCEL_PLEN        3
 #define HCI_PERIODIC_INQUIRY_PLEN      12
 #define HCI_EXIT_PERIODIC_INQUIRY_PLEN 3
 #define HCI_CREATE_CONN_PLEN           16

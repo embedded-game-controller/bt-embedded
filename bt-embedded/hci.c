@@ -155,6 +155,15 @@ void bte_hci_inquiry(BteHci *hci, uint32_t lap, uint8_t len, uint8_t max_resp,
     _bte_hci_send_command(b);
 }
 
+void bte_hci_inquiry_cancel(BteHci *hci, BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci,
+        HCI_INQUIRY_CANCEL_OCF, HCI_LINK_CTRL_OGF, HCI_INQUIRY_CANCEL_PLEN,
+        command_complete_cb, callback);
+    _bte_hci_send_command(b);
+}
+
 void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
                             BteHciDoneCb callback)
 {

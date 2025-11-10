@@ -55,6 +55,7 @@ typedef void (*BteHciInquiryCb)(BteHci *hci,
 void bte_hci_inquiry(BteHci *hci, uint32_t lap, uint8_t len, uint8_t max_resp,
                      BteHciDoneCb status_cb,
                      BteHciInquiryCb callback);
+void bte_hci_inquiry_cancel(BteHci *hci, BteHciDoneCb callback);
 
 /* Controller & baseband commands */
 
