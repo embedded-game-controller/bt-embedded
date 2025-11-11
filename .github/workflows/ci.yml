@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - "master"
+
+jobs:
+  build-wii:
+    name: Build for Nintendo Wii
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitppc:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install g++
+        run: sudo apt-get update -y && sudo apt-get install g++ -y
+
+      - name: Configure
+        run: cmake -DCMAKE_TOOLCHAIN_FILE="$DEVKITPRO/cmake/Wii.cmake" -DBUILD_EXAMPLE=ON -S . -B build
+
+      - name: Build
+        run: cmake --build build
+
+  tests:
+    name: Run unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install compiler and dependencies
+        run: |
+          sudo apt-get update -y && sudo apt-get install build-essential cmake \
+            valgrind \
+            lcov
+
+      - name: Configure
+        run: cmake -DBUILD_TESTS=ON -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug -S . -B build
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Tests
+        working-directory: ${{github.workspace}}/build
+        run: ctest -T memcheck
+
+      - name: Collect coverage
+        working-directory: ${{github.workspace}}/build
+        run: make check-code-coverage
+
+      - name: Report code coverage
+        uses: zgosalvez/github-actions-report-lcov@v4
+        with:
+          coverage-files: ${{github.workspace}}/build/*.info
+          minimum-coverage: 1
+          artifact-name: bt-embedded-coverage
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          update-comment: true
