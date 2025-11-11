@@ -3,6 +3,10 @@
 
 #include "buffer.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct bte_backend_t BteBackend;
 
 /* Interface for platform-specific BT backends. */
@@ -18,5 +22,9 @@ struct bte_backend_t {
 };
 
 extern const BteBackend _bte_backend;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

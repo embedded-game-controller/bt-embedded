@@ -1,6 +1,10 @@
 #ifndef BTE_HCI_PROTO_H
 #define BTE_HCI_PROTO_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* HCI packet indicators */
 #define HCI_COMMAND_DATA_PACKET 0x01
 #define HCI_ACL_DATA_PACKET     0x02
@@ -383,5 +387,9 @@
 
 #define BTE_LAP_GIAC 0x009E8B33
 #define BTE_LAP_LIAC 0x009E8B00
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BTE_HCI_PROTO_H */

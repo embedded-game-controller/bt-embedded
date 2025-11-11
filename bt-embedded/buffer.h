@@ -5,9 +5,18 @@
 #include "types.h"
 
 #include <malloc.h>
+#ifdef __cplusplus
+#include <atomic>
+using namespace std;
+#else
 #include <stdatomic.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct bte_buffer_t {
     /* The first members are only used in the head of the linked list, but it's
@@ -31,7 +40,7 @@ struct bte_buffer_t {
 /* Used for small packets (TODO: clarify) */
 static inline BteBuffer *bte_buffer_alloc_contiguous(uint16_t size)
 {
-    BteBuffer *b = bte_malloc(sizeof(BteBuffer) + size);
+    BteBuffer *b = (BteBuffer*)bte_malloc(sizeof(BteBuffer) + size);
     b->ref_count = 1;
     b->free_func = (void (*)(BteBuffer *))free;
     b->total_size = b->size = size;
@@ -98,7 +107,7 @@ static inline bool bte_buffer_writer_write(BteBufferWriter *writer,
 {
     if (size > writer->pos + writer->buffer->total_size) return false;
 
-    const uint8_t *ptr = data;
+    const uint8_t *ptr = (const uint8_t *)data;
     while (size > 0) {
         int write_len = (writer->pos_in_packet + size <= writer->packet->size) ?
             size : (writer->packet->size - writer->pos_in_packet);
@@ -135,7 +144,7 @@ static inline void bte_buffer_reader_init(BteBufferReader *reader,
 static inline uint16_t bte_buffer_reader_read(BteBufferReader *reader,
                                               void *data, uint16_t size)
 {
-    uint8_t *ptr = data;
+    uint8_t *ptr = (uint8_t *)data;
     uint16_t total_read = 0;
     while (size > 0) {
         int read_len = (reader->pos_in_packet + size <= reader->packet->size) ?
@@ -154,5 +163,9 @@ static inline uint16_t bte_buffer_reader_read(BteBufferReader *reader,
     }
     return total_read;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BTE_BUFFER_H */

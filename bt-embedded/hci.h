@@ -4,6 +4,10 @@
 #include "hci_proto.h"
 #include "types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef uint64_t BteHciEventMask;
 
 BteHci *bte_hci_get(BteClient *client);
@@ -132,5 +136,9 @@ typedef void (*BteHciReadBdAddrCb)(BteHci *hci,
                                    const BteHciReadBdAddrReply *reply,
                                    void *userdata);
 void bte_hci_read_bd_addr(BteHci *hci, BteHciReadBdAddrCb callback);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BTE_HCI_H */

@@ -8,6 +8,10 @@
 #include <stdatomic.h>
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef BUILDING_BT_EMBEDDED
 #error "This is not a public header!"
 #endif
@@ -136,5 +140,9 @@ void _bte_hci_dev_install_event_handler(uint8_t event_code,
                                         void *cb_data);
 
 void _bte_hci_dev_inquiry_cleanup(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BTE_INTERNALS_H */
