@@ -11,7 +11,7 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "NintendoWii")
         drivers/wii.c
     )
 else()
-    message(FATAL_ERROR "No available platform backend")
+    message(WARNING "No available platform backend")
 endif()
 
 add_library(bt-embedded STATIC
