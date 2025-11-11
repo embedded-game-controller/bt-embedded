@@ -4,6 +4,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Common **public** types used by the library and its clients */
 
 #define BTE_PACKED __attribute__((packed))
@@ -19,5 +23,9 @@ typedef struct {
 typedef struct {
     uint8_t bytes[3];
 } BteClassOfDevice;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

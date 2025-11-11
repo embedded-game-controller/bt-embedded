@@ -3,6 +3,10 @@
 
 #include "internals.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct bte_driver_t BteDriver;
 
 /* Interface for BT drivers. */
@@ -16,5 +20,9 @@ struct bte_driver_t {
  * designed to support more in the future, should the need arise (for instance,
  * if the BT chip has changed during the lifetime of the platform). */
 extern const BteDriver _bte_driver;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

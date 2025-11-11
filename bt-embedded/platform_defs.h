@@ -1,6 +1,10 @@
 #ifndef BTE_PLATFORM_DEFS_H
 #define BTE_PLATFORM_DEFS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef __wii__
 #  define BTE_BUFFER_ALIGNMENT_SIZE 32
 #endif
@@ -9,6 +13,10 @@
 #  define BTE_BUFFER_ALIGN __attribute__((aligned(BTE_BUFFER_ALIGNMENT_SIZE)))
 #else
 #  define BTE_BUFFER_ALIGN
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* BTE_PLATFORM_DEFS_H */

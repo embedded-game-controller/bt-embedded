@@ -5,6 +5,10 @@
 #include <string.h>
 #include <sys/endian.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef BUILDING_BT_EMBEDDED
 #error "This is not a public header!"
 #endif
@@ -33,5 +37,9 @@
 #define read_le16(ptr) le16toh(*(uint16_t *)(ptr))
 #define read_le32(ptr) le32toh(*(uint32_t *)(ptr))
 #define read_le64(ptr) le64toh(*(uint64_t *)(ptr))
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BTE_UTILS_H */
