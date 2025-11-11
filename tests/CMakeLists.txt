@@ -28,7 +28,22 @@ target_compile_definitions(test_commands PRIVATE
     -DBUILDING_BT_EMBEDDED
 )
 
-include(GoogleTest)
-gtest_discover_tests(
+set(UNIT_TESTS
     test_commands
 )
+include(GoogleTest)
+gtest_discover_tests(${UNIT_TESTS})
+
+if(ENABLE_COVERAGE)
+    include(CodeCoverage)
+    append_coverage_compiler_flags()
+
+    set(COVERAGE_LCOV_INCLUDES "${CMAKE_SOURCE_DIR}/bt-embedded/")
+    setup_target_for_coverage_lcov(
+        NAME check-code-coverage
+        OUTPUT "${PROJECT_NAME}-coverage"
+        TITLE "${PROJECT_NAME} Code Coverage"
+        LCOV_ARGS "--ignore-errors;mismatch"
+        EXECUTABLE ctest
+        DEPENDENCIES ${UNIT_TESTS})
+endif()
