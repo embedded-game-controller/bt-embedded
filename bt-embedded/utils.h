@@ -2,8 +2,12 @@
 #define BTE_UTILS_H
 
 #include <assert.h>
+#ifndef __wii__
+#  include <endian.h>
+#else
+#  include <sys/endian.h>
+#endif
 #include <string.h>
-#include <sys/endian.h>
 
 #ifdef __cplusplus
 extern "C" {
