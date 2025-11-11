@@ -7,10 +7,11 @@ set(BTE_PATCH 0)
 project(
     bt-embedded
     VERSION ${BTE_MAJOR}.${BTE_MINOR}.${BTE_PATCH}
-    LANGUAGES ASM C
+    LANGUAGES ASM C CXX
 )
 
 option(BUILD_EXAMPLE "Build example program" OFF)
+option(BUILD_TESTS "Build and run tests" OFF)
 
 set(CMAKE_C_STANDARD 11)
 
@@ -27,4 +28,9 @@ add_subdirectory(bt-embedded)
 
 if(BUILD_EXAMPLE)
     add_subdirectory(example)
+endif()
+
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
 endif()
