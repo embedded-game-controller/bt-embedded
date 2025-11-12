@@ -23,6 +23,45 @@ Buffer createInquiryResult(const BteBdAddr &address)
     };
 }
 
+TEST(Commands, Nop) {
+    MockBackend backend;
+
+    BteClient *client = bte_client_new();
+    BteHci *hci = bte_hci_get(client);
+
+    void *expectedUserdata = (void*)0xdeadbeef;
+    bte_client_set_userdata(client, expectedUserdata);
+    using StatusCall = std::tuple<BteHci *, BteHciReply, void*>;
+    static std::vector<StatusCall> statusCalls;
+    struct Callbacks {
+        static void statusCb(BteHci *hci, const BteHciReply *reply,
+                             void *userdata) {
+            statusCalls.push_back({hci, *reply, userdata});
+        }
+    };
+
+    bte_hci_nop(hci, &Callbacks::statusCb);
+
+    /* Verify that the expected command was sent */
+    Buffer expectedCommand { 0x0, 0x0, 0 };
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+
+    /* Send a status event */
+    uint8_t status = 0;
+    backend.sendEvent({
+        HCI_COMMAND_COMPLETE, 4,
+        1, // packets
+        0x0, 0x0, // opcode
+        status
+    });
+    bte_handle_events();
+    std::vector<StatusCall> expectedStatusCalls = {
+        {hci, {status}, expectedUserdata}
+    };
+    ASSERT_EQ(statusCalls, expectedStatusCalls);
+    bte_client_unref(client);
+}
+
 TEST(Commands, Inquiry) {
     MockBackend backend;
 
