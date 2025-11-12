@@ -90,3 +90,46 @@ TEST(Commands, Inquiry) {
     };
     bte_client_unref(client);
 }
+
+TEST(Commands, InquiryFailed) {
+    MockBackend backend;
+
+    BteClient *client = bte_client_new();
+    BteHci *hci = bte_hci_get(client);
+
+    static std::vector<BteHciReply> statusCalls;
+    static std::vector<StoredInquiryReply> inquiryCalls;
+    struct Callbacks {
+        static void statusCb(BteHci *hci, const BteHciReply *reply,
+                             void *userdata) {
+            statusCalls.push_back(*reply);
+        }
+        static void inquiryCb(BteHci *hci, const BteHciInquiryReply *reply,
+                              void *userdata) {
+            inquiryCalls.push_back(*reply);
+        }
+    };
+
+    uint32_t requestedLap = 0xaabbcc;
+    uint8_t requestedLen = 4;
+    uint8_t requestedMaxResp = 9;
+
+    bte_hci_inquiry(hci, requestedLap, requestedLen, requestedMaxResp,
+                    &Callbacks::statusCb, &Callbacks::inquiryCb);
+
+    /* Send a status event */
+    uint8_t status = HCI_HW_FAILURE;
+    backend.sendEvent({
+        HCI_COMMAND_STATUS, 4,
+        status,
+        1, // packets
+        0x01, 0x04, // opcode
+    });
+    bte_handle_events();
+    std::vector<BteHciReply> expectedStatusCalls = {{status}};
+    ASSERT_EQ(statusCalls, expectedStatusCalls);
+
+    /* Verify that our callback has not been invoked */
+    ASSERT_EQ(inquiryCalls.size(), 0);
+    bte_client_unref(client);
+}
