@@ -38,12 +38,14 @@ if(ENABLE_COVERAGE)
     include(CodeCoverage)
     append_coverage_compiler_flags()
 
-    set(COVERAGE_LCOV_INCLUDES "${CMAKE_SOURCE_DIR}/bt-embedded/")
-    setup_target_for_coverage_lcov(
+    set(COVERAGE_EXCLUDES
+        "${CMAKE_SOURCE_DIR}/tests/"
+        "${CMAKE_BINARY_DIR}"
+    )
+    setup_target_for_coverage_gcovr_html(
         NAME check-code-coverage
         OUTPUT "${PROJECT_NAME}-coverage"
         TITLE "${PROJECT_NAME} Code Coverage"
-        LCOV_ARGS "--ignore-errors;mismatch"
         EXECUTABLE ctest
         DEPENDENCIES ${UNIT_TESTS})
 endif()
