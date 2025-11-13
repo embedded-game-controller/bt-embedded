@@ -130,6 +130,74 @@ INSTANTIATE_TEST_CASE_P(
     }
 );
 
+struct CommandReaderRow {
+    std::string name;
+    std::function<void(BteHci *hci, void *callback)> invoker;
+    std::vector<uint8_t> expectedCommand;
+    std::vector<uint8_t> eventData;
+    std::vector<uint8_t> expectedReply;
+};
+
+class TestSyncCommandsReader:
+    public testing::TestWithParam<CommandReaderRow>
+{
+};
+
+TEST_P(TestSyncCommandsReader, testReaderCommands) {
+    auto params = GetParam();
+
+    MockBackend backend;
+
+    BteClient *client = bte_client_new();
+    BteHci *hci = bte_hci_get(client);
+
+    void *expectedUserdata = (void*)0xdeadbeef;
+    bte_client_set_userdata(client, expectedUserdata);
+    using StatusCall = std::tuple<BteHci *, std::vector<uint8_t>, void*>;
+    static std::vector<StatusCall> receivedReplies;
+    static size_t replySize = params.expectedReply.size();
+    receivedReplies.clear();
+    struct Callbacks {
+        static void replyCb(BteHci *hci, const uint8_t *reply, void *ud) {
+            std::vector<uint8_t> replyData(replySize);
+            memcpy(replyData.data(), reply, replySize);
+            receivedReplies.push_back({hci, replyData, ud});
+        }
+    };
+
+    params.invoker(hci, (void*)&Callbacks::replyCb);
+
+    /* Verify that the expected command was sent */
+    Buffer expectedCommand{params.expectedCommand};
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+
+    backend.sendEvent(params.eventData);
+    bte_handle_events();
+    std::vector<StatusCall> expectedStatusCalls = {
+        {hci, params.expectedReply, expectedUserdata}
+    };
+    ASSERT_EQ(receivedReplies, expectedStatusCalls);
+    bte_client_unref(client);
+}
+
+static const std::vector<CommandReaderRow> s_commandsReader {
+    {
+        "read_local_name",
+        [](BteHci *hci, void *cb) { bte_hci_read_local_name(hci, (BteHciReadLocalNameCb)cb); },
+        {0x14, 0xc, 0},
+        {HCI_COMMAND_COMPLETE, 4 + 6, 1, 0x14, 0xc, 0, 'A', ' ', 't', 'e', 's', 't'},
+        {0, 'A', ' ', 't', 'e', 's', 't'},
+    },
+};
+INSTANTIATE_TEST_CASE_P(
+    CommandsReader,
+    TestSyncCommandsReader,
+    testing::ValuesIn(s_commandsReader),
+    [](const testing::TestParamInfo<TestSyncCommandsReader::ParamType> &info) {
+      return info.param.name;
+    }
+);
+
 TEST(Commands, Inquiry) {
     MockBackend backend;
 
