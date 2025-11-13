@@ -9,6 +9,8 @@
 class Buffer: public std::vector<uint8_t> {
 public:
     using std::vector<uint8_t>::vector;
+    Buffer(const std::vector<uint8_t> &data):
+        std::vector<uint8_t>(data) {}
     Buffer(BteBuffer *buffer);
 
     BteBuffer *toBuffer(uint16_t max_packet_size = 0) const;

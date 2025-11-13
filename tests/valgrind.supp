@@ -1,0 +1,20 @@
+{
+   google-test-annoyance
+   Memcheck:Cond
+   ...
+   fun:snprintf
+   ...
+   fun:Print
+   ...
+   fun:main
+}
+{
+   google-test-annoyance2
+   Memcheck:Value8
+   ...
+   fun:snprintf
+   ...
+   fun:Print
+   ...
+   fun:main
+}
