@@ -20,6 +20,40 @@ inline bool operator==(const BteHciReadLocalNameReply &a,
         strncmp(a.name, b.name, sizeof(a.name)) == 0;
 }
 
+inline bool operator==(const BteHciReadLocalVersionReply &a,
+                       const BteHciReadLocalVersionReply &b)
+{
+    return a.status == b.status &&
+        a.hci_version == b.hci_version &&
+        a.hci_revision == b.hci_revision &&
+        a.lmp_version == b.lmp_version &&
+        a.manufacturer == b.manufacturer &&
+        a.lmp_subversion == b.lmp_subversion;
+}
+
+inline bool operator==(const BteHciReadLocalFeaturesReply &a,
+                       const BteHciReadLocalFeaturesReply &b)
+{
+    return a.status == b.status && a.features == b.features;
+}
+
+inline bool operator==(const BteHciReadBufferSizeReply &a,
+                       const BteHciReadBufferSizeReply &b)
+{
+    return a.status == b.status &&
+        a.sco_mtu == b.sco_mtu &&
+        a.acl_mtu == b.acl_mtu &&
+        a.sco_max_packets == b.sco_max_packets &&
+        a.acl_max_packets == b.acl_max_packets;
+}
+
+inline bool operator==(const BteHciReadBdAddrReply &a,
+                       const BteHciReadBdAddrReply &b)
+{
+    return a.status == b.status &&
+        memcmp(&a.address, &b.address, sizeof(a.address));
+}
+
 struct StoredInquiryReply {
     StoredInquiryReply(const BteHciInquiryReply &r) {
         status = r.status;

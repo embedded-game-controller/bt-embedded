@@ -176,21 +176,6 @@ private:
     std::vector<ReplyParams> m_replies;
 };
 
-TEST(Commands, testReadLocalName) {
-    GetterInvoker<BteHciReadLocalNameReply> invoker(
-        [](BteHci *hci, BteHciReadLocalNameCb replyCb) {
-            bte_hci_read_local_name(hci, replyCb);
-        },
-        {HCI_COMMAND_COMPLETE, 4 + 6, 1, 0x14, 0xc, 0,
-        'A', ' ', 't', 'e', 's', 't', '\0'});
-
-    Buffer expectedCommand{0x14, 0xc, 0};
-    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
-
-    BteHciReadLocalNameReply expectedReply = { 0, "A test" };
-    ASSERT_EQ(invoker.receivedReply(), expectedReply);
-}
-
 TEST(Commands, Inquiry) {
     MockBackend backend;
 
@@ -301,3 +286,78 @@ TEST(Commands, InquiryFailed) {
     ASSERT_EQ(inquiryCalls.size(), 0);
     bte_client_unref(client);
 }
+
+TEST(Commands, testReadLocalName) {
+    GetterInvoker<BteHciReadLocalNameReply> invoker(
+        [](BteHci *hci, BteHciReadLocalNameCb replyCb) {
+            bte_hci_read_local_name(hci, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 4 + 6, 1, 0x14, 0xc, 0,
+        'A', ' ', 't', 'e', 's', 't', '\0'});
+
+    Buffer expectedCommand{0x14, 0xc, 0};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadLocalNameReply expectedReply = { 0, "A test" };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
+
+TEST(Commands, testReadLocalVersion) {
+    GetterInvoker<BteHciReadLocalVersionReply> invoker(
+        [](BteHci *hci, BteHciReadLocalVersionCb replyCb) {
+            bte_hci_read_local_version(hci, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 4 + 8, 1, 0x1, 0x10, 0,
+        1, 2, 3, 4, 5, 6, 7, 8});
+
+    Buffer expectedCommand{0x1, 0x10, 0};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadLocalVersionReply expectedReply = {
+        0, 0x1, 0x302, 0x4, 0x605, 0x807 };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
+
+TEST(Commands, testReadLocalFeatures) {
+    GetterInvoker<BteHciReadLocalFeaturesReply> invoker(
+        [](BteHci *hci, BteHciReadLocalFeaturesCb replyCb) {
+            bte_hci_read_local_features(hci, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 4 + 8, 1, 0x3, 0x10, 0,
+        1, 2, 3, 4, 5, 6, 7, 8});
+
+    Buffer expectedCommand{0x3, 0x10, 0};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadLocalFeaturesReply expectedReply = { 0, 0x807060504030201 };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
+
+TEST(Commands, testReadBufferSize) {
+    GetterInvoker<BteHciReadBufferSizeReply> invoker(
+        [](BteHci *hci, BteHciReadBufferSizeCb replyCb) {
+            bte_hci_read_buffer_size(hci, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 4 + 7, 1, 0x5, 0x10, 0, 1, 2, 3, 4, 5, 6, 7});
+
+    Buffer expectedCommand{0x5, 0x10, 0};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadBufferSizeReply expectedReply = { 0, 0x3, 0x201, 0x706, 0x504 };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
+
+TEST(Commands, testReadBdAddr) {
+    GetterInvoker<BteHciReadBdAddrReply> invoker(
+        [](BteHci *hci, BteHciReadBdAddrCb replyCb) {
+            bte_hci_read_bd_addr(hci, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 4 + 6, 1, 0x9, 0x10, 0, 1, 2, 3, 4, 5, 6});
+
+    Buffer expectedCommand{0x9, 0x10, 0};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadBdAddrReply expectedReply = { 0, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1 };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
+
