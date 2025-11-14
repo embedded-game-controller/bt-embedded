@@ -285,10 +285,10 @@ static void read_local_version_cb(BteHci *hci, BteBuffer *buffer,
     BteHciReadLocalVersionReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
     reply.hci_version = data[0];
-    reply.hci_revision = le16toh(*(uint16_t *)&data[1]);
+    reply.hci_revision = read_le16(data + 1);
     reply.lmp_version = data[3];
-    reply.manufacturer = le16toh(*(uint16_t *)&data[4]);
-    reply.lmp_subversion = le16toh(*(uint16_t *)&data[6]);
+    reply.manufacturer = read_le16(data + 4);
+    reply.lmp_subversion = read_le16(data + 6);
     BteHciReadLocalVersionCb callback = client_cb;
     callback(hci, &reply, hci_userdata(hci));
 }
