@@ -13,6 +13,13 @@ inline bool operator==(const BteHciReply &a, const BteHciReply &b)
     return a.status == b.status;
 }
 
+inline bool operator==(const BteHciReadLocalNameReply &a,
+                       const BteHciReadLocalNameReply &b)
+{
+    return a.status == b.status &&
+        strncmp(a.name, b.name, sizeof(a.name)) == 0;
+}
+
 struct StoredInquiryReply {
     StoredInquiryReply(const BteHciInquiryReply &r) {
         status = r.status;

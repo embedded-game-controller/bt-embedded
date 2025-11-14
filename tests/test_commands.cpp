@@ -130,73 +130,66 @@ INSTANTIATE_TEST_CASE_P(
     }
 );
 
-struct CommandReaderRow {
-    std::string name;
-    std::function<void(BteHci *hci, void *callback)> invoker;
-    std::vector<uint8_t> expectedCommand;
-    std::vector<uint8_t> eventData;
-    std::vector<uint8_t> expectedReply;
-};
+template <typename ReplyType>
+class GetterInvoker {
+public:
+    typedef void (*ReplyCb)(BteHci *hci,
+                            const ReplyType *reply,
+                            void *userdata);
+    using InvokerCb = std::function<void(BteHci *, ReplyCb replyCb)>;
+    using ReplyParams = std::tuple<BteHci *, ReplyType, void*>;
+    GetterInvoker(const InvokerCb &invoker,
+                  const Buffer &eventData) {
+        BteClient *client = bte_client_new();
+        m_hci = bte_hci_get(client);
 
-class TestSyncCommandsReader:
-    public testing::TestWithParam<CommandReaderRow>
-{
-};
+        void *expectedUserdata = (void*)this;
+        bte_client_set_userdata(client, expectedUserdata);
 
-TEST_P(TestSyncCommandsReader, testReaderCommands) {
-    auto params = GetParam();
+        invoker(m_hci, &GetterInvoker::replyCb);
 
-    MockBackend backend;
-
-    BteClient *client = bte_client_new();
-    BteHci *hci = bte_hci_get(client);
-
-    void *expectedUserdata = (void*)0xdeadbeef;
-    bte_client_set_userdata(client, expectedUserdata);
-    using StatusCall = std::tuple<BteHci *, std::vector<uint8_t>, void*>;
-    static std::vector<StatusCall> receivedReplies;
-    static size_t replySize = params.expectedReply.size();
-    receivedReplies.clear();
-    struct Callbacks {
-        static void replyCb(BteHci *hci, const uint8_t *reply, void *ud) {
-            std::vector<uint8_t> replyData(replySize);
-            memcpy(replyData.data(), reply, replySize);
-            receivedReplies.push_back({hci, replyData, ud});
-        }
-    };
-
-    params.invoker(hci, (void*)&Callbacks::replyCb);
-
-    /* Verify that the expected command was sent */
-    Buffer expectedCommand{params.expectedCommand};
-    ASSERT_EQ(backend.lastCommand(), expectedCommand);
-
-    backend.sendEvent(params.eventData);
-    bte_handle_events();
-    std::vector<StatusCall> expectedStatusCalls = {
-        {hci, params.expectedReply, expectedUserdata}
-    };
-    ASSERT_EQ(receivedReplies, expectedStatusCalls);
-    bte_client_unref(client);
-}
-
-static const std::vector<CommandReaderRow> s_commandsReader {
-    {
-        "read_local_name",
-        [](BteHci *hci, void *cb) { bte_hci_read_local_name(hci, (BteHciReadLocalNameCb)cb); },
-        {0x14, 0xc, 0},
-        {HCI_COMMAND_COMPLETE, 4 + 6, 1, 0x14, 0xc, 0, 'A', ' ', 't', 'e', 's', 't'},
-        {0, 'A', ' ', 't', 'e', 's', 't'},
-    },
-};
-INSTANTIATE_TEST_CASE_P(
-    CommandsReader,
-    TestSyncCommandsReader,
-    testing::ValuesIn(s_commandsReader),
-    [](const testing::TestParamInfo<TestSyncCommandsReader::ParamType> &info) {
-      return info.param.name;
+        m_backend.sendEvent(eventData);
+        bte_handle_events();
     }
-);
+
+    ~GetterInvoker() {
+        BteClient *client = bte_hci_get_client(m_hci);
+        bte_client_unref(client);
+        m_hci = nullptr;
+    }
+
+    Buffer sentCommand() const { return m_backend.lastCommand(); }
+
+    const ReplyType &receivedReply() const {
+        static const ReplyType invalidReply = {0};
+        return m_replies.empty() ? invalidReply : std::get<1>(m_replies.front());
+    }
+
+    static void replyCb(BteHci *hci, const ReplyType *reply, void *userdata) {
+        auto _this = static_cast<GetterInvoker<ReplyType> *>(userdata);
+        _this->m_replies.push_back({hci, *reply, userdata});
+    }
+
+private:
+    MockBackend m_backend;
+    BteHci *m_hci;
+    std::vector<ReplyParams> m_replies;
+};
+
+TEST(Commands, testReadLocalName) {
+    GetterInvoker<BteHciReadLocalNameReply> invoker(
+        [](BteHci *hci, BteHciReadLocalNameCb replyCb) {
+            bte_hci_read_local_name(hci, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 4 + 6, 1, 0x14, 0xc, 0,
+        'A', ' ', 't', 'e', 's', 't', '\0'});
+
+    Buffer expectedCommand{0x14, 0xc, 0};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadLocalNameReply expectedReply = { 0, "A test" };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
 
 TEST(Commands, Inquiry) {
     MockBackend backend;
