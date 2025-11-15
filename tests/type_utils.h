@@ -55,6 +55,8 @@ inline bool operator==(const BteHciReadBdAddrReply &a,
 }
 
 struct StoredInquiryReply {
+    using BteType = BteHciInquiryReply;
+    StoredInquiryReply() = default;
     StoredInquiryReply(const BteHciInquiryReply &r) {
         status = r.status;
         num_responses = r.num_responses;
@@ -62,8 +64,8 @@ struct StoredInquiryReply {
             responses.push_back(r.responses[i]);
         }
     }
-    uint8_t status;
-    uint8_t num_responses;
+    uint8_t status = 0xff;
+    uint8_t num_responses = 0;
     std::vector<BteHciInquiryResponse> responses;
 };
 
