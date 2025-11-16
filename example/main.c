@@ -51,7 +51,7 @@ int main(int argc, char **argv)
     bte_hci_on_initialized(hci, initialized_cb);
 
     while (!quit_requested) {
-        bte_wait_events();
+        bte_wait_events(1000000);
     }
 
     bte_client_unref(client);

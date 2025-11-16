@@ -210,7 +210,7 @@ static int wii_init()
     return 0;
 }
 
-static int wii_handle_events(bool wait_for_events)
+static int wii_handle_events(bool wait_for_events, uint32_t timeout_ms)
 {
     WiiEventQueue queue;
     u32 level;
@@ -232,7 +232,10 @@ static int wii_handle_events(bool wait_for_events)
          *
          * Or maybe the wait condition is stored and can be retrieved later?
          */
-        LWP_CondWait(s_event_cond, s_event_mutex);
+        struct timespec ts;
+        ts.tv_sec = timeout_ms / 1000000;
+        ts.tv_nsec = (timeout_ms % 1000000) * 1000;
+        LWP_CondTimedWait(s_event_cond, s_event_mutex, &ts);
         _CPU_ISR_Disable(level);
         memcpy(&queue, &s_wii_event_queue, sizeof(queue));
         s_wii_event_queue.current_index = 0; /* empty the queue */
