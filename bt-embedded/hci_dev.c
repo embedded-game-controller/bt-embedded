@@ -265,8 +265,10 @@ BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
     if (UNLIKELY(!buffer ||
                  dev->num_pending_commands >= BTE_HCI_MAX_PENDING_COMMANDS)) {
         if (buffer) bte_buffer_unref(buffer);
-        BteHciReply reply = { HCI_MEMORY_FULL };
-        base_cb(hci, &reply, hci_userdata(hci));
+        if (base_cb) {
+            BteHciReply reply = { HCI_MEMORY_FULL };
+            base_cb(hci, &reply, hci_userdata(hci));
+        }
         return NULL;
     }
 
@@ -287,8 +289,10 @@ BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
                  * able to match the reply with the pending command, therefore
                  * we refuse it. */
                 bte_buffer_unref(buffer);
-                BteHciReply reply = { HCI_MEMORY_FULL };
-                base_cb(hci, &reply, hci_userdata(hci));
+                if (base_cb) {
+                    BteHciReply reply = { HCI_MEMORY_FULL };
+                    base_cb(hci, &reply, hci_userdata(hci));
+                }
                 return NULL;
             }
         }
