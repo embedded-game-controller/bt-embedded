@@ -14,6 +14,7 @@
 
 static void command_complete_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
 {
+    if (!client_cb) return;
     BteHciReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
     BteHciDoneCb callback = client_cb;
