@@ -137,6 +137,13 @@ typedef void (*BteHciReadBdAddrCb)(BteHci *hci,
                                    void *userdata);
 void bte_hci_read_bd_addr(BteHci *hci, BteHciReadBdAddrCb callback);
 
+typedef void (*BteHciVendorCommandCb)(BteHci *hci,
+                                      BteBuffer *reply_data,
+                                      void *userdata);
+void bte_hci_vendor_command(BteHci *hci, uint16_t ocf,
+                            const void *data, uint8_t len,
+                            BteHciVendorCommandCb callback);
+
 #ifdef __cplusplus
 }
 #endif

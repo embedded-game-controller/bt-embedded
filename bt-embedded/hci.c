@@ -381,3 +381,21 @@ void bte_hci_read_bd_addr(BteHci *hci, BteHciReadBdAddrCb callback)
         read_bd_addr_cb, callback);
     _bte_hci_send_command(b);
 }
+
+static void vendor_command_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+{
+    BteHciVendorCommandCb callback = client_cb;
+    callback(hci, buffer, hci_userdata(hci));
+}
+
+void bte_hci_vendor_command(BteHci *hci, uint16_t ocf,
+                            const void *data, uint8_t len,
+                            BteHciVendorCommandCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, ocf, HCI_VENDOR_OGF, HCI_CMD_HDR_LEN + len,
+        vendor_command_cb, callback);
+    if (UNLIKELY(!b)) return;
+    memcpy(b->data + HCI_CMD_HDR_LEN, data, len);
+    _bte_hci_send_command(b);
+}
