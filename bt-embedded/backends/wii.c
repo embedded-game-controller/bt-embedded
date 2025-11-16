@@ -6,7 +6,8 @@
 #include <assert.h>
 #include <errno.h>
 #include <ogc/machine/processor.h>
-#include <ogc/semaphore.h>
+#include <ogc/mutex.h>
+#include <ogc/cond.h>
 #include <ogc/system.h>
 #include <ogc/usb.h>
 #include <stdio.h>
@@ -59,7 +60,8 @@ static WiiBufferData *s_wii_buffer_data;
 static WiiEventQueue s_wii_event_queue;
 
 static int s_bt_fd = -1;
-static sem_t s_event_sem = LWP_SEM_NULL;
+static cond_t s_event_cond = LWP_COND_NULL;
+static mutex_t s_event_mutex = LWP_MUTEX_NULL;
 
 static int read_intr();
 static int read_bulk();
@@ -121,7 +123,7 @@ static inline void queue_event(WiiEventType type, BteBuffer *buffer)
     WiiEvent *e = &s_wii_event_queue.events[s_wii_event_queue.current_index++];
     e->type = type;
     e->buffer = buffer;
-    LWP_SemPost(s_event_sem);
+    LWP_CondSignal(s_event_cond);
 }
 
 static s32 read_intr_cb(s32 result, void *userdata)
@@ -192,7 +194,8 @@ static int wii_init()
     BTE_DEBUG("USB_OpenDevice returned %d\n", rc);
     if (rc != USB_OK) return -1;
 
-    LWP_SemInit(&s_event_sem, 0, WII_MAX_EVENTS);
+    LWP_CondInit(&s_event_cond);
+    LWP_MutexInit(&s_event_mutex, false);
 
     s_wii_buffer_intr =
         alloc_usb_buffers(sizeof(WiiBufferIntr) * WII_BUFFER_INTR_COUNT);
@@ -212,23 +215,31 @@ static int wii_handle_events(bool wait_for_events)
     WiiEventQueue queue;
     u32 level;
 
-    u32 count = 0;
-    LWP_SemGetValue(s_event_sem, &count);
-    /* Empty the semaphore */
-    for (int i = 0; i < count; i++) {
-        LWP_SemWait(s_event_sem);
-    }
-    if (wait_for_events && count == 0) {
-        LWP_SemWait(s_event_sem);
-    }
-
+    LWP_MutexLock(s_event_mutex);
+    _CPU_ISR_Disable(level);
     /* Create a copy of the queue to ensure it doesn't get modified while we
      * process it */
-    _CPU_ISR_Disable(level);
     memcpy(&queue, &s_wii_event_queue, sizeof(queue));
     s_wii_event_queue.current_index = 0; /* empty the queue */
     s_wii_event_queue.missed_events = 0;
     _CPU_ISR_Restore(level);
+    if (wait_for_events && queue.current_index == 0) {
+        /* Note that here there is a small risk of a deadlock: if an event is
+         * received right at this point, the interrupt handler will run and
+         * call LWP_CondSignal() before we have called LWP_CondWait()
+         * ourselves, and therefore LWP_Condwait() will wait until the next
+         * event happens (which could be never).
+         *
+         * Or maybe the wait condition is stored and can be retrieved later?
+         */
+        LWP_CondWait(s_event_cond, s_event_mutex);
+        _CPU_ISR_Disable(level);
+        memcpy(&queue, &s_wii_event_queue, sizeof(queue));
+        s_wii_event_queue.current_index = 0; /* empty the queue */
+        s_wii_event_queue.missed_events = 0;
+        _CPU_ISR_Restore(level);
+    }
+    LWP_MutexUnlock(s_event_mutex);
 
     if (UNLIKELY(queue.missed_events > 0)) {
         BTE_WARN("%d events were not reported!", queue.missed_events);
