@@ -111,7 +111,7 @@ static int mock_init()
     return backend->callInit();
 }
 
-static int mock_handle_events(bool wait_for_events)
+static int mock_handle_events(bool wait_for_events, uint32_t timeout_ms)
 {
     MockBackend *backend = MockBackend::instance();
     return backend->sendQueuedBuffers();

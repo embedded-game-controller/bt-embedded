@@ -13,7 +13,7 @@ typedef struct bte_backend_t BteBackend;
 struct bte_backend_t {
     int (*init)(void);
 
-    int (*handle_events)(bool wait_for_events);
+    int (*handle_events)(bool wait_for_events, uint32_t timeout_ms);
 
     int (*hci_send_command)(BteBuffer *buf);
     int (*hci_send_data)(BteBuffer *buf);
