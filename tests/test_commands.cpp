@@ -92,6 +92,13 @@ static const std::vector<CommandNoReplyRow> s_commandsWithNoReply {
         {0x2, 0x4, 0}
     },
     {
+        "exit_periodic_inquiry",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_exit_periodic_inquiry(hci, cb);
+        },
+        {0x4, 0x4, 0}
+    },
+    {
         "set_event_mask",
         [](BteHci *hci, BteHciDoneCb cb) {
             bte_hci_set_event_mask(hci, 0x1122334455667788, cb);

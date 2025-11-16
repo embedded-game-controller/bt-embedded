@@ -233,6 +233,26 @@ void bte_hci_periodic_inquiry(BteHci *hci,
     _bte_hci_send_command(b);
 }
 
+static void exit_periodic_inquiry_cb(BteHci *hci, BteBuffer *buffer,
+                                     void *client_cb)
+{
+    _bte_hci_dev_inquiry_cleanup();
+    _bte_hci_dev_install_event_handler(HCI_INQUIRY_COMPLETE, NULL, NULL);
+    _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT, NULL, NULL);
+    hci->inquiry_cb = NULL;
+    command_complete_cb(hci, buffer, client_cb);
+}
+
+void bte_hci_exit_periodic_inquiry(BteHci *hci, BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci,
+        HCI_EXIT_PERIODIC_INQUIRY_OCF, HCI_LINK_CTRL_OGF,
+        HCI_EXIT_PERIODIC_INQUIRY_PLEN,
+        exit_periodic_inquiry_cb, callback);
+    _bte_hci_send_command(b);
+}
+
 void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
                             BteHciDoneCb callback)
 {

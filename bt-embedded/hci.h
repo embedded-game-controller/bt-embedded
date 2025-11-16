@@ -65,6 +65,7 @@ void bte_hci_periodic_inquiry(BteHci *hci,
                               uint32_t lap, uint8_t len, uint8_t max_resp,
                               BteHciDoneCb status_cb,
                               BteHciInquiryCb callback);
+void bte_hci_exit_periodic_inquiry(BteHci *hci, BteHciDoneCb callback);
 
 /* Controller & baseband commands */
 
