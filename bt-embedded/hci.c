@@ -117,23 +117,36 @@ static void inquiry_result_cb(BteBuffer *buffer, void *cb_data)
     dev->inquiry.num_responses = i_tail;
 }
 
-static void inquiry_complete_cb(BteHci *hci, BteBuffer *buffer,
-                                void *client_cb)
+static void inquiry_event_cb(BteBuffer *buffer, void *cb_data)
 {
     BteHciDev *dev = &_bte_hci_dev;
+    BteHci *hci = cb_data;
     BteHciInquiryReply reply;
 
-    _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT, NULL, NULL);
-    if (buffer) {
-        uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_HDR_LEN;
-        reply.status = data[0];
-        reply.num_responses = dev->inquiry.num_responses;
-        reply.responses = dev->inquiry.responses;
+    uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_HDR_LEN;
+    reply.status = data[0];
+    reply.num_responses = dev->inquiry.num_responses;
+    reply.responses = dev->inquiry.responses;
 
-        BteHciInquiryCb callback = client_cb;
-        callback(hci, &reply, hci_userdata(hci));
-    }
+    BteHciInquiryCb inquiry_cb = hci->inquiry_cb;
+    _bte_hci_dev_install_event_handler(HCI_INQUIRY_COMPLETE, NULL, NULL);
+    _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT, NULL, NULL);
+    hci->inquiry_cb = NULL;
+
+    inquiry_cb(hci, &reply, hci_userdata(hci));
     _bte_hci_dev_inquiry_cleanup();
+}
+
+static void inquiry_status_cb(BteHci *hci, uint8_t status)
+{
+    if (status == 0) {
+        _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT,
+                                           inquiry_result_cb, hci);
+        _bte_hci_dev_install_event_handler(HCI_INQUIRY_COMPLETE,
+                                           inquiry_event_cb, hci);
+    } else {
+        hci->inquiry_cb = NULL;
+    }
 }
 
 void bte_hci_inquiry(BteHci *hci, uint32_t lap, uint8_t len, uint8_t max_resp,
@@ -141,11 +154,10 @@ void bte_hci_inquiry(BteHci *hci, uint32_t lap, uint8_t len, uint8_t max_resp,
 {
     BteBuffer *b = _bte_hci_dev_add_pending_async_command(
         hci, HCI_INQUIRY_OCF, HCI_LINK_CTRL_OGF, HCI_INQUIRY_PLEN,
-        inquiry_complete_cb, status_cb, callback);
+        inquiry_status_cb, status_cb);
     if (UNLIKELY(!b)) return;
 
-    _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT,
-                                       inquiry_result_cb, hci);
+    hci->inquiry_cb = callback;
     uint8_t *data = b->data + HCI_CMD_HDR_LEN;
     data[0] = lap & 0xff;
     data[1] = (lap >> 8) & 0xff;
@@ -188,6 +200,8 @@ static void periodic_inquiry_complete_cb(BteHci *hci, BteBuffer *buffer,
                                            inquiry_result_cb, hci);
         _bte_hci_dev_install_event_handler(HCI_INQUIRY_COMPLETE,
                                            periodic_inquiry_event_cb, hci);
+    } else {
+        hci->inquiry_cb = NULL;
     }
     command_complete_cb(hci, buffer, client_cb);
 }
@@ -197,12 +211,16 @@ void bte_hci_periodic_inquiry(BteHci *hci,
                               uint32_t lap, uint8_t len, uint8_t max_resp,
                               BteHciDoneCb status_cb, BteHciInquiryCb callback)
 {
+    /* The periodic inquiry command does not sent a command status (like the
+     * inquiry command), but a command complete. So we treat it like an
+     * ordinary synchronous command. */
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci,
         HCI_PERIODIC_INQUIRY_OCF, HCI_LINK_CTRL_OGF, HCI_PERIODIC_INQUIRY_PLEN,
         periodic_inquiry_complete_cb, status_cb);
     if (UNLIKELY(!b)) return;
 
+    _bte_hci_dev_inquiry_cleanup();
     hci->inquiry_cb = callback;
     uint8_t *data = b->data + HCI_CMD_HDR_LEN;
     *(uint16_t *)&data[0] = htole16(max_period);

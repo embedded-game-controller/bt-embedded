@@ -59,20 +59,21 @@ static void deliver_status_to_client(uint16_t opcode, uint8_t status)
               dev->num_pending_commands, opcode);
     BteHciPendingCommand *pc = find_pending_command(opcode);
     if (LIKELY(pc)) {
-        if (status != 0) {
-            /* The operation failed, no more events will be emitted */
-            bte_buffer_unref(pc->buffer);
-            pc->buffer = NULL;
-            dev->num_pending_commands--;
+        /* Free the pending command, but before doing it save the data that we
+         * are still using. */
+        BteHci *hci = pc->hci;
+        BteHciCommandStatusCb command_status_cb = pc->command_cb.status;
+        BteHciDoneCb client_status_cb = pc->client_status_cb;
 
-            /* Invoke the callback with a NULL buffer to signal that the
-             * operation has been canceled */
-            pc->command_cb(pc->hci, NULL, NULL);
-        }
+        bte_buffer_unref(pc->buffer);
+        pc->buffer = NULL;
+        dev->num_pending_commands--;
+
+        command_status_cb(hci, status);
 
         BteHciReply reply;
         reply.status = status;
-        pc->client_status_cb(pc->hci, &reply, hci_userdata(pc->hci));
+        client_status_cb(hci, &reply, hci_userdata(hci));
     }
 }
 
@@ -84,11 +85,12 @@ static void deliver_reply_to_client(uint16_t opcode, BteBuffer *buffer)
               dev->num_pending_commands, opcode);
     BteHciPendingCommand *pc = find_pending_command(opcode);
     if (LIKELY(pc)) {
+        BteHciCommandCb command_cb = pc->command_cb.complete;
         bte_buffer_unref(pc->buffer);
         pc->buffer = NULL;
         dev->num_pending_commands--;
 
-        pc->command_cb(pc->hci, buffer, pc->client_cb);
+        command_cb(pc->hci, buffer, pc->client_cb);
     }
 }
 
@@ -143,10 +145,6 @@ int _bte_hci_dev_handle_event(BteBuffer *buf)
     uint8_t *data = buf->data + 2;
     uint16_t opcode;
     switch (code) {
-    case HCI_INQUIRY_COMPLETE:
-        opcode = build_opcode(HCI_INQUIRY_OCF, HCI_LINK_CTRL_OGF);
-        deliver_reply_to_client(opcode, buf);
-        break;
     case HCI_COMMAND_COMPLETE:
         _bte_hci_dev.num_packets = data[0];
         if (len < 3) break;
@@ -255,15 +253,14 @@ void _bte_hci_dev_set_status(BteHciInitStatus status)
     }
 }
 
-BteBuffer *_bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
-                                                  uint8_t ogf, uint8_t len,
-                                                  BteHciCommandCb command_cb,
-                                                  BteHciDoneCb status_cb,
-                                                  void *client_cb)
+BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
+                                    uint8_t ogf, uint8_t len,
+                                    BteHciCommandCbUnion command_cb,
+                                    void *client_cb)
 {
     BteHciDev *dev = &_bte_hci_dev;
 
-    BteHciDoneCb base_cb = status_cb ? status_cb : client_cb;
+    BteHciDoneCb base_cb = client_cb;
     BteBuffer *buffer = hci_command_alloc(ocf, ogf, len);
     if (UNLIKELY(!buffer ||
                  dev->num_pending_commands >= BTE_HCI_MAX_PENDING_COMMANDS)) {
@@ -302,22 +299,12 @@ BteBuffer *_bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
         pending_command->command_cb = command_cb;
         pending_command->hci = hci;
         pending_command->client_cb = client_cb;
-        pending_command->client_status_cb = status_cb;
         dev->num_pending_commands++;
         return buffer;
     }
 
     /* This should never happen, unless num_pending_commands is wrong */
     return NULL;
-}
-
-BteBuffer *_bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
-                                            uint8_t ogf, uint8_t len,
-                                            BteHciCommandCb command_cb,
-                                            void *client_cb)
-{
-    return _bte_hci_dev_add_pending_async_command(
-        hci, ocf, ogf, len, command_cb, NULL, client_cb);
 }
 
 void _bte_hci_dev_install_event_handler(uint8_t event_code,

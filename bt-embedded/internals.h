@@ -42,8 +42,11 @@ typedef enum {
 } BteHciInfo;
 
 typedef struct bte_hci_pending_command_t BteHciPendingCommand;
+typedef union bte_hci_command_cb_u BteHciCommandCbUnion;
+
 typedef void (*BteHciCommandCb)(BteHci *hci, BteBuffer *buffer,
                                 void *client_cb);
+typedef void (*BteHciCommandStatusCb)(BteHci *hci, uint8_t status);
 
 typedef struct bte_hci_event_handler_t BteHciEventHandler;
 typedef void (*BteHciEventHandlerCb)(BteBuffer *buffer, void *cb_data);
@@ -57,10 +60,20 @@ typedef struct bte_hci_dev_t {
         /* When a result is received, we will look at the opcode (and possibly
          * other data) to deliver the reply to the correct client */
         BteBuffer *buffer;
-        BteHciCommandCb command_cb;
+        union bte_hci_command_cb_u {
+            /* This callback is used in sync commands to parse the buffer into
+             * a structured reply for the client. */
+            BteHciCommandCb complete;
+            /* This callback is used to process the Command Status event: it
+             * should deliver the status callback to the client and install any
+             * needed event listeners for the actual command complete event. */
+            BteHciCommandStatusCb status;
+        } command_cb;
         BteHci *hci;
-        void *client_cb;
-        BteHciDoneCb client_status_cb; /* Only for async commands */
+        union {
+            void *client_cb;
+            BteHciDoneCb client_status_cb; /* Only for async commands */
+        };
     } pending_commands[BTE_HCI_MAX_PENDING_COMMANDS];
 
     BteClient *clients[BTE_HCI_MAX_CLIENTS];
@@ -93,7 +106,7 @@ struct bte_client_t {
     struct bte_hci_t {
         BteInitializedCb initialized_cb;
 
-        BteHciInquiryCb inquiry_cb; /* Used for periodic inquiries */
+        BteHciInquiryCb inquiry_cb;
         /* Should we ever start supporting more than one HCI device, we should
          * store a pointer to the HCI device here. AS of now, we have a single
          * HCI device, accessible under the _bte_hci_dev global variable. */
@@ -124,15 +137,34 @@ int _bte_hci_dev_handle_event(BteBuffer *buf);
 int _bte_hci_dev_handle_data(BteBuffer *buf);
 
 /* Called by the HCI layer */
-BteBuffer *_bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
-                                                  uint8_t ogf, uint8_t len,
-                                                  BteHciCommandCb command_cb,
-                                                  BteHciDoneCb status_cb,
-                                                  void *client_cb);
-BteBuffer *_bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
-                                            uint8_t ogf, uint8_t len,
-                                            BteHciCommandCb command_cb,
-                                            void *client_cb);
+BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
+                                    uint8_t ogf, uint8_t len,
+                                    BteHciCommandCbUnion command_cb,
+                                    void *client_cb);
+#ifndef __cplusplus
+static inline BteBuffer *
+_bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
+                                 uint8_t ogf, uint8_t len,
+                                 BteHciCommandCb command_cb,
+                                 void *client_cb)
+{
+    BteHciCommandCbUnion cmd = { .complete = command_cb };
+    return _bte_hci_dev_add_command(hci, ocf, ogf, len,
+                                    cmd, client_cb);
+}
+
+static inline BteBuffer *
+_bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
+                                       uint8_t ogf, uint8_t len,
+                                       BteHciCommandStatusCb command_cb,
+                                       void *client_cb)
+{
+    BteHciCommandCbUnion cmd = { .status = command_cb };
+    return _bte_hci_dev_add_command(hci, ocf, ogf, len,
+                                    cmd, client_cb);
+}
+#endif // __cplusplus
+
 int _bte_hci_send_command(BteBuffer *buffer);
 
 void _bte_hci_dev_install_event_handler(uint8_t event_code,
