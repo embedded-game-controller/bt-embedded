@@ -342,3 +342,50 @@ TEST(Commands, testReadBdAddr) {
     ASSERT_EQ(invoker.receivedReply(), expectedReply);
 }
 
+TEST(Commands, testVendorCommand) {
+    MockBackend backend;
+
+    BteClient *client = bte_client_new();
+    BteHci *hci = bte_hci_get(client);
+
+    void *expectedUserdata = (void*)0xdeadbeef;
+    bte_client_set_userdata(client, expectedUserdata);
+    using DoneCall = std::tuple<BteHci *, Buffer, void *>;
+    static std::vector<DoneCall> doneCalls;
+    struct Callbacks {
+        static void doneCb(BteHci *hci, BteBuffer *reply,
+                           void *userdata) {
+            doneCalls.emplace_back(DoneCall{hci, Buffer(reply), userdata});
+        }
+    };
+
+    uint16_t ocf = 0x123;
+    std::vector<uint8_t> command { 1, 2, 3, 6, 5, 4};
+    bte_hci_vendor_command(hci, ocf, command.data(), command.size(),
+                           &Callbacks::doneCb);
+
+    /* Verify that the expected command was sent */
+    Buffer expectedCommand{
+        0x23, 0xfd, /* opcode */
+        6, /* len */
+        1, 2, 3, 6, 5, 4
+    };
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+
+    /* Send a status event */
+    uint8_t status = 0;
+    std::vector<uint8_t> expectedEvent {
+        HCI_COMMAND_COMPLETE, 4,
+        1, // packets
+        0x23, 0xfd,
+        status
+    };
+    backend.sendEvent(expectedEvent);
+    bte_handle_events();
+    std::vector<DoneCall> expectedDoneCalls = {
+        {hci, Buffer{expectedEvent}, expectedUserdata}
+    };
+    ASSERT_EQ(doneCalls, expectedDoneCalls);
+    bte_client_unref(client);
+}
+
