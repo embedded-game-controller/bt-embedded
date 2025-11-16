@@ -197,6 +197,77 @@ TEST(Commands, InquiryFailed) {
     ASSERT_EQ(invoker.replyCount(), 0);
 }
 
+TEST(Commands, PeriodicInquiry) {
+    uint16_t min_period = 0x1122, max_period = 0x3344;
+    uint32_t requestedLap = 0xaabbcc;
+    uint8_t requestedLen = 4;
+    uint8_t requestedMaxResp = 9;
+    uint8_t status = 0;
+
+    AsyncCommandInvoker<StoredInquiryReply> invoker(
+        [&](BteHci *hci, BteHciDoneCb statusCb, BteHciInquiryCb replyCb) {
+            bte_hci_periodic_inquiry(
+                hci, min_period, max_period,
+                requestedLap, requestedLen, requestedMaxResp,
+                statusCb, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 4, 1, 0x3, 0x4, status});
+
+    /* Verify that the expected command was sent */
+    Buffer expectedCommand {
+        0x03, 0x04, 9, 0x44, 0x33, 0x22, 0x11, 0xcc, 0xbb, 0xaa, requestedLen, requestedMaxResp
+    };
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    std::vector<BteHciReply> expectedStatusCalls = {{status}};
+    ASSERT_EQ(invoker.receivedStatuses(), expectedStatusCalls);
+
+    /* Emit the Inquiry Result events */
+    MockBackend &backend = invoker.backend();
+    std::vector<BteBdAddr> addresses;
+    for (uint8_t i = 0; i < 5; i++) {
+        addresses.emplace_back(BteBdAddr{ 1, 2, 3, 4, 5, uint8_t(6 + i)});
+    };
+    for (const BteBdAddr &address: addresses) {
+        backend.sendEvent(createInquiryResult(address));
+    }
+
+    /* And an inquiry complete */
+    backend.sendEvent({ HCI_INQUIRY_COMPLETE, 1, 0 });
+    bte_handle_events();
+
+    /* Verify that our callback has been invoked */
+    ASSERT_EQ(invoker.replyCount(), 1);
+    const StoredInquiryReply &reply = invoker.receivedReply();
+    ASSERT_EQ(reply.num_responses, addresses.size());
+
+    for (uint8_t i = 0; i < addresses.size(); i++) {
+        ASSERT_EQ(reply.responses[i].address, addresses[i]);
+    };
+
+    /* Emit another round of results */
+    addresses.clear();
+    for (uint8_t i = 0; i < 3; i++) {
+        addresses.emplace_back(BteBdAddr{ 1, 2, 3, 4, 5, uint8_t(6 + i)});
+    };
+    for (const BteBdAddr &address: addresses) {
+        backend.sendEvent(createInquiryResult(address));
+    }
+
+    /* And an inquiry complete */
+    backend.sendEvent({ HCI_INQUIRY_COMPLETE, 1, 0 });
+    bte_handle_events();
+
+    /* Verify that our callback has been invoked */
+    ASSERT_EQ(invoker.replyCount(), 2);
+    const StoredInquiryReply &reply2 = invoker.receivedReply();
+    ASSERT_EQ(reply2.num_responses, addresses.size());
+
+    for (uint8_t i = 0; i < addresses.size(); i++) {
+        ASSERT_EQ(reply2.responses[i].address, addresses[i]);
+    };
+}
+
 TEST(Commands, testReadLocalName) {
     GetterInvoker<BteHciReadLocalNameReply> invoker(
         [](BteHci *hci, BteHciReadLocalNameCb replyCb) {

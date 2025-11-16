@@ -109,7 +109,7 @@ public:
 
     const ReplyType &receivedReply() const {
         static const ReplyType invalidReply;
-        return m_replies.empty() ? invalidReply : std::get<1>(m_replies.front());
+        return m_replies.empty() ? invalidReply : std::get<1>(m_replies.back());
     }
 
     static void statusCb(BteHci *hci, const BteHciReply *reply,

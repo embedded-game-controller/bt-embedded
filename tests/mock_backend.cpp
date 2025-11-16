@@ -100,6 +100,8 @@ int MockBackend::sendQueuedBuffers()
         _bte_hci_dev_handle_data(buffer);
         bte_buffer_unref(buffer);
     }
+    m_queuedEvents.clear();
+    m_queuedData.clear();
     return count;
 }
 
