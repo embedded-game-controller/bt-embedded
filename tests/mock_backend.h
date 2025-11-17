@@ -1,20 +1,14 @@
 #ifndef BTE_MOCK_BACKEND_H
 #define BTE_MOCK_BACKEND_H
 
+#include "bte_cpp.h"
+
 #include "bt-embedded/backend.h"
 
 #include <functional>
 #include <vector>
 
-class Buffer: public std::vector<uint8_t> {
-public:
-    using std::vector<uint8_t>::vector;
-    Buffer(const std::vector<uint8_t> &data):
-        std::vector<uint8_t>(data) {}
-    Buffer(BteBuffer *buffer);
-
-    BteBuffer *toBuffer(uint16_t max_packet_size = 0) const;
-};
+using Buffer = Bte::Buffer;
 
 class MockBackend {
 public:
