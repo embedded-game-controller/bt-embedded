@@ -254,6 +254,11 @@ void bte_hci_exit_periodic_inquiry(BteHci *hci, BteHciDoneCb callback)
     _bte_hci_send_command(b);
 }
 
+void bte_hci_on_link_key_request(BteHci *hci, BteHciLinkKeyRequestCb callback)
+{
+    hci->link_key_request_cb = callback;
+}
+
 void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
                             BteHciDoneCb callback)
 {

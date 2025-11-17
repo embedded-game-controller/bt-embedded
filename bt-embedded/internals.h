@@ -107,6 +107,8 @@ struct bte_client_t {
         BteInitializedCb initialized_cb;
 
         BteHciInquiryCb inquiry_cb;
+        BteHciLinkKeyRequestCb link_key_request_cb;
+
         /* Should we ever start supporting more than one HCI device, we should
          * store a pointer to the HCI device here. AS of now, we have a single
          * HCI device, accessible under the _bte_hci_dev global variable. */

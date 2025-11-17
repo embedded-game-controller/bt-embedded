@@ -67,6 +67,12 @@ void bte_hci_periodic_inquiry(BteHci *hci,
                               BteHciInquiryCb callback);
 void bte_hci_exit_periodic_inquiry(BteHci *hci, BteHciDoneCb callback);
 
+/* Return true if this client will handle the event */
+typedef bool (*BteHciLinkKeyRequestCb)(BteHci *hci,
+                                       const BteBdAddr *address,
+                                       void *userdata);
+void bte_hci_on_link_key_request(BteHci *hci, BteHciLinkKeyRequestCb callback);
+
 /* Controller & baseband commands */
 
 void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
