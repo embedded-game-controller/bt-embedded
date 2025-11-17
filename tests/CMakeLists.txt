@@ -20,6 +20,7 @@ add_executable(test_commands
     dummy_driver.c
     mock_backend.cpp
     test_commands.cpp
+    test_events.cpp
 )
 target_link_libraries(test_commands
     bt-embedded
