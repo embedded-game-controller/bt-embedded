@@ -17,9 +17,24 @@ public:
     using std::vector<uint8_t>::vector;
     Buffer(const std::vector<uint8_t> &data):
         std::vector<uint8_t>(data) {}
+    template <typename T>
+    Buffer(const T &var):
+        std::vector<uint8_t>(sizeof(var)) {
+        memcpy(data(), &var, sizeof(var));
+    }
     Buffer(BteBuffer *buffer);
 
     BteBuffer *toBuffer(uint16_t max_packet_size = 0) const;
+
+    Buffer operator+(const Buffer &other) const {
+        Buffer ret(static_cast<std::vector<uint8_t>>(*this));
+        ret.insert(ret.end(), other.begin(), other.end());
+        return ret;
+    }
+    Buffer &operator+=(const Buffer &other) {
+        insert(end(), other.begin(), other.end());
+        return *this;
+    }
 };
 
 class Client {
