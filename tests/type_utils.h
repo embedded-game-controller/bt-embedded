@@ -13,6 +13,12 @@ inline bool operator==(const BteHciReply &a, const BteHciReply &b)
     return a.status == b.status;
 }
 
+inline bool operator==(const BteHciLinkKeyReqReply &a,
+                       const BteHciLinkKeyReqReply &b)
+{
+    return a.status == b.status && a.address == b.address;
+}
+
 inline bool operator==(const BteHciReadLocalNameReply &a,
                        const BteHciReadLocalNameReply &b)
 {
