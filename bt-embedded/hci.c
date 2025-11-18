@@ -311,6 +311,72 @@ void bte_hci_reset(BteHci *hci, BteHciDoneCb callback)
     _bte_hci_send_command(b);
 }
 
+static void return_link_keys_cb(BteBuffer *buffer, void *cb_data)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+
+    uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_HDR_LEN;
+    int num_responses = data[0];
+    data++;
+
+    ensure_array_size((void**)&dev->stored_keys.responses,
+                      sizeof(BteHciStoredLinkKey), 16,
+                      dev->stored_keys.num_responses, num_responses);
+    if (UNLIKELY(!dev->stored_keys.responses)) return;
+
+    BteHciStoredLinkKey *responses = dev->stored_keys.responses;
+    int i_tail = dev->stored_keys.num_responses;
+    for (int i = 0; i < num_responses; i++) {
+        BteHciStoredLinkKey *r = &responses[i_tail + i];
+        uint8_t *ptr = data;
+        memcpy(&r->address, ptr + sizeof(r->address) * i, sizeof(r->address));
+        ptr += sizeof(r->address) * num_responses;
+        memcpy(&r->key, ptr + sizeof(r->key) * i, sizeof(r->key));
+    }
+    dev->stored_keys.num_responses += num_responses;
+}
+
+static void read_stored_link_key_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+
+    if (client_cb) {
+        BteHciReadStoredLinkKeyReply reply;
+        reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+        uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
+        reply.max_keys = read_le16(data);
+        /* We get the number of keys in this data buffer as well, but it's
+         * better not to trust it and just return the number of responses that
+         * we have actually received. */
+        reply.num_keys = dev->stored_keys.num_responses;
+        reply.stored_keys = dev->stored_keys.responses;
+        BteHciReadStoredLinkKeyCb callback = client_cb;
+        callback(hci, &reply, hci_userdata(hci));
+    }
+
+    _bte_hci_dev_install_event_handler(HCI_RETURN_LINK_KEYS, NULL, NULL);
+    _bte_hci_dev_stored_keys_cleanup();
+}
+
+void bte_hci_read_stored_link_key(BteHci *hci, const BteBdAddr *address,
+                                  BteHciReadStoredLinkKeyCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_R_STORED_LINK_KEY_OCF, HCI_HC_BB_OGF,
+        HCI_R_STORED_LINK_KEY_PLEN, read_stored_link_key_cb, callback);
+    if (UNLIKELY(!b)) return;
+
+    _bte_hci_dev_stored_keys_cleanup();
+    _bte_hci_dev_install_event_handler(HCI_RETURN_LINK_KEYS,
+                                       return_link_keys_cb, hci);
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    if (address) {
+        memcpy(data, address, sizeof(*address));
+    }
+    data[6] = address ? 0 : 1;
+    _bte_hci_send_command(b);
+}
+
 void bte_hci_write_local_name(BteHci *hci, const char *name,
                               BteHciDoneCb callback)
 {
