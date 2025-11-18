@@ -92,6 +92,12 @@ typedef struct bte_hci_dev_t {
         BteHciInquiryResponse *responses;
     } inquiry;
 
+    /* Ongoing reading of stored link keys */
+    struct bte_hci_stored_keys_t {
+        uint8_t num_responses;
+        BteHciStoredLinkKey *responses;
+    } stored_keys;
+
     /* We use the 0-index element for vendor-specific events */
     struct bte_hci_event_handler_t {
         BteHciEventHandlerCb handler_cb;
@@ -174,6 +180,7 @@ void _bte_hci_dev_install_event_handler(uint8_t event_code,
                                         void *cb_data);
 
 void _bte_hci_dev_inquiry_cleanup(void);
+void _bte_hci_dev_stored_keys_cleanup(void);
 
 #ifdef __cplusplus
 }

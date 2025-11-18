@@ -354,3 +354,11 @@ void _bte_hci_dev_inquiry_cleanup(void)
     dev->inquiry.responses = NULL;
     dev->inquiry.num_responses = 0;
 }
+
+void _bte_hci_dev_stored_keys_cleanup(void)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+    free(dev->stored_keys.responses);
+    dev->stored_keys.responses = NULL;
+    dev->stored_keys.num_responses = 0;
+}

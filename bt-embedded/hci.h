@@ -93,6 +93,23 @@ void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
                             BteHciDoneCb callback);
 void bte_hci_reset(BteHci *hci, BteHciDoneCb callback);
 
+typedef struct {
+    BteBdAddr address;
+    BteLinkKey key;
+} BTE_PACKED BteHciStoredLinkKey;
+
+typedef struct {
+    uint8_t status;
+    uint16_t max_keys;
+    uint16_t num_keys;
+    const BteHciStoredLinkKey *stored_keys;
+} BteHciReadStoredLinkKeyReply;
+
+typedef void (*BteHciReadStoredLinkKeyCb)(
+    BteHci *hci, const BteHciReadStoredLinkKeyReply *reply, void *userdata);
+void bte_hci_read_stored_link_key(BteHci *hci, const BteBdAddr *address,
+                                  BteHciReadStoredLinkKeyCb callback);
+
 void bte_hci_write_local_name(BteHci *hci, const char *name,
                               BteHciDoneCb callback);
 

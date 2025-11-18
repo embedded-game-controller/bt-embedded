@@ -6,6 +6,7 @@
 #include "bt-embedded/hci.h"
 
 #include <functional>
+#include <span>
 #include <string>
 
 /* C++ wrapper for the bt-embedded API. Used for testing, but we might make it
@@ -124,6 +125,25 @@ public:
             bte_hci_reset(m_hci, &Hci::Callbacks::reset);
         }
 
+        struct ReadStoredLinkKeyReply {
+            uint8_t status;
+            uint16_t max_keys;
+            std::span<const BteHciStoredLinkKey> stored_keys;
+        };
+        using ReadStoredLinkKeyCb =
+            std::function<void(const ReadStoredLinkKeyReply &)>;
+        void readStoredLinkKey(const BteBdAddr &address,
+                               const ReadStoredLinkKeyCb &cb) {
+            m_readStoredLinkKeyCb = cb;
+            bte_hci_read_stored_link_key(m_hci, &address,
+                                         &Hci::Callbacks::readStoredLinkKey);
+        }
+        void readStoredLinkKey(const ReadStoredLinkKeyCb &cb) {
+            m_readStoredLinkKeyCb = cb;
+            bte_hci_read_stored_link_key(m_hci, nullptr,
+                                         &Hci::Callbacks::readStoredLinkKey);
+        }
+
         void writeLocalName(const std::string &name, const DoneCb &cb) {
             m_writeLocalNameCb = cb;
             bte_hci_write_local_name(m_hci, name.c_str(),
@@ -233,6 +253,13 @@ public:
                               void *cb_data) {
                 _this(cb_data)->m_resetCb(*reply);
             }
+            static void readStoredLinkKey(BteHci *hci,
+                const BteHciReadStoredLinkKeyReply *reply, void *cb_data) {
+                _this(cb_data)->m_readStoredLinkKeyCb({
+                    reply->status, reply->max_keys,
+                    {reply->stored_keys, reply->num_keys},
+                });
+            }
             static void writeLocalName(BteHci *hci, const BteHciReply *reply,
                                        void *cb_data) {
                 _this(cb_data)->m_writeLocalNameCb(*reply);
@@ -282,6 +309,7 @@ public:
         LinkKeyReqReplyCb m_linkKeyReqNegReplyCb;
         DoneCb m_setEventMaskCb;
         DoneCb m_resetCb;
+        ReadStoredLinkKeyCb m_readStoredLinkKeyCb;
         DoneCb m_writeLocalNameCb;
         ReadLocalNameCb m_readLocalNameCb;
         DoneCb m_writeClassOfDevice;
