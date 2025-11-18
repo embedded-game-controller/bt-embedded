@@ -275,6 +275,60 @@ TEST(Commands, PeriodicInquiry) {
     };
 }
 
+TEST(Commands, testLinkKeyReqReply) {
+    MockBackend backend;
+    Bte::Client client;
+    auto &hci = client.hci();
+
+    BteBdAddr address = {1, 2, 3, 4, 5, 6};
+    BteLinkKey key = {4, 3, 2, 1, 8, 7, 6, 5, 9, 10, 11, 12, 13, 14, 15, 16};
+    std::vector<BteHciLinkKeyReqReply> replies;
+    hci.linkKeyReqReply(address, key, [&](const BteHciLinkKeyReqReply &r) {
+        replies.push_back(r);
+    });
+
+    Buffer expectedCommand{0xb, 0x4, 22};
+    expectedCommand += address;
+    expectedCommand += key;
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+
+    uint8_t status = 0;
+    backend.sendEvent(Buffer{HCI_COMMAND_COMPLETE, 10, 1, 0xb, 0x4, status} +
+                      address);
+    bte_handle_events();
+
+    std::vector<BteHciLinkKeyReqReply> expectedReplies = {
+        { status, address },
+    };
+    ASSERT_EQ(replies, expectedReplies);
+}
+
+TEST(Commands, testLinkKeyReqNegReply) {
+    MockBackend backend;
+    Bte::Client client;
+    auto &hci = client.hci();
+
+    BteBdAddr address = {1, 2, 3, 4, 5, 6};
+    std::vector<BteHciLinkKeyReqReply> replies;
+    hci.linkKeyReqNegReply(address, [&](const BteHciLinkKeyReqReply &r) {
+        replies.push_back(r);
+    });
+
+    Buffer expectedCommand{0xc, 0x4, 6};
+    expectedCommand += address;
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+
+    uint8_t status = 0;
+    backend.sendEvent(Buffer{HCI_COMMAND_COMPLETE, 10, 1, 0xc, 0x4, status} +
+                      address);
+    bte_handle_events();
+
+    std::vector<BteHciLinkKeyReqReply> expectedReplies = {
+        { status, address },
+    };
+    ASSERT_EQ(replies, expectedReplies);
+}
+
 TEST(Commands, testReadLocalName) {
     GetterInvoker<BteHciReadLocalNameReply> invoker(
         [](BteHci *hci, BteHciReadLocalNameCb replyCb) {
