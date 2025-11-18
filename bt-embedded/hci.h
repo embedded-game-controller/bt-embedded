@@ -73,6 +73,20 @@ typedef bool (*BteHciLinkKeyRequestCb)(BteHci *hci,
                                        void *userdata);
 void bte_hci_on_link_key_request(BteHci *hci, BteHciLinkKeyRequestCb callback);
 
+typedef struct {
+    uint8_t status;
+    BteBdAddr address;
+} BteHciLinkKeyReqReply;
+
+typedef void (*BteHciLinkKeyReqReplyCb)(BteHci *hci,
+                                        const BteHciLinkKeyReqReply *reply,
+                                        void *userdata);
+void bte_hci_link_key_req_reply(BteHci *hci, const BteBdAddr *address,
+                                const BteLinkKey *key,
+                                BteHciLinkKeyReqReplyCb callback);
+void bte_hci_link_key_req_neg_reply(BteHci *hci, const BteBdAddr *address,
+                                    BteHciLinkKeyReqReplyCb callback);
+
 /* Controller & baseband commands */
 
 void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,

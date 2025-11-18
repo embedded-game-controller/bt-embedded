@@ -259,6 +259,44 @@ void bte_hci_on_link_key_request(BteHci *hci, BteHciLinkKeyRequestCb callback)
     hci->link_key_request_cb = callback;
 }
 
+static void link_key_req_reply_cb(BteHci *hci, BteBuffer *buffer,
+                                  void *client_cb)
+{
+    if (!client_cb) return;
+    BteHciLinkKeyReqReply reply;
+    reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    memcpy(&reply.address, buffer->data + HCI_CMD_REPLY_POS_DATA,
+           sizeof(reply.address));
+    BteHciLinkKeyReqReplyCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_link_key_req_reply(BteHci *hci, const BteBdAddr *address,
+                                const BteLinkKey *key,
+                                BteHciLinkKeyReqReplyCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_LINK_KEY_REQ_REP_OCF, HCI_LINK_CTRL_OGF,
+        HCI_LINK_KEY_REQ_REP_PLEN,
+        link_key_req_reply_cb, callback);
+    if (UNLIKELY(!b)) return;
+    memcpy(b->data + HCI_CMD_HDR_LEN, address, sizeof(*address));
+    memcpy(b->data + HCI_CMD_HDR_LEN + sizeof(*address), key, sizeof(*key));
+    _bte_hci_send_command(b);
+}
+
+void bte_hci_link_key_req_neg_reply(BteHci *hci, const BteBdAddr *address,
+                                    BteHciLinkKeyReqReplyCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_LINK_KEY_REQ_NEG_REP_OCF, HCI_LINK_CTRL_OGF,
+        HCI_LINK_KEY_REQ_NEG_REP_PLEN,
+        link_key_req_reply_cb, callback);
+    if (UNLIKELY(!b)) return;
+    memcpy(b->data + HCI_CMD_HDR_LEN, address, sizeof(*address));
+    _bte_hci_send_command(b);
+}
+
 void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
                             BteHciDoneCb callback)
 {

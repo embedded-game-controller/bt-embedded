@@ -83,6 +83,22 @@ public:
             bte_hci_on_link_key_request(m_hci, &Hci::Callbacks::linkKeyRequest);
         }
 
+        using LinkKeyReqReplyCb =
+            std::function<void(const BteHciLinkKeyReqReply &)>;
+        void linkKeyReqReply(const BteBdAddr &address, const BteLinkKey &key,
+                             const LinkKeyReqReplyCb &cb) {
+            m_linkKeyReqReplyCb = cb;
+            bte_hci_link_key_req_reply(m_hci, &address, &key,
+                                       &Hci::Callbacks::linkKeyReqReply);
+        }
+
+        void linkKeyReqNegReply(const BteBdAddr &address,
+                                const LinkKeyReqReplyCb &cb) {
+            m_linkKeyReqNegReplyCb = cb;
+            bte_hci_link_key_req_neg_reply(m_hci, &address,
+                                           &Hci::Callbacks::linkKeyReqNegReply);
+        }
+
         void setEventMask(BteHciEventMask mask, const DoneCb &cb) {
             m_setEventMaskCb = cb;
             bte_hci_set_event_mask(m_hci, mask, &Hci::Callbacks::setEventMask);
@@ -184,6 +200,16 @@ public:
                                        void *cb_data) {
                 return _this(cb_data)->m_linkKeyRequestCb(*address);
             }
+            static void linkKeyReqReply(BteHci *hci,
+                                        const BteHciLinkKeyReqReply *reply,
+                                        void *cb_data) {
+                _this(cb_data)->m_linkKeyReqReplyCb(*reply);
+            }
+            static void linkKeyReqNegReply(BteHci *hci,
+                                           const BteHciLinkKeyReqReply *reply,
+                                           void *cb_data) {
+                _this(cb_data)->m_linkKeyReqNegReplyCb(*reply);
+            }
             static void setEventMask(BteHci *hci, const BteHciReply *reply,
                                      void *cb_data) {
                 _this(cb_data)->m_setEventMaskCb(*reply);
@@ -237,6 +263,8 @@ public:
         DoneCb m_inquiryCancelCb;
         DoneCb m_exitPeriodicInquiryCb;
         LinkKeyRequestCb m_linkKeyRequestCb;
+        LinkKeyReqReplyCb m_linkKeyReqReplyCb;
+        LinkKeyReqReplyCb m_linkKeyReqNegReplyCb;
         DoneCb m_setEventMaskCb;
         DoneCb m_resetCb;
         DoneCb m_writeLocalNameCb;

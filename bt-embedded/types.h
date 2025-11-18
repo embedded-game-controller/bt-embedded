@@ -24,6 +24,10 @@ typedef struct {
     uint8_t bytes[3];
 } BteClassOfDevice;
 
+typedef struct {
+    uint8_t bytes[16];
+} BteLinkKey;
+
 #ifdef __cplusplus
 }
 #endif
