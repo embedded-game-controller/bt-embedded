@@ -7,6 +7,7 @@
 #else
 #  include <sys/endian.h>
 #endif
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef __cplusplus
@@ -41,6 +42,21 @@ extern "C" {
 #define read_le16(ptr) le16toh(*(uint16_t *)(ptr))
 #define read_le32(ptr) le32toh(*(uint32_t *)(ptr))
 #define read_le64(ptr) le64toh(*(uint64_t *)(ptr))
+
+static inline void ensure_array_size(void **ptr, size_t elem_size,
+                                     int elem_per_block,
+                                     int num_elem_curr, int num_elem_added)
+{
+    int allocated_blocks =
+        (num_elem_curr + elem_per_block - 1) / elem_per_block;
+    int needed_blocks =
+        (num_elem_curr + num_elem_added + elem_per_block - 1) / elem_per_block;
+    if (needed_blocks > allocated_blocks) {
+        /* Allocate more blocks */
+        int n = needed_blocks * elem_per_block;
+        *ptr = realloc(*ptr, n * elem_size);
+    }
+}
 
 #ifdef __cplusplus
 }
