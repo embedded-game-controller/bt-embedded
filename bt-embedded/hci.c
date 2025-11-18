@@ -77,16 +77,10 @@ static void inquiry_result_cb(BteBuffer *buffer, void *cb_data)
     int num_responses = data[0];
     data++;
 
-    int allocated_blocks = (dev->inquiry.num_responses + 31) / 32;
-    int needed_blocks =
-        (dev->inquiry.num_responses + num_responses + 31) / 32;
-    if (needed_blocks > allocated_blocks) {
-        /* Allocate one more chunk of responses */
-        int n = needed_blocks * 32;
-        dev->inquiry.responses =
-            realloc(dev->inquiry.responses, sizeof(BteHciInquiryResponse) * n);
-        if (UNLIKELY(!dev->inquiry.responses)) return;
-    }
+    ensure_array_size((void**)&dev->inquiry.responses,
+                      sizeof(BteHciInquiryResponse), 32,
+                      dev->inquiry.num_responses, num_responses);
+    if (UNLIKELY(!dev->inquiry.responses)) return;
 
     BteHciInquiryResponse *responses = dev->inquiry.responses;
     int i_tail = dev->inquiry.num_responses;
