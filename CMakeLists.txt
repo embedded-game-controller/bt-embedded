@@ -16,6 +16,7 @@ option(BUILD_TESTS "Build and run tests" OFF)
 option(ENABLE_COVERAGE "Enable code coverage rules" OFF)
 
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 20)
 
 add_compile_options(
     ${ARCH}

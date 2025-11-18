@@ -3,6 +3,9 @@
 
 #include "bt-embedded/hci.h"
 
+#include <algorithm>
+#include <ranges>
+
 inline bool operator==(const BteBdAddr &a, const BteBdAddr &b)
 {
     return memcmp(a.bytes, b.bytes, sizeof(a.bytes)) == 0;
@@ -18,6 +21,22 @@ inline bool operator==(const BteHciLinkKeyReqReply &a,
 {
     return a.status == b.status && a.address == b.address;
 }
+
+inline bool operator==(const BteHciStoredLinkKey &a,
+                       const BteHciStoredLinkKey &b)
+{
+    return memcmp(&a.address, &b.address, sizeof(a.address)) == 0 &&
+        memcmp(&a.key, &b.key, sizeof(a.key)) == 0;
+}
+
+namespace Bte {
+inline bool operator==(const Client::Hci::ReadStoredLinkKeyReply &a,
+                       const Client::Hci::ReadStoredLinkKeyReply &b)
+{
+    return a.status == b.status && a.max_keys == b.max_keys &&
+        std::ranges::equal(a.stored_keys, b.stored_keys);
+}
+} /* namespace Bte */
 
 inline bool operator==(const BteHciReadLocalNameReply &a,
                        const BteHciReadLocalNameReply &b)
@@ -82,5 +101,31 @@ inline bool operator==(const BteHciInquiryReply &a, const BteHciInquiryReply &b)
         memcmp(a.responses, b.responses,
                sizeof(BteHciInquiryResponse) * a.num_responses) == 0;
 }
+
+namespace StoredTypes {
+
+struct ReadStoredLinkKeyReply {
+    ReadStoredLinkKeyReply(const Bte::Client::Hci::ReadStoredLinkKeyReply &r):
+        status(r.status),
+        max_keys(r.max_keys)
+    {
+        stored_keys.assign(r.stored_keys.begin(), r.stored_keys.end());
+    }
+    ReadStoredLinkKeyReply(uint8_t status, uint16_t max_keys,
+                           const std::vector<BteHciStoredLinkKey> &stored_keys):
+        status(status), max_keys(max_keys), stored_keys(stored_keys) {}
+
+    uint8_t status;
+    uint16_t max_keys;
+    std::vector<BteHciStoredLinkKey> stored_keys;
+};
+
+inline bool operator==(const ReadStoredLinkKeyReply &a,
+                       const ReadStoredLinkKeyReply &b) {
+    return a.status == b.status && a.max_keys == b.max_keys &&
+        a.stored_keys == b.stored_keys;
+}
+
+} /* namespace StoredTypes */
 
 #endif /* BTE_TEST_TYPE_UTILS_H */
