@@ -5,6 +5,7 @@
 #include "bt-embedded/bte.h"
 #include "bt-embedded/hci.h"
 
+#include <cstring>
 #include <functional>
 #include <span>
 #include <string>
