@@ -87,6 +87,26 @@ void bte_hci_link_key_req_reply(BteHci *hci, const BteBdAddr *address,
 void bte_hci_link_key_req_neg_reply(BteHci *hci, const BteBdAddr *address,
                                     BteHciLinkKeyReqReplyCb callback);
 
+/* Return true if this client will handle the event */
+typedef bool (*BteHciPinCodeRequestCb)(BteHci *hci,
+                                       const BteBdAddr *address,
+                                       void *userdata);
+void bte_hci_on_pin_code_request(BteHci *hci, BteHciPinCodeRequestCb callback);
+
+typedef struct {
+    uint8_t status;
+    BteBdAddr address;
+} BteHciPinCodeReqReply;
+
+typedef void (*BteHciPinCodeReqReplyCb)(BteHci *hci,
+                                        const BteHciPinCodeReqReply *reply,
+                                        void *userdata);
+void bte_hci_pin_code_req_reply(BteHci *hci, const BteBdAddr *address,
+                                const uint8_t *pin, uint8_t len,
+                                BteHciPinCodeReqReplyCb callback);
+void bte_hci_pin_code_req_neg_reply(BteHci *hci, const BteBdAddr *address,
+                                    BteHciPinCodeReqReplyCb callback);
+
 /* Controller & baseband commands */
 
 void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
