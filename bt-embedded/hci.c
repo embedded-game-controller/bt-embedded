@@ -310,6 +310,57 @@ void bte_hci_link_key_req_neg_reply(BteHci *hci, const BteBdAddr *address,
     _bte_hci_send_command(b);
 }
 
+static bool client_handle_pin_code_request(BteHci *hci, void *cb_data)
+{
+    const BteBdAddr *address = cb_data;
+    return hci->pin_code_request_cb &&
+        hci->pin_code_request_cb(hci, address, hci_userdata(hci));
+}
+
+static void pin_code_request_event_cb(BteBuffer *buffer, void *cb_data)
+{
+    uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
+    _bte_hci_dev_foreach_hci_client(client_handle_pin_code_request, data);
+}
+
+void bte_hci_on_pin_code_request(BteHci *hci, BteHciPinCodeRequestCb callback)
+{
+    hci->pin_code_request_cb = callback;
+    _bte_hci_dev_install_event_handler(HCI_PIN_CODE_REQUEST,
+                                       pin_code_request_event_cb, NULL);
+}
+
+void bte_hci_pin_code_req_reply(BteHci *hci, const BteBdAddr *address,
+                                const uint8_t *pin, uint8_t len,
+                                BteHciPinCodeReqReplyCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_PIN_CODE_REQ_REP_OCF, HCI_LINK_CTRL_OGF,
+        HCI_PIN_CODE_REQ_REP_PLEN,
+        /* Reuse the callback for the link key, since the code is the same */
+        link_key_req_reply_cb, callback);
+    if (UNLIKELY(!b)) return;
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    memcpy(data, address, sizeof(*address));
+    data += sizeof(*address);
+    data[0] = len; data++;
+    memcpy(data, pin, len);
+    data[len] = 0; /* Just to be on the safe side */
+    _bte_hci_send_command(b);
+}
+
+void bte_hci_pin_code_req_neg_reply(BteHci *hci, const BteBdAddr *address,
+                                    BteHciPinCodeReqReplyCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_PIN_CODE_REQ_NEG_REP_OCF, HCI_LINK_CTRL_OGF,
+        HCI_PIN_CODE_REQ_NEG_REP_PLEN,
+        link_key_req_reply_cb, callback);
+    if (UNLIKELY(!b)) return;
+    memcpy(b->data + HCI_CMD_HDR_LEN, address, sizeof(*address));
+    _bte_hci_send_command(b);
+}
+
 void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
                             BteHciDoneCb callback)
 {

@@ -116,6 +116,29 @@ public:
                                            &Hci::Callbacks::linkKeyReqNegReply);
         }
 
+        using PinCodeRequestCb = std::function<bool(const BteBdAddr &address)>;
+        void onPinCodeRequest(const PinCodeRequestCb &cb) {
+            m_pinCodeRequestCb = cb;
+            bte_hci_on_pin_code_request(m_hci, &Hci::Callbacks::pinCodeRequest);
+        }
+
+        using PinCodeReqReplyCb =
+            std::function<void(const BteHciPinCodeReqReply &)>;
+        using PinCode = std::span<const uint8_t>;
+        void pinCodeReqReply(const BteBdAddr &address, const PinCode &pin,
+                             const PinCodeReqReplyCb &cb) {
+            m_pinCodeReqReplyCb = cb;
+            bte_hci_pin_code_req_reply(m_hci, &address, pin.data(), pin.size(),
+                                       &Hci::Callbacks::pinCodeReqReply);
+        }
+
+        void pinCodeReqNegReply(const BteBdAddr &address,
+                                const PinCodeReqReplyCb &cb) {
+            m_pinCodeReqNegReplyCb = cb;
+            bte_hci_pin_code_req_neg_reply(m_hci, &address,
+                                           &Hci::Callbacks::pinCodeReqNegReply);
+        }
+
         void setEventMask(BteHciEventMask mask, const DoneCb &cb) {
             m_setEventMaskCb = cb;
             bte_hci_set_event_mask(m_hci, mask, &Hci::Callbacks::setEventMask);
@@ -270,6 +293,20 @@ public:
                                            void *cb_data) {
                 _this(cb_data)->m_linkKeyReqNegReplyCb(*reply);
             }
+            static bool pinCodeRequest(BteHci *hci, const BteBdAddr *address,
+                                       void *cb_data) {
+                return _this(cb_data)->m_pinCodeRequestCb(*address);
+            }
+            static void pinCodeReqReply(BteHci *hci,
+                                        const BteHciPinCodeReqReply *reply,
+                                        void *cb_data) {
+                _this(cb_data)->m_pinCodeReqReplyCb(*reply);
+            }
+            static void pinCodeReqNegReply(BteHci *hci,
+                                           const BteHciPinCodeReqReply *reply,
+                                           void *cb_data) {
+                _this(cb_data)->m_pinCodeReqNegReplyCb(*reply);
+            }
             static void setEventMask(BteHci *hci, const BteHciReply *reply,
                                      void *cb_data) {
                 _this(cb_data)->m_setEventMaskCb(*reply);
@@ -342,6 +379,9 @@ public:
         LinkKeyRequestCb m_linkKeyRequestCb;
         LinkKeyReqReplyCb m_linkKeyReqReplyCb;
         LinkKeyReqReplyCb m_linkKeyReqNegReplyCb;
+        PinCodeRequestCb m_pinCodeRequestCb;
+        PinCodeReqReplyCb m_pinCodeReqReplyCb;
+        PinCodeReqReplyCb m_pinCodeReqNegReplyCb;
         DoneCb m_setEventMaskCb;
         DoneCb m_resetCb;
         ReadStoredLinkKeyCb m_readStoredLinkKeyCb;
