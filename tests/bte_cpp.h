@@ -145,6 +145,30 @@ public:
                                          &Hci::Callbacks::readStoredLinkKey);
         }
 
+        using WriteStoredLinkKeyCb =
+            std::function<void(const BteHciWriteStoredLinkKeyReply &)>;
+        void writeStoredLinkKey(
+            const std::span<const BteHciStoredLinkKey> &keys,
+            const WriteStoredLinkKeyCb &cb) {
+            m_writeStoredLinkKeyCb = cb;
+            bte_hci_write_stored_link_key(m_hci, keys.size(), keys.data(),
+                                          &Hci::Callbacks::writeStoredLinkKey);
+        }
+
+        using DeleteStoredLinkKeyCb =
+            std::function<void(const BteHciDeleteStoredLinkKeyReply &)>;
+        void deleteStoredLinkKey(const BteBdAddr &address,
+                                 const DeleteStoredLinkKeyCb &cb) {
+            m_deleteStoredLinkKeyCb = cb;
+            bte_hci_delete_stored_link_key(
+                m_hci, &address, &Hci::Callbacks::deleteStoredLinkKey);
+        }
+        void deleteStoredLinkKey(const DeleteStoredLinkKeyCb &cb) {
+            m_deleteStoredLinkKeyCb = cb;
+            bte_hci_delete_stored_link_key(
+                m_hci, nullptr, &Hci::Callbacks::deleteStoredLinkKey);
+        }
+
         void writeLocalName(const std::string &name, const DoneCb &cb) {
             m_writeLocalNameCb = cb;
             bte_hci_write_local_name(m_hci, name.c_str(),
@@ -261,6 +285,16 @@ public:
                     {reply->stored_keys, reply->num_keys},
                 });
             }
+            static void
+            writeStoredLinkKey(BteHci *hci,
+                const BteHciWriteStoredLinkKeyReply *reply, void *cb_data) {
+                _this(cb_data)->m_writeStoredLinkKeyCb(*reply);
+            }
+            static void
+            deleteStoredLinkKey(BteHci *hci,
+                const BteHciDeleteStoredLinkKeyReply *reply, void *cb_data) {
+                _this(cb_data)->m_deleteStoredLinkKeyCb(*reply);
+            }
             static void writeLocalName(BteHci *hci, const BteHciReply *reply,
                                        void *cb_data) {
                 _this(cb_data)->m_writeLocalNameCb(*reply);
@@ -311,6 +345,8 @@ public:
         DoneCb m_setEventMaskCb;
         DoneCb m_resetCb;
         ReadStoredLinkKeyCb m_readStoredLinkKeyCb;
+        WriteStoredLinkKeyCb m_writeStoredLinkKeyCb;
+        DeleteStoredLinkKeyCb m_deleteStoredLinkKeyCb;
         DoneCb m_writeLocalNameCb;
         ReadLocalNameCb m_readLocalNameCb;
         DoneCb m_writeClassOfDevice;

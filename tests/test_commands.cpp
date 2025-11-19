@@ -438,6 +438,93 @@ TEST(Commands, testReadStoredLinkKeyAll) {
     ASSERT_EQ(replies, expectedReplies);
 }
 
+TEST(Commands, testWriteStoredLinkKey) {
+    MockBackend backend;
+    Bte::Client client;
+    auto &hci = client.hci();
+
+    const std::vector<BteHciStoredLinkKey> keys {
+        {{1, 2, 3, 4, 5, 6},
+            {0, 3, 2, 1, 8, 7, 6, 5, 9, 10, 11, 12, 13, 14, 15, 16}},
+        {{10, 11, 12, 13, 14, 15},
+            {4, 3, 2, 1, 8, 7, 6, 5, 9, 10, 11, 12, 13, 14, 15, 16}},
+    };
+    std::vector<BteHciWriteStoredLinkKeyReply> replies;
+    hci.writeStoredLinkKey(keys, [&](const BteHciWriteStoredLinkKeyReply &r) {
+        replies.push_back(r);
+    });
+
+    Buffer expectedCommand{0x11, 0xc, (6 + 16) * 2};
+    expectedCommand += keys[0].address;
+    expectedCommand += keys[1].address;
+    expectedCommand += keys[0].key;
+    expectedCommand += keys[1].key;
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+
+    uint8_t status = 0;
+    /* Pretend that only one key has been written */
+    backend.sendEvent({ HCI_COMMAND_COMPLETE, 5, 1, 0x11, 0xc, status, 1 });
+    bte_handle_events();
+
+    std::vector<BteHciWriteStoredLinkKeyReply> expectedReplies = {
+        { status, 1 },
+    };
+    ASSERT_EQ(replies, expectedReplies);
+}
+
+TEST(Commands, testDeleteStoredLinkKeyByAddress) {
+    MockBackend backend;
+    Bte::Client client;
+    auto &hci = client.hci();
+
+    BteBdAddr address = {1, 2, 3, 4, 5, 6};
+    std::vector<BteHciDeleteStoredLinkKeyReply> replies;
+    hci.deleteStoredLinkKey(address,
+                            [&](const BteHciDeleteStoredLinkKeyReply &r) {
+        replies.push_back(r);
+    });
+
+    Buffer expectedCommand{0x12, 0xc, 7};
+    expectedCommand += address;
+    expectedCommand += uint8_t(0);
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+
+    uint8_t status = 0;
+    backend.sendEvent({ HCI_COMMAND_COMPLETE, 5, 1, 0x12, 0xc, status, 1 });
+    bte_handle_events();
+
+    std::vector<BteHciDeleteStoredLinkKeyReply> expectedReplies = {
+        { status, 1 },
+    };
+    ASSERT_EQ(replies, expectedReplies);
+}
+
+TEST(Commands, testDeleteStoredLinkKeyAll) {
+    MockBackend backend;
+    Bte::Client client;
+    auto &hci = client.hci();
+
+    std::vector<BteHciDeleteStoredLinkKeyReply> replies;
+    hci.deleteStoredLinkKey([&](const BteHciDeleteStoredLinkKeyReply &r) {
+        replies.push_back(r);
+    });
+
+    Buffer expectedCommand{0x12, 0xc, 7};
+    Buffer lastCommand = backend.lastCommand();
+    Buffer commandStart(lastCommand.begin(), lastCommand.begin() + 3);
+    ASSERT_EQ(commandStart, expectedCommand);
+    ASSERT_EQ(lastCommand[3 + 6], uint8_t(1));
+
+    uint8_t status = 0;
+    backend.sendEvent({ HCI_COMMAND_COMPLETE, 5, 1, 0x12, 0xc, status, 4 });
+    bte_handle_events();
+
+    std::vector<BteHciDeleteStoredLinkKeyReply> expectedReplies = {
+        { status, 4 },
+    };
+    ASSERT_EQ(replies, expectedReplies);
+}
+
 TEST(Commands, testReadLocalName) {
     GetterInvoker<BteHciReadLocalNameReply> invoker(
         [](BteHci *hci, BteHciReadLocalNameCb replyCb) {

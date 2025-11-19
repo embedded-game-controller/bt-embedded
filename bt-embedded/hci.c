@@ -377,6 +377,68 @@ void bte_hci_read_stored_link_key(BteHci *hci, const BteBdAddr *address,
     _bte_hci_send_command(b);
 }
 
+static void write_stored_link_key_cb(BteHci *hci, BteBuffer *buffer,
+                                     void *client_cb)
+{
+    if (!client_cb) return;
+    BteHciWriteStoredLinkKeyReply reply;
+    reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
+    reply.num_keys = data[0];
+    BteHciWriteStoredLinkKeyCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_write_stored_link_key(BteHci *hci, int num_keys,
+                                   const BteHciStoredLinkKey *keys,
+                                   BteHciWriteStoredLinkKeyCb callback)
+{
+    const uint8_t elem_size = sizeof(BteBdAddr) + sizeof(BteLinkKey);
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_W_STORED_LINK_KEY_OCF, HCI_HC_BB_OGF,
+        HCI_CMD_HDR_LEN + num_keys * elem_size, write_stored_link_key_cb,
+        callback);
+    if (UNLIKELY(!b)) return;
+
+    uint8_t *ptr_addr = b->data + HCI_CMD_HDR_LEN;
+    uint8_t *ptr_key = ptr_addr + num_keys * sizeof(BteBdAddr);
+    for (int i = 0; i < num_keys; i++) {
+        const BteBdAddr *address = &keys[i].address;
+        const BteLinkKey *key = &keys[i].key;
+        memcpy(ptr_addr + i * sizeof(*address), address, sizeof(*address));
+        memcpy(ptr_key + i * sizeof(*key), key, sizeof(*key));
+    }
+    _bte_hci_send_command(b);
+}
+
+static void delete_stored_link_key_cb(BteHci *hci, BteBuffer *buffer,
+                                      void *client_cb)
+{
+    if (!client_cb) return;
+    BteHciDeleteStoredLinkKeyReply reply;
+    reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
+    reply.num_keys = read_le16(data);
+    BteHciDeleteStoredLinkKeyCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_delete_stored_link_key(BteHci *hci, const BteBdAddr *address,
+                                    BteHciDeleteStoredLinkKeyCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_D_STORED_LINK_KEY_OCF, HCI_HC_BB_OGF,
+        HCI_D_STORED_LINK_KEY_PLEN, delete_stored_link_key_cb, callback);
+    if (UNLIKELY(!b)) return;
+
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    if (address) {
+        memcpy(data, address, sizeof(*address));
+    }
+    data[6] = address ? 0 : 1;
+    _bte_hci_send_command(b);
+}
+
 void bte_hci_write_local_name(BteHci *hci, const char *name,
                               BteHciDoneCb callback)
 {
