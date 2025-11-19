@@ -329,6 +329,66 @@ TEST(Commands, testLinkKeyReqNegReply) {
     ASSERT_EQ(replies, expectedReplies);
 }
 
+TEST(Commands, testPinCodeReqReply) {
+    MockBackend backend;
+    Bte::Client client;
+    auto &hci = client.hci();
+
+    BteBdAddr address = {1, 2, 3, 4, 5, 6};
+    std::vector<uint8_t> pin = {'A', ' ', 'p', 'i', 'n'};
+    std::vector<BteHciPinCodeReqReply> replies;
+    hci.pinCodeReqReply(address, pin, [&](const BteHciPinCodeReqReply &r) {
+        replies.push_back(r);
+    });
+
+    Buffer expectedCommand{0xd, 0x4, 23};
+    expectedCommand += address;
+    expectedCommand += uint8_t(pin.size());
+    expectedCommand += pin;
+    Buffer lastCommand = backend.lastCommand();
+    Buffer commandStart(lastCommand.begin(),
+                        lastCommand.begin() + expectedCommand.size());
+    ASSERT_EQ(commandStart, expectedCommand);
+    /* The remaining bytes can be garbage, but they must be present */
+    ASSERT_EQ(lastCommand.size(), 3 + 23);
+
+    uint8_t status = 0;
+    backend.sendEvent(Buffer{HCI_COMMAND_COMPLETE, 10, 1, 0xd, 0x4, status} +
+                      address);
+    bte_handle_events();
+
+    std::vector<BteHciPinCodeReqReply> expectedReplies = {
+        { status, address },
+    };
+    ASSERT_EQ(replies, expectedReplies);
+}
+
+TEST(Commands, testPinCodeReqNegReply) {
+    MockBackend backend;
+    Bte::Client client;
+    auto &hci = client.hci();
+
+    BteBdAddr address = {1, 2, 3, 4, 5, 6};
+    std::vector<BteHciPinCodeReqReply> replies;
+    hci.pinCodeReqNegReply(address, [&](const BteHciPinCodeReqReply &r) {
+        replies.push_back(r);
+    });
+
+    Buffer expectedCommand{0xe, 0x4, 6};
+    expectedCommand += address;
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+
+    uint8_t status = 0;
+    backend.sendEvent(Buffer{HCI_COMMAND_COMPLETE, 10, 1, 0xe, 0x4, status} +
+                      address);
+    bte_handle_events();
+
+    std::vector<BteHciPinCodeReqReply> expectedReplies = {
+        { status, address },
+    };
+    ASSERT_EQ(replies, expectedReplies);
+}
+
 TEST(Commands, testReadStoredLinkKeyByAddress) {
     MockBackend backend;
     Bte::Client client;

@@ -42,6 +42,12 @@ inline bool operator==(const BteHciLinkKeyReqReply &a,
     return a.status == b.status && a.address == b.address;
 }
 
+inline bool operator==(const BteHciPinCodeReqReply &a,
+                       const BteHciPinCodeReqReply &b)
+{
+    return a.status == b.status && a.address == b.address;
+}
+
 inline bool operator==(const BteHciStoredLinkKey &a,
                        const BteHciStoredLinkKey &b)
 {
