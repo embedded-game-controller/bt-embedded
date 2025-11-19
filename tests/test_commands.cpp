@@ -364,6 +364,80 @@ TEST(Commands, testReadStoredLinkKeyByAddress) {
     ASSERT_EQ(replies, expectedReplies);
 }
 
+TEST(Commands, testReadStoredLinkKeyAll) {
+    MockBackend backend;
+    Bte::Client client;
+    auto &hci = client.hci();
+
+    using LinkKeyReply = Bte::Client::Hci::ReadStoredLinkKeyReply;
+    std::vector<StoredTypes::ReadStoredLinkKeyReply> replies;
+    hci.readStoredLinkKey([&](const LinkKeyReply &r) {
+        replies.push_back(r);
+    });
+
+    Buffer expectedCommand{0xd, 0xc, 7};
+    Buffer lastCommand = backend.lastCommand();
+    Buffer commandStart(lastCommand.begin(), lastCommand.begin() + 3);
+    ASSERT_EQ(commandStart, expectedCommand);
+    ASSERT_EQ(lastCommand[3 + 6], uint8_t(1));
+
+    auto createEvent = [](const std::vector<BteHciStoredLinkKey> &eventData) {
+        size_t count = eventData.size();
+        Buffer event {
+            HCI_RETURN_LINK_KEYS,
+            uint8_t(1 + count * (6 + 16)), uint8_t(count)
+        };
+        for (const auto &e: eventData) event += e.address;
+        for (const auto &e: eventData) event += e.key;
+        return event;
+    };
+
+    BteBdAddr address = {1, 2, 3, 4, 5, 6};
+    BteLinkKey key = {4, 3, 2, 1, 8, 7, 6, 5, 9, 10, 11, 12, 13, 14, 15, 16};
+    std::vector<BteHciStoredLinkKey> eventData;
+
+    /* first event: 3 elements */
+    for (int i = 0; i < 3; i++) {
+        BteBdAddr a(address);
+        BteLinkKey k(key);
+        a.bytes[0] = k.bytes[0] = i * 4;
+        eventData.emplace_back(BteHciStoredLinkKey{ a, k });
+    };
+    backend.sendEvent(createEvent(eventData));
+
+    /* second event: 2 elements */
+    eventData.clear();
+    for (int i = 0; i < 2; i++) {
+        BteBdAddr a(address);
+        BteLinkKey k(key);
+        a.bytes[1] = k.bytes[1] = i * 5;
+        eventData.emplace_back(BteHciStoredLinkKey{ a, k });
+    };
+    backend.sendEvent(createEvent(eventData));
+
+    uint8_t status = 0;
+    backend.sendEvent({
+        HCI_COMMAND_COMPLETE, 10, 1, 0xd, 0xc, status, 0x34, 0x12, 3 + 2, 0x00,
+    });
+    bte_handle_events();
+
+    std::vector<StoredTypes::ReadStoredLinkKeyReply> expectedReplies = {
+        { status, 0x1234, {
+            {{0, 2, 3, 4, 5, 6},
+                {0, 3, 2, 1, 8, 7, 6, 5, 9, 10, 11, 12, 13, 14, 15, 16}},
+            {{4, 2, 3, 4, 5, 6},
+                {4, 3, 2, 1, 8, 7, 6, 5, 9, 10, 11, 12, 13, 14, 15, 16}},
+            {{8, 2, 3, 4, 5, 6},
+                {8, 3, 2, 1, 8, 7, 6, 5, 9, 10, 11, 12, 13, 14, 15, 16}},
+            {{1, 0, 3, 4, 5, 6},
+                {4, 0, 2, 1, 8, 7, 6, 5, 9, 10, 11, 12, 13, 14, 15, 16}},
+            {{1, 5, 3, 4, 5, 6},
+                {4, 5, 2, 1, 8, 7, 6, 5, 9, 10, 11, 12, 13, 14, 15, 16}},
+        }},
+    };
+    ASSERT_EQ(replies, expectedReplies);
+}
+
 TEST(Commands, testReadLocalName) {
     GetterInvoker<BteHciReadLocalNameReply> invoker(
         [](BteHci *hci, BteHciReadLocalNameCb replyCb) {
