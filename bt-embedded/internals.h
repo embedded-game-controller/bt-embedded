@@ -137,6 +137,10 @@ int _bte_hci_dev_init(void);
 bool _bte_hci_dev_add_client(BteClient *client);
 void _bte_hci_dev_remove_client(BteClient *client);
 
+typedef bool (*BteHciForeachHciClientCb)(BteHci *hci, void *cb_data);
+bool _bte_hci_dev_foreach_hci_client(BteHciForeachHciClientCb callback,
+                                     void *cb_data);
+
 /* Called by the driver once the initialization is complete */
 void _bte_hci_dev_set_status(BteHciInitStatus status);
 
