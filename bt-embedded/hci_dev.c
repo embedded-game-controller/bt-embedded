@@ -18,8 +18,8 @@ static BteHciEventHandler *handler_for_event(uint8_t event_code)
     return &_bte_hci_dev.event_handlers[event_code];
 }
 
-typedef bool (*BteHciForeachHciClientCb)(BteHci *hci, void *cb_data);
-static bool foreach_hci_client(BteHciForeachHciClientCb callback, void *cb_data)
+bool _bte_hci_dev_foreach_hci_client(BteHciForeachHciClientCb callback,
+                                     void *cb_data)
 {
     BteHciDev *dev = &_bte_hci_dev;
     for (int i = 0; i < BTE_HCI_MAX_CLIENTS; i++) {
@@ -128,13 +128,6 @@ static void handle_host_control(uint16_t ocf, const uint8_t *data, uint8_t len)
     }
 }
 
-static bool client_handle_link_request(BteHci *hci, void *cb_data)
-{
-    const BteBdAddr *address = cb_data;
-    return hci->link_key_request_cb &&
-        hci->link_key_request_cb(hci, address, hci_userdata(hci));
-}
-
 int _bte_hci_send_command(BteBuffer *buffer)
 {
     if (UNLIKELY(!buffer)) return -ENOMEM;
@@ -186,10 +179,6 @@ int _bte_hci_dev_handle_event(BteBuffer *buf)
         _bte_hci_dev.num_packets = data[1];
         opcode = *(uint16_t *)(data + 2);
         deliver_status_to_client(opcode, status);
-        break;
-    case HCI_LINK_KEY_REQUEST:
-        BteBdAddr *address = (BteBdAddr*)data;
-        foreach_hci_client(client_handle_link_request, address);
         break;
     }
 

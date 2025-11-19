@@ -12,6 +12,10 @@
 #define HCI_CMD_REPLY_POS_STATUS  5
 #define HCI_CMD_REPLY_POS_DATA    6
 
+#define HCI_CMD_EVENT_POS_CODE 0
+#define HCI_CMD_EVENT_POS_LEN  1
+#define HCI_CMD_EVENT_POS_DATA 2
+
 static void command_complete_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
 {
     if (!client_cb) return;
@@ -248,9 +252,24 @@ void bte_hci_exit_periodic_inquiry(BteHci *hci, BteHciDoneCb callback)
     _bte_hci_send_command(b);
 }
 
+static bool client_handle_link_key_request(BteHci *hci, void *cb_data)
+{
+    const BteBdAddr *address = cb_data;
+    return hci->link_key_request_cb &&
+        hci->link_key_request_cb(hci, address, hci_userdata(hci));
+}
+
+static void link_key_request_event_cb(BteBuffer *buffer, void *cb_data)
+{
+    uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
+    _bte_hci_dev_foreach_hci_client(client_handle_link_key_request, data);
+}
+
 void bte_hci_on_link_key_request(BteHci *hci, BteHciLinkKeyRequestCb callback)
 {
     hci->link_key_request_cb = callback;
+    _bte_hci_dev_install_event_handler(HCI_LINK_KEY_REQUEST,
+                                       link_key_request_event_cb, NULL);
 }
 
 static void link_key_req_reply_cb(BteHci *hci, BteBuffer *buffer,
