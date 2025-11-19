@@ -110,6 +110,27 @@ typedef void (*BteHciReadStoredLinkKeyCb)(
 void bte_hci_read_stored_link_key(BteHci *hci, const BteBdAddr *address,
                                   BteHciReadStoredLinkKeyCb callback);
 
+typedef struct {
+    uint8_t status;
+    uint8_t num_keys;
+} BteHciWriteStoredLinkKeyReply;
+
+typedef void (*BteHciWriteStoredLinkKeyCb)(
+    BteHci *hci, const BteHciWriteStoredLinkKeyReply *reply, void *userdata);
+void bte_hci_write_stored_link_key(BteHci *hci, int num_keys,
+                                   const BteHciStoredLinkKey *keys,
+                                   BteHciWriteStoredLinkKeyCb callback);
+
+typedef struct {
+    uint8_t status;
+    uint16_t num_keys;
+} BteHciDeleteStoredLinkKeyReply;
+
+typedef void (*BteHciDeleteStoredLinkKeyCb)(
+    BteHci *hci, const BteHciDeleteStoredLinkKeyReply *reply, void *userdata);
+void bte_hci_delete_stored_link_key(BteHci *hci, const BteBdAddr *address,
+                                    BteHciDeleteStoredLinkKeyCb callback);
+
 void bte_hci_write_local_name(BteHci *hci, const char *name,
                               BteHciDoneCb callback);
 

@@ -58,6 +58,18 @@ inline bool operator==(const Client::Hci::ReadStoredLinkKeyReply &a,
 }
 } /* namespace Bte */
 
+inline bool operator==(const BteHciWriteStoredLinkKeyReply &a,
+                       const BteHciWriteStoredLinkKeyReply &b)
+{
+    return a.status == b.status && a.num_keys == b.num_keys;
+}
+
+inline bool operator==(const BteHciDeleteStoredLinkKeyReply &a,
+                       const BteHciDeleteStoredLinkKeyReply &b)
+{
+    return a.status == b.status && a.num_keys == b.num_keys;
+}
+
 inline bool operator==(const BteHciReadLocalNameReply &a,
                        const BteHciReadLocalNameReply &b)
 {
