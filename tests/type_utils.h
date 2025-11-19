@@ -4,11 +4,31 @@
 #include "bt-embedded/hci.h"
 
 #include <algorithm>
+#include <iomanip>
+#include <ostream>
 #include <ranges>
 
 inline bool operator==(const BteBdAddr &a, const BteBdAddr &b)
 {
     return memcmp(a.bytes, b.bytes, sizeof(a.bytes)) == 0;
+}
+
+inline std::ostream &operator<<(std::ostream &os, const BteBdAddr &a)
+{
+    for (size_t i = 0; i < sizeof(a); i++) {
+        os << std::hex << std::setw(2) << setfill('0') << int(a.bytes[i]);
+        if (i < sizeof(a) - 1) os << ':';
+    }
+    return os;
+}
+
+inline std::ostream &operator<<(std::ostream &os, const BteLinkKey &a)
+{
+    for (size_t i = 0; i < sizeof(a); i++) {
+        os << std::hex << std::setw(2) << setfill('0') << int(a.bytes[i]);
+        if (i < sizeof(a) - 1) os << '-';
+    }
+    return os;
 }
 
 inline bool operator==(const BteHciReply &a, const BteHciReply &b)
@@ -121,9 +141,20 @@ struct ReadStoredLinkKeyReply {
 };
 
 inline bool operator==(const ReadStoredLinkKeyReply &a,
-                       const ReadStoredLinkKeyReply &b) {
+                       const ReadStoredLinkKeyReply &b)
+{
     return a.status == b.status && a.max_keys == b.max_keys &&
         a.stored_keys == b.stored_keys;
+}
+
+inline std::ostream &operator<<(std::ostream &os,
+                                const ReadStoredLinkKeyReply &r)
+{
+    os << "(status " << r.status << ", max " << r.max_keys << ")[";
+    for (const auto &e : r.stored_keys)
+        os << '{' << e.address << ", " << e.key << "}\n";
+    os << "]";
+    return os;
 }
 
 } /* namespace StoredTypes */
