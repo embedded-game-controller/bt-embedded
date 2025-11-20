@@ -111,6 +111,77 @@ static const std::vector<CommandNoReplyRow> s_commandsWithNoReply {
         {0x3, 0xc, 0}
     },
     {
+        "set_event_filter_clear",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_set_event_filter(hci, BTE_HCI_EVENT_FILTER_TYPE_CLEAR,
+                                     0, NULL, cb);
+        },
+        {0x5, 0xc, 1, 0}
+    },
+    {
+        "set_event_filter_inquiry_all",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_set_event_filter(
+                hci, BTE_HCI_EVENT_FILTER_TYPE_INQUIRY_RESULT,
+                BTE_HCI_COND_TYPE_INQUIRY_ALL, NULL, cb);
+        },
+        {0x5, 0xc, 2, 1, 0}
+    },
+    {
+        "set_event_filter_inquiry_cod",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_set_event_filter(
+                hci, BTE_HCI_EVENT_FILTER_TYPE_INQUIRY_RESULT,
+                BTE_HCI_COND_TYPE_INQUIRY_COD, "\0\1\2\xf1\xf2\xf3", cb);
+        },
+        {0x5, 0xc, 8, 1, 1, 0, 1, 2, 0xf1, 0xf2, 0xf3}
+    },
+    {
+        "set_event_filter_inquiry_address",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_set_event_filter(
+                hci, BTE_HCI_EVENT_FILTER_TYPE_INQUIRY_RESULT,
+                BTE_HCI_COND_TYPE_INQUIRY_ADDRESS, "\0\1\2\3\4\5", cb);
+        },
+        {0x5, 0xc, 8, 1, 2, 0, 1, 2, 3, 4, 5}
+    },
+    {
+        "set_event_filter_conn_setup_all_switch_on",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            uint8_t accept = BTE_HCI_COND_VALUE_CONN_SETUP_SWITCH_ON;
+            bte_hci_set_event_filter(
+                hci, BTE_HCI_EVENT_FILTER_TYPE_CONNECTION_SETUP,
+                BTE_HCI_COND_TYPE_CONN_SETUP_ALL, &accept, cb);
+        },
+        {0x5, 0xc, 3, 2, 0, 3}
+    },
+    {
+        "set_event_filter_conn_setup_cod_auto_off",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            uint8_t params[] = {
+                0, 1, 2, 0xf1, 0xf2, 0xf3, /* COD and mask */
+                BTE_HCI_COND_VALUE_CONN_SETUP_AUTO_OFF
+            };
+            bte_hci_set_event_filter(
+                hci, BTE_HCI_EVENT_FILTER_TYPE_CONNECTION_SETUP,
+                BTE_HCI_COND_TYPE_CONN_SETUP_COD, params, cb);
+        },
+        {0x5, 0xc, 9, 2, 1, 0, 1, 2, 0xf1, 0xf2, 0xf3, 1}
+    },
+    {
+        "set_event_filter_conn_setup_address_switch_off",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            uint8_t params[] = {
+                0, 1, 2, 3, 4, 5, /* BT address */
+                BTE_HCI_COND_VALUE_CONN_SETUP_SWITCH_OFF
+            };
+            bte_hci_set_event_filter(
+                hci, BTE_HCI_EVENT_FILTER_TYPE_CONNECTION_SETUP,
+                BTE_HCI_COND_TYPE_CONN_SETUP_ADDRESS, params, cb);
+        },
+        {0x5, 0xc, 9, 2, 2, 0, 1, 2, 3, 4, 5, 2}
+    },
+    {
         "write_local_name",
         [](BteHci *hci, BteHciDoneCb cb) {
             bte_hci_write_local_name(hci, "A test", cb); },
