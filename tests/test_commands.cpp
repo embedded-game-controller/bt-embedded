@@ -199,6 +199,12 @@ static const std::vector<CommandNoReplyRow> s_commandsWithNoReply {
         }()
     },
     {
+        "write_page_timeout",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_write_page_timeout(hci, 0xaabb, cb); },
+        {0x18, 0xc, 2, 0xbb, 0xaa}
+    },
+    {
         "write_class_of_device",
         [](BteHci *hci, BteHciDoneCb cb) {
             BteClassOfDevice cod{0x11, 0x22, 0x33};
@@ -688,6 +694,20 @@ TEST(Commands, testReadLocalName) {
     ASSERT_EQ(invoker.sentCommand(), expectedCommand);
 
     BteHciReadLocalNameReply expectedReply = { 0, "A test" };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
+
+TEST(Commands, testReadPageTimeout) {
+    GetterInvoker<BteHciReadPageTimeoutReply> invoker(
+        [](BteHci *hci, BteHciReadPageTimeoutCb replyCb) {
+            bte_hci_read_page_timeout(hci, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 6, 1, 0x17, 0xc, 0, 0xaa, 0xbb });
+
+    Buffer expectedCommand{0x17, 0xc, 0};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadPageTimeoutReply expectedReply = { 0, 0xbbaa };
     ASSERT_EQ(invoker.receivedReply(), expectedReply);
 }
 
