@@ -218,6 +218,19 @@ public:
             bte_hci_read_local_name(m_hci, &Hci::Callbacks::readLocalName);
         }
 
+        void writePageTimeout(uint16_t page_timeout, const DoneCb &cb) {
+            m_writePageTimeoutCb = cb;
+            bte_hci_write_page_timeout(m_hci, page_timeout,
+                                       &Hci::Callbacks::writePageTimeout);
+        }
+
+        using ReadPageTimeoutCb =
+            std::function<void(const BteHciReadPageTimeoutReply &)>;
+        void readPageTimeout(const ReadPageTimeoutCb &cb) {
+            m_readPageTimeoutCb = cb;
+            bte_hci_read_page_timeout(m_hci, &Hci::Callbacks::readPageTimeout);
+        }
+
         void writeClassOfDevice(const BteClassOfDevice &cod, const DoneCb &cb) {
             m_writeClassOfDevice = cb;
             bte_hci_write_class_of_device(m_hci, &cod,
@@ -363,6 +376,15 @@ public:
                                       void *cb_data) {
                 _this(cb_data)->m_readLocalNameCb(*reply);
             }
+            static void writePageTimeout(BteHci *hci, const BteHciReply *reply,
+                                         void *cb_data) {
+                _this(cb_data)->m_writePageTimeoutCb(*reply);
+            }
+            static void readPageTimeout(BteHci *hci,
+                                        const BteHciReadPageTimeoutReply *reply,
+                                        void *cb_data) {
+                _this(cb_data)->m_readPageTimeoutCb(*reply);
+            }
             static void writeClassOfDevice(BteHci *hci,
                                            const BteHciReply *reply,
                                            void *cb_data) {
@@ -413,6 +435,8 @@ public:
         DeleteStoredLinkKeyCb m_deleteStoredLinkKeyCb;
         DoneCb m_writeLocalNameCb;
         ReadLocalNameCb m_readLocalNameCb;
+        DoneCb m_writePageTimeoutCb;
+        ReadPageTimeoutCb m_readPageTimeoutCb;
         DoneCb m_writeClassOfDevice;
         ReadLocalVersionCb m_readLocalVersionCb;
         ReadLocalFeaturesCb m_readLocalFeaturesCb;

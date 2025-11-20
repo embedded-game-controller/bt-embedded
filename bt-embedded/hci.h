@@ -199,6 +199,17 @@ typedef void (*BteHciReadLocalNameCb)(BteHci *hci,
                                       void *userdata);
 void bte_hci_read_local_name(BteHci *hci, BteHciReadLocalNameCb callback);
 
+typedef struct {
+    uint8_t status;
+    uint16_t page_timeout;
+} BteHciReadPageTimeoutReply;
+
+typedef void (*BteHciReadPageTimeoutCb)(
+    BteHci *hci, const BteHciReadPageTimeoutReply *reply, void *userdata);
+void bte_hci_read_page_timeout(BteHci *hci, BteHciReadPageTimeoutCb callback);
+void bte_hci_write_page_timeout(BteHci *hci, uint16_t page_timeout,
+                                BteHciDoneCb callback);
+
 void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
                                    BteHciDoneCb callback);
 

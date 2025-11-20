@@ -609,6 +609,35 @@ void bte_hci_read_local_name(BteHci *hci, BteHciReadLocalNameCb callback)
     _bte_hci_send_command(b);
 }
 
+static void read_page_timeout_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+{
+    const uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
+    BteHciReadPageTimeoutReply reply;
+    reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    reply.page_timeout = read_le16(data);
+    BteHciReadPageTimeoutCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_read_page_timeout(BteHci *hci, BteHciReadPageTimeoutCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_R_PAGE_TIMEOUT_OCF, HCI_HC_BB_OGF, HCI_R_PAGE_TIMEOUT_PLEN,
+        read_page_timeout_cb, callback);
+    _bte_hci_send_command(b);
+}
+
+void bte_hci_write_page_timeout(BteHci *hci, uint16_t page_timeout,
+                                BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_W_PAGE_TIMEOUT_OCF, HCI_HC_BB_OGF, HCI_W_PAGE_TIMEOUT_PLEN,
+        command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
+    write_le16(page_timeout, b->data + HCI_CMD_HDR_LEN);
+    _bte_hci_send_command(b);
+}
+
 void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
                                    BteHciDoneCb callback)
 {

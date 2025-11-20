@@ -82,6 +82,12 @@ inline bool operator==(const BteHciDeleteStoredLinkKeyReply &a,
     return a.status == b.status && a.num_keys == b.num_keys;
 }
 
+inline bool operator==(const BteHciReadPageTimeoutReply &a,
+                       const BteHciReadPageTimeoutReply &b)
+{
+    return a.status == b.status && a.page_timeout == b.page_timeout;
+}
+
 inline bool operator==(const BteHciReadLocalNameReply &a,
                        const BteHciReadLocalNameReply &b)
 {
