@@ -104,6 +104,7 @@ extern "C" {
 #define HCI_SET_EV_MASK_OCF         0x01
 #define HCI_RESET_OCF               0x03
 #define HCI_SET_EV_FILTER_OCF       0x05
+#define HCI_R_PIN_TYPE_OCF          0x09
 #define HCI_W_PIN_TYPE_OCF          0x0A
 #define HCI_R_STORED_LINK_KEY_OCF   0x0D
 #define HCI_W_STORED_LINK_KEY_OCF   0x11
@@ -174,6 +175,7 @@ extern "C" {
 #define HCI_SET_EV_MASK_PLEN         11
 #define HCI_RESET_PLEN               3
 #define HCI_SET_EV_FILTER_PLEN       4
+#define HCI_R_PIN_TYPE_PLEN          3
 #define HCI_W_PIN_TYPE_PLEN          4
 #define HCI_R_STORED_LINK_KEY_PLEN   10
 #define HCI_W_STORED_LINK_KEY_PLEN   26

@@ -182,6 +182,12 @@ static const std::vector<CommandNoReplyRow> s_commandsWithNoReply {
         {0x5, 0xc, 9, 2, 2, 0, 1, 2, 3, 4, 5, 2}
     },
     {
+        "write_pin_type",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_write_pin_type(hci, BTE_HCI_PIN_TYPE_FIXED, cb); },
+        {0xa, 0xc, 1, BTE_HCI_PIN_TYPE_FIXED}
+    },
+    {
         "write_local_name",
         [](BteHci *hci, BteHciDoneCb cb) {
             bte_hci_write_local_name(hci, "A test", cb); },
@@ -458,6 +464,20 @@ TEST(Commands, testPinCodeReqNegReply) {
         { status, address },
     };
     ASSERT_EQ(replies, expectedReplies);
+}
+
+TEST(Commands, testReadPinType) {
+    GetterInvoker<BteHciReadPinTypeReply> invoker(
+        [](BteHci *hci, BteHciReadPinTypeCb replyCb) {
+            bte_hci_read_pin_type(hci, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 4, 1, 0x9, 0xc, 0, 1 });
+
+    Buffer expectedCommand{0x9, 0xc, 0};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadPinTypeReply expectedReply = { 0, BTE_HCI_PIN_TYPE_FIXED };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
 }
 
 TEST(Commands, testReadStoredLinkKeyByAddress) {

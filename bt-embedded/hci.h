@@ -133,6 +133,21 @@ void bte_hci_set_event_filter(BteHci *hci, uint8_t filter_type,
                               uint8_t cond_type, const void *filter_data,
                               BteHciDoneCb callback);
 
+#define BTE_HCI_PIN_TYPE_VARIABLE (uint8_t)0
+#define BTE_HCI_PIN_TYPE_FIXED    (uint8_t)1
+
+typedef struct {
+    uint8_t status;
+    uint8_t pin_type;
+} BteHciReadPinTypeReply;
+
+typedef void (*BteHciReadPinTypeCb)(BteHci *hci,
+                                    const BteHciReadPinTypeReply *reply,
+                                    void *userdata);
+void bte_hci_read_pin_type(BteHci *hci, BteHciReadPinTypeCb callback);
+void bte_hci_write_pin_type(BteHci *hci, uint8_t pin_type,
+                            BteHciDoneCb callback);
+
 typedef struct {
     BteBdAddr address;
     BteLinkKey key;
