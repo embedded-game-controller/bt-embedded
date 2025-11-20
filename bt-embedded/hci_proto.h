@@ -173,7 +173,7 @@ extern "C" {
 /* Host-Controller and Baseband Commands */
 #define HCI_SET_EV_MASK_PLEN         11
 #define HCI_RESET_PLEN               3
-#define HCI_SET_EV_FILTER_PLEN       5
+#define HCI_SET_EV_FILTER_PLEN       4
 #define HCI_W_PIN_TYPE_PLEN          4
 #define HCI_R_STORED_LINK_KEY_PLEN   10
 #define HCI_W_STORED_LINK_KEY_PLEN   26

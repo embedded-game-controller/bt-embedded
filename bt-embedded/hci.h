@@ -113,6 +113,26 @@ void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
                             BteHciDoneCb callback);
 void bte_hci_reset(BteHci *hci, BteHciDoneCb callback);
 
+#define BTE_HCI_EVENT_FILTER_TYPE_CLEAR            (uint8_t)0
+#define BTE_HCI_EVENT_FILTER_TYPE_INQUIRY_RESULT   (uint8_t)1
+#define BTE_HCI_EVENT_FILTER_TYPE_CONNECTION_SETUP (uint8_t)2
+
+#define BTE_HCI_COND_TYPE_INQUIRY_ALL     (uint8_t)0
+#define BTE_HCI_COND_TYPE_INQUIRY_COD     (uint8_t)1
+#define BTE_HCI_COND_TYPE_INQUIRY_ADDRESS (uint8_t)2
+
+#define BTE_HCI_COND_TYPE_CONN_SETUP_ALL     (uint8_t)0
+#define BTE_HCI_COND_TYPE_CONN_SETUP_COD     (uint8_t)1
+#define BTE_HCI_COND_TYPE_CONN_SETUP_ADDRESS (uint8_t)2
+
+#define BTE_HCI_COND_VALUE_CONN_SETUP_AUTO_OFF   (uint8_t)1
+#define BTE_HCI_COND_VALUE_CONN_SETUP_SWITCH_OFF (uint8_t)2
+#define BTE_HCI_COND_VALUE_CONN_SETUP_SWITCH_ON  (uint8_t)3
+
+void bte_hci_set_event_filter(BteHci *hci, uint8_t filter_type,
+                              uint8_t cond_type, const void *filter_data,
+                              BteHciDoneCb callback);
+
 typedef struct {
     BteBdAddr address;
     BteLinkKey key;

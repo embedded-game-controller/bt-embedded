@@ -381,6 +381,47 @@ void bte_hci_reset(BteHci *hci, BteHciDoneCb callback)
     _bte_hci_send_command(b);
 }
 
+void bte_hci_set_event_filter(BteHci *hci, uint8_t filter_type,
+                              uint8_t cond_type, const void *filter_data,
+                              BteHciDoneCb callback)
+{
+    uint8_t cond_len = 0;
+    switch (filter_type) {
+    case BTE_HCI_EVENT_FILTER_TYPE_INQUIRY_RESULT:
+        switch (cond_type) {
+        case BTE_HCI_COND_TYPE_INQUIRY_COD: cond_len = 6; break;
+        case BTE_HCI_COND_TYPE_INQUIRY_ADDRESS: cond_len = 6; break;
+        }
+        break;
+    case BTE_HCI_EVENT_FILTER_TYPE_CONNECTION_SETUP:
+        switch (cond_type) {
+        case BTE_HCI_COND_TYPE_CONN_SETUP_ALL: cond_len = 1; break;
+        case BTE_HCI_COND_TYPE_CONN_SETUP_COD: cond_len = 7; break;
+        case BTE_HCI_COND_TYPE_CONN_SETUP_ADDRESS: cond_len = 7; break;
+        }
+        break;
+    }
+    uint8_t filter_len = 0;
+    if (filter_type != BTE_HCI_EVENT_FILTER_TYPE_CLEAR) {
+        filter_len = 1 + cond_len;
+    }
+
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_SET_EV_FILTER_OCF, HCI_HC_BB_OGF,
+        HCI_SET_EV_FILTER_PLEN + filter_len,
+        command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    data[0] = filter_type;
+    if (filter_len > 0) {
+        data[1] = cond_type;
+        if (cond_len > 0) {
+            memcpy(data + 2, filter_data, cond_len);
+        }
+    }
+    _bte_hci_send_command(b);
+}
+
 static void return_link_keys_cb(BteBuffer *buffer, void *cb_data)
 {
     BteHciDev *dev = &_bte_hci_dev;
