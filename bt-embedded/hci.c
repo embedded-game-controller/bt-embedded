@@ -422,6 +422,34 @@ void bte_hci_set_event_filter(BteHci *hci, uint8_t filter_type,
     _bte_hci_send_command(b);
 }
 
+static void read_pin_type_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+{
+    BteHciReadPinTypeReply reply;
+    reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    reply.pin_type = buffer->data[HCI_CMD_REPLY_POS_DATA];
+    BteHciReadPinTypeCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_read_pin_type(BteHci *hci, BteHciReadPinTypeCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_R_PIN_TYPE_OCF, HCI_HC_BB_OGF, HCI_R_PIN_TYPE_PLEN,
+        read_pin_type_cb, callback);
+    _bte_hci_send_command(b);
+}
+
+void bte_hci_write_pin_type(BteHci *hci, uint8_t pin_type,
+                            BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_W_PIN_TYPE_OCF, HCI_HC_BB_OGF, HCI_W_PIN_TYPE_PLEN,
+        command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
+    b->data[HCI_CMD_HDR_LEN] = pin_type;
+    _bte_hci_send_command(b);
+}
+
 static void return_link_keys_cb(BteBuffer *buffer, void *cb_data)
 {
     BteHciDev *dev = &_bte_hci_dev;

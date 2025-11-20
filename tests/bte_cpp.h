@@ -149,6 +149,19 @@ public:
             bte_hci_reset(m_hci, &Hci::Callbacks::reset);
         }
 
+        void writePinType(uint8_t pin_type, const DoneCb &cb) {
+            m_writePinTypeCb = cb;
+            bte_hci_write_pin_type(m_hci, pin_type,
+                                   &Hci::Callbacks::writePinType);
+        }
+
+        using ReadPinTypeCb =
+            std::function<void(const BteHciReadPinTypeReply &)>;
+        void readPinType(const ReadPinTypeCb &cb) {
+            m_readPinTypeCb = cb;
+            bte_hci_read_pin_type(m_hci, &Hci::Callbacks::readPinType);
+        }
+
         struct ReadStoredLinkKeyReply {
             uint8_t status;
             uint16_t max_keys;
@@ -315,6 +328,15 @@ public:
                               void *cb_data) {
                 _this(cb_data)->m_resetCb(*reply);
             }
+            static void writePinType(BteHci *hci, const BteHciReply *reply,
+                                     void *cb_data) {
+                _this(cb_data)->m_writePinTypeCb(*reply);
+            }
+            static void readPinType(BteHci *hci,
+                                    const BteHciReadPinTypeReply *reply,
+                                    void *cb_data) {
+                _this(cb_data)->m_readPinTypeCb(*reply);
+            }
             static void readStoredLinkKey(BteHci *hci,
                 const BteHciReadStoredLinkKeyReply *reply, void *cb_data) {
                 _this(cb_data)->m_readStoredLinkKeyCb({
@@ -384,6 +406,8 @@ public:
         PinCodeReqReplyCb m_pinCodeReqNegReplyCb;
         DoneCb m_setEventMaskCb;
         DoneCb m_resetCb;
+        DoneCb m_writePinTypeCb;
+        ReadPinTypeCb m_readPinTypeCb;
         ReadStoredLinkKeyCb m_readStoredLinkKeyCb;
         WriteStoredLinkKeyCb m_writeStoredLinkKeyCb;
         DeleteStoredLinkKeyCb m_deleteStoredLinkKeyCb;
