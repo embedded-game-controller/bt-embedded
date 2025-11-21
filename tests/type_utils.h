@@ -95,6 +95,12 @@ inline bool operator==(const BteHciReadLocalNameReply &a,
         strncmp(a.name, b.name, sizeof(a.name)) == 0;
 }
 
+inline bool operator==(const BteHciReadScanEnableReply &a,
+                       const BteHciReadScanEnableReply &b)
+{
+    return a.status == b.status && a.scan_enable == b.scan_enable;
+}
+
 inline bool operator==(const BteHciReadLocalVersionReply &a,
                        const BteHciReadLocalVersionReply &b)
 {

@@ -210,6 +210,23 @@ void bte_hci_read_page_timeout(BteHci *hci, BteHciReadPageTimeoutCb callback);
 void bte_hci_write_page_timeout(BteHci *hci, uint16_t page_timeout,
                                 BteHciDoneCb callback);
 
+#define BTE_HCI_SCAN_ENABLE_OFF      (uint8_t)0
+#define BTE_HCI_SCAN_ENABLE_INQUIRY  (uint8_t)1
+#define BTE_HCI_SCAN_ENABLE_PAGE     (uint8_t)2
+#define BTE_HCI_SCAN_ENABLE_INQ_PAGE (uint8_t)3
+
+typedef struct {
+    uint8_t status;
+    uint8_t scan_enable;
+} BteHciReadScanEnableReply;
+
+typedef void (*BteHciReadScanEnableCb)(BteHci *hci,
+                                       const BteHciReadScanEnableReply *reply,
+                                       void *userdata);
+void bte_hci_read_scan_enable(BteHci *hci, BteHciReadScanEnableCb callback);
+void bte_hci_write_scan_enable(BteHci *hci, uint8_t scan_enable,
+                               BteHciDoneCb callback);
+
 void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
                                    BteHciDoneCb callback);
 

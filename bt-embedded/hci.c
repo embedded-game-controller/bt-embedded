@@ -638,6 +638,34 @@ void bte_hci_write_page_timeout(BteHci *hci, uint16_t page_timeout,
     _bte_hci_send_command(b);
 }
 
+static void read_scan_enable_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+{
+    BteHciReadScanEnableReply reply;
+    reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    reply.scan_enable = buffer->data[HCI_CMD_REPLY_POS_DATA];
+    BteHciReadScanEnableCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_read_scan_enable(BteHci *hci, BteHciReadScanEnableCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_R_SCAN_EN_OCF, HCI_HC_BB_OGF, HCI_R_SCAN_EN_PLEN,
+        read_scan_enable_cb, callback);
+    _bte_hci_send_command(b);
+}
+
+void bte_hci_write_scan_enable(BteHci *hci, uint8_t scan_enable,
+                                BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_W_SCAN_EN_OCF, HCI_HC_BB_OGF, HCI_W_SCAN_EN_PLEN,
+        command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
+    b->data[HCI_CMD_HDR_LEN] = scan_enable;
+    _bte_hci_send_command(b);
+}
+
 void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
                                    BteHciDoneCb callback)
 {
