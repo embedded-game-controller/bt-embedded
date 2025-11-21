@@ -101,6 +101,12 @@ inline bool operator==(const BteHciReadScanEnableReply &a,
     return a.status == b.status && a.scan_enable == b.scan_enable;
 }
 
+inline bool operator==(const BteHciReadAuthEnableReply &a,
+                       const BteHciReadAuthEnableReply &b)
+{
+    return a.status == b.status && a.auth_enable == b.auth_enable;
+}
+
 inline bool operator==(const BteHciReadLocalVersionReply &a,
                        const BteHciReadLocalVersionReply &b)
 {

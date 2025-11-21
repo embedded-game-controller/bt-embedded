@@ -211,6 +211,12 @@ static const std::vector<CommandNoReplyRow> s_commandsWithNoReply {
         {0x1a, 0xc, 1, BTE_HCI_SCAN_ENABLE_PAGE}
     },
     {
+        "write_auth_enable",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_write_auth_enable(hci, BTE_HCI_AUTH_ENABLE_ON, cb); },
+        {0x20, 0xc, 1, BTE_HCI_AUTH_ENABLE_ON}
+    },
+    {
         "write_class_of_device",
         [](BteHci *hci, BteHciDoneCb cb) {
             BteClassOfDevice cod{0x11, 0x22, 0x33};
@@ -730,6 +736,20 @@ TEST(Commands, testReadScanEnable) {
     BteHciReadScanEnableReply expectedReply = {
         0, BTE_HCI_SCAN_ENABLE_INQ_PAGE
     };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
+
+TEST(Commands, testReadAuthEnable) {
+    GetterInvoker<BteHciReadAuthEnableReply> invoker(
+        [](BteHci *hci, BteHciReadAuthEnableCb replyCb) {
+            bte_hci_read_auth_enable(hci, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 4, 1, 0x1f, 0xc, 0, 1 });
+
+    Buffer expectedCommand{0x1f, 0xc, 0};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadAuthEnableReply expectedReply = { 0, BTE_HCI_AUTH_ENABLE_ON };
     ASSERT_EQ(invoker.receivedReply(), expectedReply);
 }
 
