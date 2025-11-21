@@ -705,6 +705,97 @@ void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
     _bte_hci_send_command(b);
 }
 
+static void read_inquiry_scan_type_cb(BteHci *hci, BteBuffer *buffer,
+                                      void *client_cb)
+{
+    BteHciReadInquiryScanTypeReply reply;
+    reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    reply.inquiry_scan_type = buffer->data[HCI_CMD_REPLY_POS_DATA];
+    BteHciReadInquiryScanTypeCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_read_inquiry_scan_type(BteHci *hci,
+                                    BteHciReadInquiryScanTypeCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_R_INQUIRY_SCAN_TYPE_OCF, HCI_HC_BB_OGF, HCI_CMD_HDR_LEN,
+        read_inquiry_scan_type_cb, callback);
+    _bte_hci_send_command(b);
+}
+
+void bte_hci_write_inquiry_scan_type(BteHci *hci, uint8_t inquiry_scan_type,
+                                     BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_W_INQUIRY_SCAN_TYPE_OCF, HCI_HC_BB_OGF,
+        HCI_W_INQUIRY_SCAN_TYPE_PLEN,
+        command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
+    b->data[HCI_CMD_HDR_LEN] = inquiry_scan_type;
+    _bte_hci_send_command(b);
+}
+
+static void read_inquiry_mode_cb(BteHci *hci, BteBuffer *buffer,
+                                 void *client_cb)
+{
+    BteHciReadInquiryModeReply reply;
+    reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    reply.inquiry_mode = buffer->data[HCI_CMD_REPLY_POS_DATA];
+    BteHciReadInquiryModeCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_read_inquiry_mode(BteHci *hci, BteHciReadInquiryModeCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_R_INQUIRY_MODE_OCF, HCI_HC_BB_OGF, HCI_CMD_HDR_LEN,
+        read_inquiry_mode_cb, callback);
+    _bte_hci_send_command(b);
+}
+
+void bte_hci_write_inquiry_mode(BteHci *hci, uint8_t inquiry_mode,
+                                BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_W_INQUIRY_MODE_OCF, HCI_HC_BB_OGF, HCI_W_INQUIRY_MODE_PLEN,
+        command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
+    b->data[HCI_CMD_HDR_LEN] = inquiry_mode;
+    _bte_hci_send_command(b);
+}
+
+static void read_page_scan_type_cb(BteHci *hci, BteBuffer *buffer,
+                                   void *client_cb)
+{
+    BteHciReadPageScanTypeReply reply;
+    reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    reply.page_scan_type = buffer->data[HCI_CMD_REPLY_POS_DATA];
+    BteHciReadPageScanTypeCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_read_page_scan_type(BteHci *hci,
+                                 BteHciReadPageScanTypeCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_R_PAGE_SCAN_TYPE_OCF, HCI_HC_BB_OGF, HCI_CMD_HDR_LEN,
+        read_page_scan_type_cb, callback);
+    _bte_hci_send_command(b);
+}
+
+void bte_hci_write_page_scan_type(BteHci *hci, uint8_t page_scan_type,
+                                  BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_W_PAGE_SCAN_TYPE_OCF, HCI_HC_BB_OGF,
+        HCI_W_PAGE_SCAN_TYPE_PLEN,
+        command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
+    b->data[HCI_CMD_HDR_LEN] = page_scan_type;
+    _bte_hci_send_command(b);
+}
+
 static void read_local_version_cb(BteHci *hci, BteBuffer *buffer,
                                   void *client_cb)
 {
