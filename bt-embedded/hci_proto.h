@@ -113,6 +113,7 @@ extern "C" {
 #define HCI_R_LOCAL_NAME_OCF        0x14
 #define HCI_R_PAGE_TIMEOUT_OCF      0x17
 #define HCI_W_PAGE_TIMEOUT_OCF      0x18
+#define HCI_R_SCAN_EN_OCF           0x19
 #define HCI_W_SCAN_EN_OCF           0x1A
 #define HCI_W_AUTH_ENABLE_OCF       0x20
 #define HCI_R_COD_OCF               0x23
@@ -185,6 +186,7 @@ extern "C" {
 #define HCI_R_LOCAL_NAME_PLEN        3
 #define HCI_R_PAGE_TIMEOUT_PLEN      3
 #define HCI_W_PAGE_TIMEOUT_PLEN      5
+#define HCI_R_SCAN_EN_PLEN           3
 #define HCI_W_SCAN_EN_PLEN           4
 #define HCI_W_AUTH_ENABLE_PLEN       4
 #define HCI_R_COD_PLEN               3

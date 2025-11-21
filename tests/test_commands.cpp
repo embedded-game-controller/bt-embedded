@@ -205,6 +205,12 @@ static const std::vector<CommandNoReplyRow> s_commandsWithNoReply {
         {0x18, 0xc, 2, 0xbb, 0xaa}
     },
     {
+        "write_scan_enable",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_write_scan_enable(hci, BTE_HCI_SCAN_ENABLE_PAGE, cb); },
+        {0x1a, 0xc, 1, BTE_HCI_SCAN_ENABLE_PAGE}
+    },
+    {
         "write_class_of_device",
         [](BteHci *hci, BteHciDoneCb cb) {
             BteClassOfDevice cod{0x11, 0x22, 0x33};
@@ -708,6 +714,22 @@ TEST(Commands, testReadPageTimeout) {
     ASSERT_EQ(invoker.sentCommand(), expectedCommand);
 
     BteHciReadPageTimeoutReply expectedReply = { 0, 0xbbaa };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
+
+TEST(Commands, testReadScanEnable) {
+    GetterInvoker<BteHciReadScanEnableReply> invoker(
+        [](BteHci *hci, BteHciReadScanEnableCb replyCb) {
+            bte_hci_read_scan_enable(hci, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 4, 1, 0x19, 0xc, 0, 3 });
+
+    Buffer expectedCommand{0x19, 0xc, 0};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadScanEnableReply expectedReply = {
+        0, BTE_HCI_SCAN_ENABLE_INQ_PAGE
+    };
     ASSERT_EQ(invoker.receivedReply(), expectedReply);
 }
 

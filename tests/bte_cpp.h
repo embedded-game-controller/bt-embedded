@@ -231,6 +231,19 @@ public:
             bte_hci_read_page_timeout(m_hci, &Hci::Callbacks::readPageTimeout);
         }
 
+        void writeScanEnable(uint8_t scan_enable, const DoneCb &cb) {
+            m_writeScanEnableCb = cb;
+            bte_hci_write_scan_enable(m_hci, scan_enable,
+                                   &Hci::Callbacks::writeScanEnable);
+        }
+
+        using ReadScanEnableCb =
+            std::function<void(const BteHciReadScanEnableReply &)>;
+        void readScanEnable(const ReadScanEnableCb &cb) {
+            m_readScanEnableCb = cb;
+            bte_hci_read_scan_enable(m_hci, &Hci::Callbacks::readScanEnable);
+        }
+
         void writeClassOfDevice(const BteClassOfDevice &cod, const DoneCb &cb) {
             m_writeClassOfDevice = cb;
             bte_hci_write_class_of_device(m_hci, &cod,
@@ -385,6 +398,15 @@ public:
                                         void *cb_data) {
                 _this(cb_data)->m_readPageTimeoutCb(*reply);
             }
+            static void writeScanEnable(BteHci *hci, const BteHciReply *reply,
+                                        void *cb_data) {
+                _this(cb_data)->m_writeScanEnableCb(*reply);
+            }
+            static void readScanEnable(BteHci *hci,
+                                       const BteHciReadScanEnableReply *reply,
+                                       void *cb_data) {
+                _this(cb_data)->m_readScanEnableCb(*reply);
+            }
             static void writeClassOfDevice(BteHci *hci,
                                            const BteHciReply *reply,
                                            void *cb_data) {
@@ -437,6 +459,8 @@ public:
         ReadLocalNameCb m_readLocalNameCb;
         DoneCb m_writePageTimeoutCb;
         ReadPageTimeoutCb m_readPageTimeoutCb;
+        DoneCb m_writeScanEnableCb;
+        ReadScanEnableCb m_readScanEnableCb;
         DoneCb m_writeClassOfDevice;
         ReadLocalVersionCb m_readLocalVersionCb;
         ReadLocalFeaturesCb m_readLocalFeaturesCb;
