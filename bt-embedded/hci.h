@@ -230,6 +230,24 @@ void bte_hci_write_scan_enable(BteHci *hci, uint8_t scan_enable,
 void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
                                    BteHciDoneCb callback);
 
+#define BTE_HCI_AUTH_ENABLE_OFF (uint8_t)0
+#define BTE_HCI_AUTH_ENABLE_ON  (uint8_t)1
+
+typedef struct {
+    uint8_t status;
+    uint8_t auth_enable;
+} BteHciReadAuthEnableReply;
+
+typedef void (*BteHciReadAuthEnableCb)(BteHci *hci,
+                                       const BteHciReadAuthEnableReply *reply,
+                                       void *userdata);
+void bte_hci_read_auth_enable(BteHci *hci, BteHciReadAuthEnableCb callback);
+void bte_hci_write_auth_enable(BteHci *hci, uint8_t auth_enable,
+                               BteHciDoneCb callback);
+
+void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
+                                   BteHciDoneCb callback);
+
 /* Informational parameters */
 
 typedef struct {

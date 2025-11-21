@@ -666,6 +666,34 @@ void bte_hci_write_scan_enable(BteHci *hci, uint8_t scan_enable,
     _bte_hci_send_command(b);
 }
 
+static void read_auth_enable_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+{
+    BteHciReadAuthEnableReply reply;
+    reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    reply.auth_enable = buffer->data[HCI_CMD_REPLY_POS_DATA];
+    BteHciReadAuthEnableCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_read_auth_enable(BteHci *hci, BteHciReadAuthEnableCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_R_AUTH_ENABLE_OCF, HCI_HC_BB_OGF, HCI_R_AUTH_ENABLE_PLEN,
+        read_auth_enable_cb, callback);
+    _bte_hci_send_command(b);
+}
+
+void bte_hci_write_auth_enable(BteHci *hci, uint8_t auth_enable,
+                               BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_W_AUTH_ENABLE_OCF, HCI_HC_BB_OGF, HCI_W_AUTH_ENABLE_PLEN,
+        command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
+    b->data[HCI_CMD_HDR_LEN] = auth_enable;
+    _bte_hci_send_command(b);
+}
+
 void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
                                    BteHciDoneCb callback)
 {
