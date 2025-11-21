@@ -223,6 +223,26 @@ static const std::vector<CommandNoReplyRow> s_commandsWithNoReply {
             bte_hci_write_class_of_device(hci, &cod, cb); },
         {0x24, 0xc, 3, 0x11, 0x22, 0x33}
     },
+    {
+        "write_inquiry_scan_type",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_write_inquiry_scan_type(
+                hci, BTE_HCI_INQUIRY_SCAN_TYPE_STANDARD, cb); },
+        {0x43, 0xc, 1, BTE_HCI_INQUIRY_SCAN_TYPE_STANDARD}
+    },
+    {
+        "write_inquiry_mode",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_write_inquiry_mode(hci, BTE_HCI_INQUIRY_MODE_RSSI, cb); },
+        {0x45, 0xc, 1, BTE_HCI_INQUIRY_MODE_RSSI}
+    },
+    {
+        "write_page_scan_type",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_write_page_scan_type(
+                hci, BTE_HCI_PAGE_SCAN_TYPE_INTERLACED, cb); },
+        {0x47, 0xc, 1, BTE_HCI_PAGE_SCAN_TYPE_INTERLACED}
+    },
 };
 INSTANTIATE_TEST_CASE_P(
     CommandsWithNoReply,
@@ -750,6 +770,51 @@ TEST(Commands, testReadAuthEnable) {
     ASSERT_EQ(invoker.sentCommand(), expectedCommand);
 
     BteHciReadAuthEnableReply expectedReply = { 0, BTE_HCI_AUTH_ENABLE_ON };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
+
+TEST(Commands, testReadInquiryScanType) {
+    GetterInvoker<BteHciReadInquiryScanTypeReply> invoker(
+        [](BteHci *hci, BteHciReadInquiryScanTypeCb replyCb) {
+            bte_hci_read_inquiry_scan_type(hci, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 4, 1, 0x42, 0xc, 0, 1 });
+
+    Buffer expectedCommand{0x42, 0xc, 0};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadInquiryScanTypeReply expectedReply = {
+        0, BTE_HCI_INQUIRY_SCAN_TYPE_INTERLACED };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
+
+TEST(Commands, testReadInquiryMode) {
+    GetterInvoker<BteHciReadInquiryModeReply> invoker(
+        [](BteHci *hci, BteHciReadInquiryModeCb replyCb) {
+            bte_hci_read_inquiry_mode(hci, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 4, 1, 0x44, 0xc, 0, 0 });
+
+    Buffer expectedCommand{0x44, 0xc, 0};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadInquiryModeReply expectedReply = {
+        0, BTE_HCI_INQUIRY_MODE_STANDARD };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
+
+TEST(Commands, testReadPageScanType) {
+    GetterInvoker<BteHciReadPageScanTypeReply> invoker(
+        [](BteHci *hci, BteHciReadPageScanTypeCb replyCb) {
+            bte_hci_read_page_scan_type(hci, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 4, 1, 0x46, 0xc, 0, 0 });
+
+    Buffer expectedCommand{0x46, 0xc, 0};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadPageScanTypeReply expectedReply = {
+        0, BTE_HCI_PAGE_SCAN_TYPE_STANDARD };
     ASSERT_EQ(invoker.receivedReply(), expectedReply);
 }
 

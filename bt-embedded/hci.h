@@ -248,6 +248,49 @@ void bte_hci_write_auth_enable(BteHci *hci, uint8_t auth_enable,
 void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
                                    BteHciDoneCb callback);
 
+#define BTE_HCI_INQUIRY_SCAN_TYPE_STANDARD   (uint8_t)0
+#define BTE_HCI_INQUIRY_SCAN_TYPE_INTERLACED (uint8_t)1
+
+typedef struct {
+    uint8_t status;
+    uint8_t inquiry_scan_type;
+} BteHciReadInquiryScanTypeReply;
+
+typedef void (*BteHciReadInquiryScanTypeCb)(
+    BteHci *hci, const BteHciReadInquiryScanTypeReply *reply, void *userdata);
+void bte_hci_read_inquiry_scan_type(BteHci *hci,
+                                    BteHciReadInquiryScanTypeCb callback);
+void bte_hci_write_inquiry_scan_type(BteHci *hci, uint8_t inquiry_scan_type,
+                                     BteHciDoneCb callback);
+
+#define BTE_HCI_INQUIRY_MODE_STANDARD (uint8_t)0
+#define BTE_HCI_INQUIRY_MODE_RSSI     (uint8_t)1
+
+typedef struct {
+    uint8_t status;
+    uint8_t inquiry_mode;
+} BteHciReadInquiryModeReply;
+
+typedef void (*BteHciReadInquiryModeCb)(
+    BteHci *hci, const BteHciReadInquiryModeReply *reply, void *userdata);
+void bte_hci_read_inquiry_mode(BteHci *hci, BteHciReadInquiryModeCb callback);
+void bte_hci_write_inquiry_mode(BteHci *hci, uint8_t inquiry_mode,
+                                BteHciDoneCb callback);
+
+#define BTE_HCI_PAGE_SCAN_TYPE_STANDARD   (uint8_t)0
+#define BTE_HCI_PAGE_SCAN_TYPE_INTERLACED (uint8_t)1
+
+typedef struct {
+    uint8_t status;
+    uint8_t page_scan_type;
+} BteHciReadPageScanTypeReply;
+
+typedef void (*BteHciReadPageScanTypeCb)(
+    BteHci *hci, const BteHciReadPageScanTypeReply *reply, void *userdata);
+void bte_hci_read_page_scan_type(BteHci *hci, BteHciReadPageScanTypeCb callback);
+void bte_hci_write_page_scan_type(BteHci *hci, uint8_t page_scan_type,
+                                  BteHciDoneCb callback);
+
 /* Informational parameters */
 
 typedef struct {

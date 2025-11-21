@@ -125,8 +125,11 @@ extern "C" {
 #define HCI_HOST_NUM_COMPL_OCF      0x35
 #define HCI_W_LINK_SUP_TIMEOUT_OCF  0x37
 #define HCI_R_CUR_IACLAP_OCF        0x39
+#define HCI_R_INQUIRY_SCAN_TYPE_OCF 0x42
 #define HCI_W_INQUIRY_SCAN_TYPE_OCF 0x43
+#define HCI_R_INQUIRY_MODE_OCF      0x44
 #define HCI_W_INQUIRY_MODE_OCF      0x45
+#define HCI_R_PAGE_SCAN_TYPE_OCF    0x46
 #define HCI_W_PAGE_SCAN_TYPE_OCF    0x47
 
 /* Informational Parameters */

@@ -107,6 +107,24 @@ inline bool operator==(const BteHciReadAuthEnableReply &a,
     return a.status == b.status && a.auth_enable == b.auth_enable;
 }
 
+inline bool operator==(const BteHciReadInquiryScanTypeReply &a,
+                       const BteHciReadInquiryScanTypeReply &b)
+{
+    return a.status == b.status && a.inquiry_scan_type == b.inquiry_scan_type;
+}
+
+inline bool operator==(const BteHciReadInquiryModeReply &a,
+                       const BteHciReadInquiryModeReply &b)
+{
+    return a.status == b.status && a.inquiry_mode == b.inquiry_mode;
+}
+
+inline bool operator==(const BteHciReadPageScanTypeReply &a,
+                       const BteHciReadPageScanTypeReply &b)
+{
+    return a.status == b.status && a.page_scan_type == b.page_scan_type;
+}
+
 inline bool operator==(const BteHciReadLocalVersionReply &a,
                        const BteHciReadLocalVersionReply &b)
 {

@@ -263,6 +263,49 @@ public:
                                           &Hci::Callbacks::writeClassOfDevice);
         }
 
+        void writeInquiryScanType(uint8_t inquiry_scan_type,
+                                  const DoneCb &cb) {
+            m_writeInquiryScanTypeCb = cb;
+            bte_hci_write_inquiry_scan_type(
+                m_hci, inquiry_scan_type,
+                &Hci::Callbacks::writeInquiryScanType);
+        }
+
+        using ReadInquiryScanTypeCb =
+            std::function<void(const BteHciReadInquiryScanTypeReply &)>;
+        void readInquiryScanType(const ReadInquiryScanTypeCb &cb) {
+            m_readInquiryScanTypeCb = cb;
+            bte_hci_read_inquiry_scan_type(
+                m_hci, &Hci::Callbacks::readInquiryScanType);
+        }
+
+        void writeInquiryMode(uint8_t inquiry_mode, const DoneCb &cb) {
+            m_writeInquiryModeCb = cb;
+            bte_hci_write_inquiry_mode(m_hci, inquiry_mode,
+                                       &Hci::Callbacks::writeInquiryMode);
+        }
+
+        using ReadInquiryModeCb =
+            std::function<void(const BteHciReadInquiryModeReply &)>;
+        void readInquiryMode(const ReadInquiryModeCb &cb) {
+            m_readInquiryModeCb = cb;
+            bte_hci_read_inquiry_mode(m_hci, &Hci::Callbacks::readInquiryMode);
+        }
+
+        void writePageScanType(uint8_t page_scan_type, const DoneCb &cb) {
+            m_writePageScanTypeCb = cb;
+            bte_hci_write_page_scan_type(m_hci, page_scan_type,
+                                         &Hci::Callbacks::writePageScanType);
+        }
+
+        using ReadPageScanTypeCb =
+            std::function<void(const BteHciReadPageScanTypeReply &)>;
+        void readPageScanType(const ReadPageScanTypeCb &cb) {
+            m_readPageScanTypeCb = cb;
+            bte_hci_read_page_scan_type(m_hci,
+                                        &Hci::Callbacks::readPageScanType);
+        }
+
         using ReadLocalVersionCb =
             std::function<void(const BteHciReadLocalVersionReply &)>;
         void readLocalVersion(const ReadLocalVersionCb &cb) {
@@ -434,6 +477,33 @@ public:
                                            void *cb_data) {
                 _this(cb_data)->m_writeClassOfDevice(*reply);
             }
+            static void writeInquiryScanType(
+                BteHci *hci, const BteHciReply *reply, void *cb_data) {
+                _this(cb_data)->m_writeInquiryScanTypeCb(*reply);
+            }
+            static void readInquiryScanType(
+                BteHci *hci, const BteHciReadInquiryScanTypeReply *reply,
+                void *cb_data) {
+                _this(cb_data)->m_readInquiryScanTypeCb(*reply);
+            }
+            static void writeInquiryMode(BteHci *hci, const BteHciReply *reply,
+                                         void *cb_data) {
+                _this(cb_data)->m_writeInquiryModeCb(*reply);
+            }
+            static void readInquiryMode(
+                BteHci *hci, const BteHciReadInquiryModeReply *reply,
+                void *cb_data) {
+                _this(cb_data)->m_readInquiryModeCb(*reply);
+            }
+            static void writePageScanType(BteHci *hci, const BteHciReply *reply,
+                                          void *cb_data) {
+                _this(cb_data)->m_writePageScanTypeCb(*reply);
+            }
+            static void readPageScanType(
+                BteHci *hci, const BteHciReadPageScanTypeReply *reply,
+                void *cb_data) {
+                _this(cb_data)->m_readPageScanTypeCb(*reply);
+            }
             static void readLocalVersion(BteHci *hci,
                 const BteHciReadLocalVersionReply *reply, void *cb_data) {
                 _this(cb_data)->m_readLocalVersionCb(*reply);
@@ -486,6 +556,12 @@ public:
         DoneCb m_writeAuthEnableCb;
         ReadAuthEnableCb m_readAuthEnableCb;
         DoneCb m_writeClassOfDevice;
+        DoneCb m_writeInquiryScanTypeCb;
+        ReadInquiryScanTypeCb m_readInquiryScanTypeCb;
+        DoneCb m_writeInquiryModeCb;
+        ReadInquiryModeCb m_readInquiryModeCb;
+        DoneCb m_writePageScanTypeCb;
+        ReadPageScanTypeCb m_readPageScanTypeCb;
         ReadLocalVersionCb m_readLocalVersionCb;
         ReadLocalFeaturesCb m_readLocalFeaturesCb;
         ReadBufferSizeCb m_readBufferSizeCb;
