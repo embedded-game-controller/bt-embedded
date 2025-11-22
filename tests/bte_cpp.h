@@ -5,10 +5,14 @@
 #include "bt-embedded/bte.h"
 #include "bt-embedded/hci.h"
 
+#include <any>
 #include <cstring>
 #include <functional>
 #include <span>
 #include <string>
+#include <tuple>
+#include <type_traits>
+#include <unordered_map>
 
 /* C++ wrapper for the bt-embedded API. Used for testing, but we might make it
  * part of bt-embedded, if someone needs it. */
@@ -52,6 +56,58 @@ public:
     ~Client() { bte_client_unref(m_client); }
 
     struct Hci {
+    private:
+        template <typename T> static void *tag(T x) {
+            return *reinterpret_cast<void**>(&x);
+        }
+
+        template <typename CbData, typename Func>
+        static CbData cbData(Hci &hci, Func f) {
+            return std::any_cast<CbData>(hci.m_callbacks[tag(f)]);
+        }
+
+        template <typename CbData, typename Func>
+        static CbData cbData(void *userdata, Func f) {
+            return cbData<CbData>(static_cast<Client*>(userdata)->m_hci, f);
+        }
+
+        template <typename ReplyType, typename CbType>
+        struct CallbackHelper {
+            static void commandCb(BteHci *, ReplyType *reply, void *cb_data) {
+                if constexpr (std::is_same_v<CbType,std::function<void(ReplyType &)>>) {
+                    cbData<CbType>(cb_data, &CallbackHelper::commandCb)(*reply);
+                } else {
+                    cbData<CbType>(cb_data, &CallbackHelper::commandCb)(reply);
+                }
+            }
+        };
+
+        template <typename ReplyType, typename CbType>
+        auto wrap(const CbType &cb) {
+            auto commandCb = &CallbackHelper<ReplyType, CbType>::commandCb;
+            m_callbacks[tag(commandCb)] = cb;
+            return commandCb;
+        }
+
+        /* Simplified version of the wrap() function with automatic deduction
+         * of the type from the argument of the CbType callback. */
+        template <typename> struct extract_argument;
+
+        template <typename R, typename A>
+        struct extract_argument<std::function<R(A)>>
+        {
+            using type = std::remove_reference_t<A>;
+        };
+
+        template <typename CbType>
+        auto wrap(const CbType &cb) {
+            using ReplyType = typename extract_argument<CbType>::type;
+            auto commandCb = &CallbackHelper<ReplyType, CbType>::commandCb;
+            m_callbacks[tag(commandCb)] = cb;
+            return commandCb;
+        }
+
+    public:
         using InitializedCb = std::function<void(bool)>;
         void onInitialized(const InitializedCb &cb) {
             m_initializedCb = cb;
@@ -293,59 +349,50 @@ public:
         }
 
         void writePageScanType(uint8_t page_scan_type, const DoneCb &cb) {
-            m_writePageScanTypeCb = cb;
-            bte_hci_write_page_scan_type(m_hci, page_scan_type,
-                                         &Hci::Callbacks::writePageScanType);
+            bte_hci_write_page_scan_type(m_hci, page_scan_type, wrap(cb));
         }
 
         using ReadPageScanTypeCb =
             std::function<void(const BteHciReadPageScanTypeReply &)>;
         void readPageScanType(const ReadPageScanTypeCb &cb) {
-            m_readPageScanTypeCb = cb;
-            bte_hci_read_page_scan_type(m_hci,
-                                        &Hci::Callbacks::readPageScanType);
+            bte_hci_read_page_scan_type(m_hci, wrap(cb));
         }
 
         using ReadLocalVersionCb =
             std::function<void(const BteHciReadLocalVersionReply &)>;
         void readLocalVersion(const ReadLocalVersionCb &cb) {
-            m_readLocalVersionCb = cb;
-            bte_hci_read_local_version(m_hci,
-                                       &Hci::Callbacks::readLocalVersion);
+            bte_hci_read_local_version(m_hci, wrap(cb));
         }
 
         using ReadLocalFeaturesCb =
             std::function<void(const BteHciReadLocalFeaturesReply &)>;
         void readLocalFeatures(const ReadLocalFeaturesCb &cb) {
-            m_readLocalFeaturesCb = cb;
-            bte_hci_read_local_features(m_hci,
-                                        &Hci::Callbacks::readLocalFeatures);
+            bte_hci_read_local_features(m_hci, wrap(cb));
         }
 
         using ReadBufferSizeCb =
             std::function<void(const BteHciReadBufferSizeReply &)>;
         void readBufferSize(const ReadBufferSizeCb &cb) {
-            m_readBufferSizeCb = cb;
-            bte_hci_read_buffer_size(m_hci, &Hci::Callbacks::readBufferSize);
+            bte_hci_read_buffer_size(m_hci, wrap(cb));
         }
 
         using ReadBdAddrCb =
             std::function<void(const BteHciReadBdAddrReply &)>;
         void readBdAddr(const ReadBdAddrCb &cb) {
-            m_readBdAddrCb = cb;
-            bte_hci_read_bd_addr(m_hci, &Hci::Callbacks::readBdAddr);
+            bte_hci_read_bd_addr(m_hci, wrap(cb));
         }
 
         using VendorCommandCb = std::function<void(const Buffer &)>;
         void vendorCommand(uint16_t ocf, const Buffer &buffer,
                            const VendorCommandCb &cb) {
-            m_vendorCommandCb = cb;
             bte_hci_vendor_command(m_hci, ocf,
                                    buffer.data(), uint8_t(buffer.size()),
-                                   &Hci::Callbacks::vendorCommand);
+                                   wrap<BteBuffer>(cb));
         }
 
     private:
+        std::unordered_map<void*, std::any> m_callbacks;
+
         struct Callbacks {
             static Hci *_this(void *cb_data) {
                 return &static_cast<Client*>(cb_data)->m_hci;
