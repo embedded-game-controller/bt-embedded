@@ -10,11 +10,11 @@
 
 #include <type_traits>
 
-template <typename ReplyType>
+template <typename ReplyType, typename CReplyType = ReplyType>
 class GetterInvoker {
 public:
     typedef void (*ReplyCb)(BteHci *hci,
-                            const ReplyType *reply,
+                            const CReplyType *reply,
                             void *userdata);
     using InvokerCb = std::function<void(BteHci *, ReplyCb replyCb)>;
     using ReplyParams = std::tuple<BteHci *, ReplyType, void*>;
@@ -45,9 +45,13 @@ public:
         return m_replies.empty() ? invalidReply : std::get<1>(m_replies.front());
     }
 
-    static void replyCb(BteHci *hci, const ReplyType *reply, void *userdata) {
-        auto _this = static_cast<GetterInvoker<ReplyType> *>(userdata);
-        _this->m_replies.push_back({hci, *reply, userdata});
+    static void replyCb(BteHci *hci, const CReplyType *reply, void *userdata) {
+        auto _this = static_cast<GetterInvoker<ReplyType,CReplyType> *>(userdata);
+        if constexpr (std::is_same_v<CReplyType, ReplyType>) {
+            _this->m_replies.push_back({hci, *reply, userdata});
+        } else {
+            _this->m_replies.push_back({hci, ReplyType(reply), userdata});
+        }
     }
 
 private:
