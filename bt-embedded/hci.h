@@ -57,13 +57,13 @@ typedef struct {
 typedef void (*BteHciInquiryCb)(BteHci *hci,
                                 const BteHciInquiryReply *reply,
                                 void *userdata);
-void bte_hci_inquiry(BteHci *hci, uint32_t lap, uint8_t len, uint8_t max_resp,
+void bte_hci_inquiry(BteHci *hci, BteLap lap, uint8_t len, uint8_t max_resp,
                      BteHciDoneCb status_cb,
                      BteHciInquiryCb callback);
 void bte_hci_inquiry_cancel(BteHci *hci, BteHciDoneCb callback);
 void bte_hci_periodic_inquiry(BteHci *hci,
                               uint16_t min_period, uint16_t max_period,
-                              uint32_t lap, uint8_t len, uint8_t max_resp,
+                              BteLap lap, uint8_t len, uint8_t max_resp,
                               BteHciDoneCb status_cb,
                               BteHciInquiryCb callback);
 void bte_hci_exit_periodic_inquiry(BteHci *hci, BteHciDoneCb callback);

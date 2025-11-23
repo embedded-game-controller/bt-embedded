@@ -28,6 +28,8 @@ typedef struct {
     uint8_t bytes[16];
 } BteLinkKey;
 
+typedef uint32_t BteLap;
+
 #ifdef __cplusplus
 }
 #endif

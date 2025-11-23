@@ -132,7 +132,7 @@ public:
         }
 
         using InquiryCb = std::function<void(const BteHciInquiryReply &)>;
-        void inquiry(uint32_t lap, uint8_t len, uint8_t max_resp,
+        void inquiry(BteLap lap, uint8_t len, uint8_t max_resp,
                      const DoneCb &statusCb, const InquiryCb &cb) {
             m_inquiryCb = {statusCb, cb};
             bte_hci_inquiry(m_hci, lap, len, max_resp,
@@ -145,7 +145,7 @@ public:
         }
 
         void periodicInquiry(uint16_t min_period, uint16_t max_period,
-                             uint32_t lap, uint8_t len, uint8_t max_resp,
+                             BteLap lap, uint8_t len, uint8_t max_resp,
                              const DoneCb &statusCb, const InquiryCb &cb) {
             m_inquiryCb = {statusCb, cb};
             bte_hci_periodic_inquiry(m_hci, min_period, max_period,

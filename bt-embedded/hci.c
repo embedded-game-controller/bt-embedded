@@ -148,7 +148,7 @@ static void inquiry_status_cb(BteHci *hci, uint8_t status)
     }
 }
 
-void bte_hci_inquiry(BteHci *hci, uint32_t lap, uint8_t len, uint8_t max_resp,
+void bte_hci_inquiry(BteHci *hci, BteLap lap, uint8_t len, uint8_t max_resp,
                      BteHciDoneCb status_cb, BteHciInquiryCb callback)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_async_command(
@@ -207,7 +207,7 @@ static void periodic_inquiry_complete_cb(BteHci *hci, BteBuffer *buffer,
 
 void bte_hci_periodic_inquiry(BteHci *hci,
                               uint16_t min_period, uint16_t max_period,
-                              uint32_t lap, uint8_t len, uint8_t max_resp,
+                              BteLap lap, uint8_t len, uint8_t max_resp,
                               BteHciDoneCb status_cb, BteHciInquiryCb callback)
 {
     /* The periodic inquiry command does not sent a command status (like the
