@@ -763,6 +763,57 @@ void bte_hci_write_auto_flush_timeout(BteHci *hci,
     _bte_hci_send_command(b);
 }
 
+void bte_hci_set_ctrl_to_host_flow_control(BteHci *hci, uint8_t enable,
+                                           BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_SET_HC_TO_H_FC_OCF, HCI_HC_BB_OGF, HCI_SET_HC_TO_H_FC_PLEN,
+        command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
+    b->data[HCI_CMD_HDR_LEN] = enable;
+    _bte_hci_send_command(b);
+}
+
+static void read_link_sv_timeout_cb(BteHci *hci, BteBuffer *buffer,
+                                       void *client_cb)
+{
+    BteHciReadLinkSvTimeoutReply reply;
+    reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    const uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
+    reply.conn_handle = read_le16(data);
+    reply.sv_timeout = read_le16(data + 2);
+    BteHciReadLinkSvTimeoutCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_read_link_sv_timeout(BteHci *hci,
+                                     BteHciConnHandle conn_handle,
+                                     BteHciReadLinkSvTimeoutCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_R_LINK_SV_TIMEOUT_OCF, HCI_HC_BB_OGF,
+        HCI_R_LINK_SV_TIMEOUT_PLEN,
+        read_link_sv_timeout_cb, callback);
+    if (UNLIKELY(!b)) return;
+    write_le16(conn_handle, b->data + HCI_CMD_HDR_LEN);
+    _bte_hci_send_command(b);
+}
+
+void bte_hci_write_link_sv_timeout(BteHci *hci,
+                                   BteHciConnHandle conn_handle,
+                                   uint16_t timeout,
+                                   BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_W_LINK_SV_TIMEOUT_OCF, HCI_HC_BB_OGF,
+        HCI_W_LINK_SV_TIMEOUT_PLEN,
+        command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
+    write_le16(conn_handle, b->data + HCI_CMD_HDR_LEN);
+    write_le16(timeout, b->data + HCI_CMD_HDR_LEN + 2);
+    _bte_hci_send_command(b);
+}
+
 static void read_inquiry_scan_type_cb(BteHci *hci, BteBuffer *buffer,
                                       void *client_cb)
 {

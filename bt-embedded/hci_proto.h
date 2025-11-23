@@ -124,7 +124,8 @@ extern "C" {
 #define HCI_SET_HC_TO_H_FC_OCF      0x31
 #define HCI_HOST_BUF_SIZE_OCF       0x33
 #define HCI_HOST_NUM_COMPL_OCF      0x35
-#define HCI_W_LINK_SUP_TIMEOUT_OCF  0x37
+#define HCI_R_LINK_SV_TIMEOUT_OCF   0x36
+#define HCI_W_LINK_SV_TIMEOUT_OCF   0x37
 #define HCI_R_CUR_IACLAP_OCF        0x39
 #define HCI_R_INQUIRY_SCAN_TYPE_OCF 0x42
 #define HCI_W_INQUIRY_SCAN_TYPE_OCF 0x43
@@ -199,6 +200,8 @@ extern "C" {
 #define HCI_W_COD_PLEN               6
 #define HCI_R_FLUSHTO_PLEN           5
 #define HCI_W_FLUSHTO_PLEN           7
+#define HCI_R_LINK_SV_TIMEOUT_PLEN   5
+#define HCI_W_LINK_SV_TIMEOUT_PLEN   7
 #define HCI_SET_HC_TO_H_FC_PLEN      4
 #define HCI_HOST_BUF_SIZE_PLEN       10
 #define HCI_H_NUM_COMPL_PLEN         8

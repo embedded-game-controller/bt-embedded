@@ -230,6 +230,19 @@ static const std::vector<CommandNoReplyRow> s_commandsWithNoReply {
         {0x28, 0xc, 4, 0x23, 0x01, 0x67, 0x45}
     },
     {
+        "set_ctrl_to_host_flow_control",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_set_ctrl_to_host_flow_control(
+                hci, BTE_HCI_CTRL_TO_HOST_FLOW_CONTROL_SYNC, cb); },
+        {0x31, 0xc, 1, BTE_HCI_CTRL_TO_HOST_FLOW_CONTROL_SYNC}
+    },
+    {
+        "write_link_sv_timeout",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_write_link_sv_timeout(hci, 0x0123, 0x4567, cb); },
+        {0x37, 0xc, 4, 0x23, 0x01, 0x67, 0x45}
+    },
+    {
         "write_inquiry_scan_type",
         [](BteHci *hci, BteHciDoneCb cb) {
             bte_hci_write_inquiry_scan_type(
@@ -805,6 +818,21 @@ TEST(Commands, testReadAutoFlushTimeout) {
     ASSERT_EQ(invoker.sentCommand(), expectedCommand);
 
     BteHciReadAutoFlushTimeoutReply expectedReply = { 0, conn, 0x5678 };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
+
+TEST(Commands, testReadLinkSvTimeout) {
+    BteHciConnHandle conn = 0x0123;
+    GetterInvoker<BteHciReadLinkSvTimeoutReply> invoker(
+        [&](BteHci *hci, BteHciReadLinkSvTimeoutCb replyCb) {
+            bte_hci_read_link_sv_timeout(hci, conn, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 5, 1, 0x36, 0xc, 0, 0x23, 0x01, 0x78, 0x56 });
+
+    Buffer expectedCommand{0x36, 0xc, 2, 0x23, 0x01};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadLinkSvTimeoutReply expectedReply = { 0, conn, 0x5678 };
     ASSERT_EQ(invoker.receivedReply(), expectedReply);
 }
 

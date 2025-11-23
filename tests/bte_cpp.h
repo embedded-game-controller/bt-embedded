@@ -316,6 +316,25 @@ public:
             bte_hci_read_auto_flush_timeout(m_hci, conn_handle, wrap<TAG>(cb));
         }
 
+        void setCtrlToHostFlowControl(BteHciConnHandle conn_handle,
+                                      uint8_t enable, const DoneCb &cb) {
+            bte_hci_set_ctrl_to_host_flow_control(
+                m_hci, enable, wrap<TAG>(cb));
+        }
+
+        void writeLinkSvTimeout(BteHciConnHandle conn_handle,
+                                uint8_t timeout, const DoneCb &cb) {
+            bte_hci_write_link_sv_timeout(
+                m_hci, conn_handle, timeout, wrap<TAG>(cb));
+        }
+
+        using ReadLinkSvTimeoutCb =
+            std::function<void(const BteHciReadLinkSvTimeoutReply &)>;
+        void readLinkSvTimeout(BteHciConnHandle conn_handle,
+                               const ReadLinkSvTimeoutCb &cb) {
+            bte_hci_read_link_sv_timeout(m_hci, conn_handle, wrap<TAG>(cb));
+        }
+
         void writeInquiryScanType(uint8_t inquiry_scan_type,
                                   const DoneCb &cb) {
             bte_hci_write_inquiry_scan_type(

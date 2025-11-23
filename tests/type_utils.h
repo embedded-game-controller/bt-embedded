@@ -125,6 +125,13 @@ inline bool operator==(const BteHciReadAutoFlushTimeoutReply &a,
         a.flush_timeout == b.flush_timeout;
 }
 
+inline bool operator==(const BteHciReadLinkSvTimeoutReply &a,
+                       const BteHciReadLinkSvTimeoutReply &b)
+{
+    return a.status == b.status && a.conn_handle == b.conn_handle &&
+        a.sv_timeout == b.sv_timeout;
+}
+
 inline bool operator==(const BteHciReadInquiryScanTypeReply &a,
                        const BteHciReadInquiryScanTypeReply &b)
 {
