@@ -297,6 +297,12 @@ public:
             bte_hci_write_class_of_device(m_hci, &cod, wrap<TAG>(cb));
         }
 
+        using ReadClassOfDeviceCb =
+            std::function<void(const BteHciReadClassOfDeviceReply &)>;
+        void readClassOfDevice(const ReadClassOfDeviceCb &cb) {
+            bte_hci_read_class_of_device(m_hci, wrap<TAG>(cb));
+        }
+
         void writeInquiryScanType(uint8_t inquiry_scan_type,
                                   const DoneCb &cb) {
             bte_hci_write_inquiry_scan_type(

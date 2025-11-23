@@ -227,9 +227,6 @@ void bte_hci_read_scan_enable(BteHci *hci, BteHciReadScanEnableCb callback);
 void bte_hci_write_scan_enable(BteHci *hci, uint8_t scan_enable,
                                BteHciDoneCb callback);
 
-void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
-                                   BteHciDoneCb callback);
-
 #define BTE_HCI_AUTH_ENABLE_OFF (uint8_t)0
 #define BTE_HCI_AUTH_ENABLE_ON  (uint8_t)1
 
@@ -245,6 +242,15 @@ void bte_hci_read_auth_enable(BteHci *hci, BteHciReadAuthEnableCb callback);
 void bte_hci_write_auth_enable(BteHci *hci, uint8_t auth_enable,
                                BteHciDoneCb callback);
 
+typedef struct {
+    uint8_t status;
+    BteClassOfDevice cod;
+} BteHciReadClassOfDeviceReply;
+
+typedef void (*BteHciReadClassOfDeviceCb)(
+    BteHci *hci, const BteHciReadClassOfDeviceReply *reply, void *userdata);
+void bte_hci_read_class_of_device(BteHci *hci,
+                                  BteHciReadClassOfDeviceCb callback);
 void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
                                    BteHciDoneCb callback);
 

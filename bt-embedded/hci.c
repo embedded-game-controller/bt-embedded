@@ -694,6 +694,26 @@ void bte_hci_write_auth_enable(BteHci *hci, uint8_t auth_enable,
     _bte_hci_send_command(b);
 }
 
+static void read_class_of_device_cb(BteHci *hci, BteBuffer *buffer,
+                                    void *client_cb)
+{
+    BteHciReadClassOfDeviceReply reply;
+    reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    memcpy(&reply.cod, buffer->data + HCI_CMD_REPLY_POS_DATA,
+           sizeof(reply.cod));
+    BteHciReadClassOfDeviceCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_read_class_of_device(BteHci *hci,
+                                  BteHciReadClassOfDeviceCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_R_COD_OCF, HCI_HC_BB_OGF, HCI_R_COD_PLEN,
+        read_class_of_device_cb, callback);
+    _bte_hci_send_command(b);
+}
+
 void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
                                    BteHciDoneCb callback)
 {

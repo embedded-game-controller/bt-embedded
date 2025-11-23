@@ -773,6 +773,20 @@ TEST(Commands, testReadAuthEnable) {
     ASSERT_EQ(invoker.receivedReply(), expectedReply);
 }
 
+TEST(Commands, testReadClassOfDevice) {
+    GetterInvoker<BteHciReadClassOfDeviceReply> invoker(
+        [](BteHci *hci, BteHciReadClassOfDeviceCb replyCb) {
+            bte_hci_read_class_of_device(hci, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 7, 1, 0x23, 0xc, 0, 0xaa, 0xbb, 0xcc });
+
+    Buffer expectedCommand{0x23, 0xc, 0};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadClassOfDeviceReply expectedReply = { 0, {0xaa, 0xbb, 0xcc}};
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
+
 TEST(Commands, testReadInquiryScanType) {
     GetterInvoker<BteHciReadInquiryScanTypeReply> invoker(
         [](BteHci *hci, BteHciReadInquiryScanTypeCb replyCb) {

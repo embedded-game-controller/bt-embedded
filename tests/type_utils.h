@@ -31,6 +31,11 @@ inline std::ostream &operator<<(std::ostream &os, const BteLinkKey &a)
     return os;
 }
 
+inline bool operator==(const BteClassOfDevice &a, const BteClassOfDevice &b)
+{
+    return memcmp(a.bytes, b.bytes, sizeof(a.bytes)) == 0;
+}
+
 inline bool operator==(const BteHciReply &a, const BteHciReply &b)
 {
     return a.status == b.status;
@@ -105,6 +110,12 @@ inline bool operator==(const BteHciReadAuthEnableReply &a,
                        const BteHciReadAuthEnableReply &b)
 {
     return a.status == b.status && a.auth_enable == b.auth_enable;
+}
+
+inline bool operator==(const BteHciReadClassOfDeviceReply &a,
+                       const BteHciReadClassOfDeviceReply &b)
+{
+    return a.status == b.status && a.cod == b.cod;
 }
 
 inline bool operator==(const BteHciReadInquiryScanTypeReply &a,
