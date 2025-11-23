@@ -224,6 +224,12 @@ static const std::vector<CommandNoReplyRow> s_commandsWithNoReply {
         {0x24, 0xc, 3, 0x11, 0x22, 0x33}
     },
     {
+        "write_auto_flush_timeout",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_write_auto_flush_timeout(hci, 0x0123, 0x4567, cb); },
+        {0x28, 0xc, 4, 0x23, 0x01, 0x67, 0x45}
+    },
+    {
         "write_inquiry_scan_type",
         [](BteHci *hci, BteHciDoneCb cb) {
             bte_hci_write_inquiry_scan_type(
@@ -784,6 +790,21 @@ TEST(Commands, testReadClassOfDevice) {
     ASSERT_EQ(invoker.sentCommand(), expectedCommand);
 
     BteHciReadClassOfDeviceReply expectedReply = { 0, {0xaa, 0xbb, 0xcc}};
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
+
+TEST(Commands, testReadAutoFlushTimeout) {
+    BteHciConnHandle conn = 0x0123;
+    GetterInvoker<BteHciReadAutoFlushTimeoutReply> invoker(
+        [&](BteHci *hci, BteHciReadAutoFlushTimeoutCb replyCb) {
+            bte_hci_read_auto_flush_timeout(hci, conn, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 5, 1, 0x27, 0xc, 0, 0x23, 0x01, 0x78, 0x56 });
+
+    Buffer expectedCommand{0x27, 0xc, 2, 0x23, 0x01};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadAutoFlushTimeoutReply expectedReply = { 0, conn, 0x5678 };
     ASSERT_EQ(invoker.receivedReply(), expectedReply);
 }
 

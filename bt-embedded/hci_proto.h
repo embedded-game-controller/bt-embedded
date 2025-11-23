@@ -119,6 +119,7 @@ extern "C" {
 #define HCI_W_AUTH_ENABLE_OCF       0x20
 #define HCI_R_COD_OCF               0x23
 #define HCI_W_COD_OCF               0x24
+#define HCI_R_FLUSHTO_OCF           0x27
 #define HCI_W_FLUSHTO_OCF           0x28
 #define HCI_SET_HC_TO_H_FC_OCF      0x31
 #define HCI_HOST_BUF_SIZE_OCF       0x33
@@ -196,6 +197,7 @@ extern "C" {
 #define HCI_W_AUTH_ENABLE_PLEN       4
 #define HCI_R_COD_PLEN               3
 #define HCI_W_COD_PLEN               6
+#define HCI_R_FLUSHTO_PLEN           5
 #define HCI_W_FLUSHTO_PLEN           7
 #define HCI_SET_HC_TO_H_FC_PLEN      4
 #define HCI_HOST_BUF_SIZE_PLEN       10

@@ -303,6 +303,19 @@ public:
             bte_hci_read_class_of_device(m_hci, wrap<TAG>(cb));
         }
 
+        void writeAutoFlushTimeout(BteHciConnHandle conn_handle,
+                                   uint8_t timeout, const DoneCb &cb) {
+            bte_hci_write_auto_flush_timeout(
+                m_hci, conn_handle, timeout, wrap<TAG>(cb));
+        }
+
+        using ReadAutoFlushTimeoutCb =
+            std::function<void(const BteHciReadAutoFlushTimeoutReply &)>;
+        void readAutoFlushTimeout(BteHciConnHandle conn_handle,
+                                  const ReadAutoFlushTimeoutCb &cb) {
+            bte_hci_read_auto_flush_timeout(m_hci, conn_handle, wrap<TAG>(cb));
+        }
+
         void writeInquiryScanType(uint8_t inquiry_scan_type,
                                   const DoneCb &cb) {
             bte_hci_write_inquiry_scan_type(

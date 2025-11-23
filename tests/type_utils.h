@@ -118,6 +118,13 @@ inline bool operator==(const BteHciReadClassOfDeviceReply &a,
     return a.status == b.status && a.cod == b.cod;
 }
 
+inline bool operator==(const BteHciReadAutoFlushTimeoutReply &a,
+                       const BteHciReadAutoFlushTimeoutReply &b)
+{
+    return a.status == b.status && a.conn_handle == b.conn_handle &&
+        a.flush_timeout == b.flush_timeout;
+}
+
 inline bool operator==(const BteHciReadInquiryScanTypeReply &a,
                        const BteHciReadInquiryScanTypeReply &b)
 {

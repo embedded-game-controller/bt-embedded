@@ -9,6 +9,7 @@ extern "C" {
 #endif
 
 typedef uint64_t BteHciEventMask;
+typedef uint16_t BteHciConnHandle;
 
 BteHci *bte_hci_get(BteClient *client);
 
@@ -253,6 +254,22 @@ void bte_hci_read_class_of_device(BteHci *hci,
                                   BteHciReadClassOfDeviceCb callback);
 void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
                                    BteHciDoneCb callback);
+
+typedef struct {
+    uint8_t status;
+    BteHciConnHandle conn_handle;
+    uint16_t flush_timeout;
+} BteHciReadAutoFlushTimeoutReply;
+
+typedef void (*BteHciReadAutoFlushTimeoutCb)(
+    BteHci *hci, const BteHciReadAutoFlushTimeoutReply *reply, void *userdata);
+void bte_hci_read_auto_flush_timeout(BteHci *hci,
+                                     BteHciConnHandle conn_handle,
+                                     BteHciReadAutoFlushTimeoutCb callback);
+void bte_hci_write_auto_flush_timeout(BteHci *hci,
+                                      BteHciConnHandle conn_handle,
+                                      uint16_t timeout,
+                                      BteHciDoneCb callback);
 
 #define BTE_HCI_INQUIRY_SCAN_TYPE_STANDARD   (uint8_t)0
 #define BTE_HCI_INQUIRY_SCAN_TYPE_INTERLACED (uint8_t)1
