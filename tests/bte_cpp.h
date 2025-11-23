@@ -57,46 +57,8 @@ public:
 
     struct Hci {
     private:
-        enum Tag {
-            Nop,
-            InquiryCancel,
-            ExitPeriodicInquiry,
-            LinkKeyReqReply,
-            LinkKeyReqNegReply,
-            PinCodeReqReply,
-            PinCodeReqNegReply,
-            SetEventMask,
-            Reset,
-            WritePinType,
-            ReadPinType,
-            ReadStoredLinkKey,
-            WriteStoredLinkKey,
-            DeleteStoredLinkKey,
-            WriteLocalName,
-            ReadLocalName,
-            WritePageTimeout,
-            ReadPageTimeout,
-            WriteScanEnable,
-            ReadScanEnable,
-            WriteAuthEnable,
-            ReadAuthEnable,
-            WriteClassOfDevice,
-            WriteInquiryScanType,
-            ReadInquiryScanType,
-            WriteInquiryMode,
-            ReadInquiryMode,
-            WritePageScanType,
-            ReadPageScanType,
-            ReadLocalVersion,
-            ReadLocalFeatures,
-            ReadBufferSize,
-            ReadBdAddr,
-            VendorCommand,
-        };
-        template <typename T> static void *tag(T x) {
-            return *reinterpret_cast<void**>(&x);
-        }
-
+        using Tag = int;
+#define TAG __LINE__
         template <typename CbData, Tag t>
         static CbData cbData(Hci &hci) {
             return std::any_cast<CbData>(hci.m_callbacks[t]);
@@ -166,7 +128,7 @@ public:
 
         using DoneCb = std::function<void(const BteHciReply &)>;
         void nop(const DoneCb &cb) {
-            bte_hci_nop(m_hci, wrap<Nop>(cb));
+            bte_hci_nop(m_hci, wrap<TAG>(cb));
         }
 
         using InquiryCb = std::function<void(const BteHciInquiryReply &)>;
@@ -179,7 +141,7 @@ public:
         }
 
         void inquiryCancel(const DoneCb &cb) {
-            bte_hci_inquiry_cancel(m_hci, wrap<InquiryCancel>(cb));
+            bte_hci_inquiry_cancel(m_hci, wrap<TAG>(cb));
         }
 
         void periodicInquiry(uint16_t min_period, uint16_t max_period,
@@ -193,8 +155,7 @@ public:
         }
 
         void exitPeriodicInquiry(const DoneCb &cb) {
-            bte_hci_exit_periodic_inquiry(m_hci,
-                                          wrap<ExitPeriodicInquiry>(cb));
+            bte_hci_exit_periodic_inquiry(m_hci, wrap<TAG>(cb));
         }
 
         using LinkKeyRequestCb = std::function<bool(const BteBdAddr &address)>;
@@ -207,14 +168,12 @@ public:
             std::function<void(const BteHciLinkKeyReqReply &)>;
         void linkKeyReqReply(const BteBdAddr &address, const BteLinkKey &key,
                              const LinkKeyReqReplyCb &cb) {
-            bte_hci_link_key_req_reply(m_hci, &address, &key,
-                                       wrap<LinkKeyReqReply>(cb));
+            bte_hci_link_key_req_reply(m_hci, &address, &key, wrap<TAG>(cb));
         }
 
         void linkKeyReqNegReply(const BteBdAddr &address,
                                 const LinkKeyReqReplyCb &cb) {
-            bte_hci_link_key_req_neg_reply(m_hci, &address,
-                                           wrap<LinkKeyReqNegReply>(cb));
+            bte_hci_link_key_req_neg_reply(m_hci, &address, wrap<TAG>(cb));
         }
 
         using PinCodeRequestCb = std::function<bool(const BteBdAddr &address)>;
@@ -229,31 +188,30 @@ public:
         void pinCodeReqReply(const BteBdAddr &address, const PinCode &pin,
                              const PinCodeReqReplyCb &cb) {
             bte_hci_pin_code_req_reply(m_hci, &address, pin.data(), pin.size(),
-                                       wrap<PinCodeReqReply>(cb));
+                                       wrap<TAG>(cb));
         }
 
         void pinCodeReqNegReply(const BteBdAddr &address,
                                 const PinCodeReqReplyCb &cb) {
-            bte_hci_pin_code_req_neg_reply(m_hci, &address,
-                                           wrap<PinCodeReqNegReply>(cb));
+            bte_hci_pin_code_req_neg_reply(m_hci, &address, wrap<TAG>(cb));
         }
 
         void setEventMask(BteHciEventMask mask, const DoneCb &cb) {
-            bte_hci_set_event_mask(m_hci, mask, wrap<SetEventMask>(cb));
+            bte_hci_set_event_mask(m_hci, mask, wrap<TAG>(cb));
         }
 
         void reset(const DoneCb &cb) {
-            bte_hci_reset(m_hci, wrap<Reset>(cb));
+            bte_hci_reset(m_hci, wrap<TAG>(cb));
         }
 
         void writePinType(uint8_t pin_type, const DoneCb &cb) {
-            bte_hci_write_pin_type(m_hci, pin_type, wrap<WritePinType>(cb));
+            bte_hci_write_pin_type(m_hci, pin_type, wrap<TAG>(cb));
         }
 
         using ReadPinTypeCb =
             std::function<void(const BteHciReadPinTypeReply &)>;
         void readPinType(const ReadPinTypeCb &cb) {
-            bte_hci_read_pin_type(m_hci, wrap<ReadPinType>(cb));
+            bte_hci_read_pin_type(m_hci, wrap<TAG>(cb));
         }
 
         struct ReadStoredLinkKeyReply {
@@ -269,13 +227,11 @@ public:
         void readStoredLinkKey(const BteBdAddr &address,
                                const ReadStoredLinkKeyCb &cb) {
             bte_hci_read_stored_link_key(m_hci, &address,
-                wrap<ReadStoredLinkKey,
-                     const BteHciReadStoredLinkKeyReply>(cb));
+                wrap<TAG, const BteHciReadStoredLinkKeyReply>(cb));
         }
         void readStoredLinkKey(const ReadStoredLinkKeyCb &cb) {
             bte_hci_read_stored_link_key(m_hci, nullptr,
-                wrap<ReadStoredLinkKey,
-                     const BteHciReadStoredLinkKeyReply>(cb));
+                wrap<TAG, const BteHciReadStoredLinkKeyReply>(cb));
         }
 
         using WriteStoredLinkKeyCb =
@@ -284,127 +240,117 @@ public:
             const std::span<const BteHciStoredLinkKey> &keys,
             const WriteStoredLinkKeyCb &cb) {
             bte_hci_write_stored_link_key(m_hci, keys.size(), keys.data(),
-                                          wrap<WriteStoredLinkKey>(cb));
+                                          wrap<TAG>(cb));
         }
 
         using DeleteStoredLinkKeyCb =
             std::function<void(const BteHciDeleteStoredLinkKeyReply &)>;
         void deleteStoredLinkKey(const BteBdAddr &address,
                                  const DeleteStoredLinkKeyCb &cb) {
-            bte_hci_delete_stored_link_key(
-                m_hci, &address, wrap<DeleteStoredLinkKey>(cb));
+            bte_hci_delete_stored_link_key(m_hci, &address, wrap<TAG>(cb));
         }
         void deleteStoredLinkKey(const DeleteStoredLinkKeyCb &cb) {
-            bte_hci_delete_stored_link_key(
-                m_hci, nullptr, wrap<DeleteStoredLinkKey>(cb));
+            bte_hci_delete_stored_link_key(m_hci, nullptr, wrap<TAG>(cb));
         }
 
         void writeLocalName(const std::string &name, const DoneCb &cb) {
-            bte_hci_write_local_name(m_hci, name.c_str(),
-                                     wrap<WriteLocalName>(cb));
+            bte_hci_write_local_name(m_hci, name.c_str(), wrap<TAG>(cb));
         }
 
         using ReadLocalNameCb =
             std::function<void(const BteHciReadLocalNameReply &)>;
         void readLocalName(const ReadLocalNameCb &cb) {
-            bte_hci_read_local_name(m_hci, wrap<ReadLocalName>(cb));
+            bte_hci_read_local_name(m_hci, wrap<TAG>(cb));
         }
 
         void writePageTimeout(uint16_t page_timeout, const DoneCb &cb) {
-            bte_hci_write_page_timeout(m_hci, page_timeout,
-                                       wrap<WritePageTimeout>(cb));
+            bte_hci_write_page_timeout(m_hci, page_timeout, wrap<TAG>(cb));
         }
 
         using ReadPageTimeoutCb =
             std::function<void(const BteHciReadPageTimeoutReply &)>;
         void readPageTimeout(const ReadPageTimeoutCb &cb) {
-            bte_hci_read_page_timeout(m_hci, wrap<ReadPageTimeout>(cb));
+            bte_hci_read_page_timeout(m_hci, wrap<TAG>(cb));
         }
 
         void writeScanEnable(uint8_t scan_enable, const DoneCb &cb) {
-            bte_hci_write_scan_enable(m_hci, scan_enable,
-                                      wrap<WriteScanEnable>(cb));
+            bte_hci_write_scan_enable(m_hci, scan_enable, wrap<TAG>(cb));
         }
 
         using ReadScanEnableCb =
             std::function<void(const BteHciReadScanEnableReply &)>;
         void readScanEnable(const ReadScanEnableCb &cb) {
-            bte_hci_read_scan_enable(m_hci, wrap<ReadScanEnable>(cb));
+            bte_hci_read_scan_enable(m_hci, wrap<TAG>(cb));
         }
 
         void writeAuthEnable(uint8_t auth_enable, const DoneCb &cb) {
-            bte_hci_write_auth_enable(m_hci, auth_enable,
-                                      wrap<WriteAuthEnable>(cb));
+            bte_hci_write_auth_enable(m_hci, auth_enable, wrap<TAG>(cb));
         }
 
         using ReadAuthEnableCb =
             std::function<void(const BteHciReadAuthEnableReply &)>;
         void readAuthEnable(const ReadAuthEnableCb &cb) {
-            bte_hci_read_auth_enable(m_hci, wrap<ReadAuthEnable>(cb));
+            bte_hci_read_auth_enable(m_hci, wrap<TAG>(cb));
         }
 
         void writeClassOfDevice(const BteClassOfDevice &cod, const DoneCb &cb) {
-            bte_hci_write_class_of_device(m_hci, &cod,
-                                          wrap<WriteClassOfDevice>(cb));
+            bte_hci_write_class_of_device(m_hci, &cod, wrap<TAG>(cb));
         }
 
         void writeInquiryScanType(uint8_t inquiry_scan_type,
                                   const DoneCb &cb) {
             bte_hci_write_inquiry_scan_type(
-                m_hci, inquiry_scan_type, wrap<WriteInquiryScanType>(cb));
+                m_hci, inquiry_scan_type, wrap<TAG>(cb));
         }
 
         using ReadInquiryScanTypeCb =
             std::function<void(const BteHciReadInquiryScanTypeReply &)>;
         void readInquiryScanType(const ReadInquiryScanTypeCb &cb) {
-            bte_hci_read_inquiry_scan_type(
-                m_hci, wrap<ReadInquiryScanType>(cb));
+            bte_hci_read_inquiry_scan_type(m_hci, wrap<TAG>(cb));
         }
 
         void writeInquiryMode(uint8_t inquiry_mode, const DoneCb &cb) {
-            bte_hci_write_inquiry_mode(m_hci, inquiry_mode,
-                                       wrap<WriteInquiryMode>(cb));
+            bte_hci_write_inquiry_mode(m_hci, inquiry_mode, wrap<TAG>(cb));
         }
 
         using ReadInquiryModeCb =
             std::function<void(const BteHciReadInquiryModeReply &)>;
         void readInquiryMode(const ReadInquiryModeCb &cb) {
-            bte_hci_read_inquiry_mode(m_hci, wrap<ReadInquiryMode>(cb));
+            bte_hci_read_inquiry_mode(m_hci, wrap<TAG>(cb));
         }
 
         void writePageScanType(uint8_t page_scan_type, const DoneCb &cb) {
-            bte_hci_write_page_scan_type(m_hci, page_scan_type,
-                                         wrap<WritePageScanType>(cb));
+            bte_hci_write_page_scan_type(m_hci, page_scan_type, wrap<TAG>(cb));
         }
 
         using ReadPageScanTypeCb =
             std::function<void(const BteHciReadPageScanTypeReply &)>;
         void readPageScanType(const ReadPageScanTypeCb &cb) {
-            bte_hci_read_page_scan_type(m_hci, wrap<ReadPageScanType>(cb));
+            bte_hci_read_page_scan_type(m_hci, wrap<TAG>(cb));
         }
 
         using ReadLocalVersionCb =
             std::function<void(const BteHciReadLocalVersionReply &)>;
         void readLocalVersion(const ReadLocalVersionCb &cb) {
-            bte_hci_read_local_version(m_hci, wrap<ReadLocalVersion>(cb));
+            bte_hci_read_local_version(m_hci, wrap<TAG>(cb));
         }
 
         using ReadLocalFeaturesCb =
             std::function<void(const BteHciReadLocalFeaturesReply &)>;
         void readLocalFeatures(const ReadLocalFeaturesCb &cb) {
-            bte_hci_read_local_features(m_hci, wrap<ReadLocalFeatures>(cb));
+            bte_hci_read_local_features(m_hci, wrap<TAG>(cb));
         }
 
         using ReadBufferSizeCb =
             std::function<void(const BteHciReadBufferSizeReply &)>;
         void readBufferSize(const ReadBufferSizeCb &cb) {
-            bte_hci_read_buffer_size(m_hci, wrap<ReadBufferSize>(cb));
+            bte_hci_read_buffer_size(m_hci, wrap<TAG>(cb));
         }
 
         using ReadBdAddrCb =
             std::function<void(const BteHciReadBdAddrReply &)>;
         void readBdAddr(const ReadBdAddrCb &cb) {
-            bte_hci_read_bd_addr(m_hci, wrap<ReadBdAddr>(cb));
+            bte_hci_read_bd_addr(m_hci, wrap<TAG>(cb));
         }
 
         using VendorCommandCb = std::function<void(const Buffer &)>;
@@ -412,7 +358,7 @@ public:
                            const VendorCommandCb &cb) {
             bte_hci_vendor_command(m_hci, ocf,
                                    buffer.data(), uint8_t(buffer.size()),
-                                   wrap<VendorCommand, BteBuffer>(cb));
+                                   wrap<TAG, BteBuffer>(cb));
         }
 
     private:
