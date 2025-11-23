@@ -127,6 +127,7 @@ extern "C" {
 #define HCI_R_LINK_SV_TIMEOUT_OCF   0x36
 #define HCI_W_LINK_SV_TIMEOUT_OCF   0x37
 #define HCI_R_CUR_IACLAP_OCF        0x39
+#define HCI_W_CUR_IACLAP_OCF        0x3A
 #define HCI_R_INQUIRY_SCAN_TYPE_OCF 0x42
 #define HCI_W_INQUIRY_SCAN_TYPE_OCF 0x43
 #define HCI_R_INQUIRY_MODE_OCF      0x44
@@ -206,6 +207,7 @@ extern "C" {
 #define HCI_HOST_BUF_SIZE_PLEN       10
 #define HCI_H_NUM_COMPL_PLEN         8
 #define HCI_R_CUR_IACLAP_PLEN        3
+#define HCI_W_CUR_IACLAP_PLEN        4
 #define HCI_W_INQUIRY_SCAN_TYPE_PLEN 4
 #define HCI_W_INQUIRY_MODE_PLEN      4
 #define HCI_W_PAGE_SCAN_TYPE_PLEN    4

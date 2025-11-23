@@ -331,6 +331,26 @@ public:
                                          wrap<TAG>(cb));
         }
 
+        void writeCurrentIacLap(const std::span<const BteLap> &laps,
+                                const DoneCb &cb) {
+            bte_hci_write_current_iac_lap(
+                m_hci, uint8_t(laps.size()), laps.data(), wrap<TAG>(cb));
+        }
+
+        struct ReadCurrentIacLapReply {
+            uint8_t status;
+            std::span<const BteLap> laps;
+            ReadCurrentIacLapReply(const BteHciReadCurrentIacLapReply *r):
+                status(r->status), laps(r->laps, r->num_laps) {}
+        };
+        using ReadCurrentIacLapCb =
+            std::function<void(const ReadCurrentIacLapReply &)>;
+        void readCurrentIacLap(BteHciConnHandle conn_handle,
+                               const ReadCurrentIacLapCb &cb) {
+            bte_hci_read_current_iac_lap(
+                m_hci, wrap<TAG, const BteHciReadCurrentIacLapReply>(cb));
+        }
+
         void writeLinkSvTimeout(BteHciConnHandle conn_handle,
                                 uint8_t timeout, const DoneCb &cb) {
             bte_hci_write_link_sv_timeout(

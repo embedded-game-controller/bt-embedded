@@ -288,6 +288,20 @@ void bte_hci_set_host_buffer_size(BteHci *hci,
 
 typedef struct {
     uint8_t status;
+    uint8_t num_laps;
+    const BteLap *laps;
+} BteHciReadCurrentIacLapReply;
+
+typedef void (*BteHciReadCurrentIacLapCb)(
+    BteHci *hci, const BteHciReadCurrentIacLapReply *reply, void *userdata);
+void bte_hci_read_current_iac_lap(BteHci *hci,
+                                  BteHciReadCurrentIacLapCb callback);
+void bte_hci_write_current_iac_lap(BteHci *hci,
+                                   uint8_t num_laps, const BteLap *laps,
+                                   BteHciDoneCb callback);
+
+typedef struct {
+    uint8_t status;
     BteHciConnHandle conn_handle;
     uint16_t sv_timeout;
 } BteHciReadLinkSvTimeoutReply;

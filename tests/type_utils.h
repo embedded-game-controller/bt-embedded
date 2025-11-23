@@ -242,6 +242,35 @@ inline std::ostream &operator<<(std::ostream &os,
     return os;
 }
 
+struct ReadCurrentIacLapReply {
+    ReadCurrentIacLapReply(const Bte::Client::Hci::ReadCurrentIacLapReply &r):
+        status(r.status) {
+        laps.assign(r.laps.begin(), r.laps.end());
+    }
+    ReadCurrentIacLapReply(uint8_t status, const std::vector<BteLap> &laps):
+        status(status), laps(laps) {}
+    ReadCurrentIacLapReply(int zero): status(0) {}
+
+    uint8_t status;
+    std::vector<BteLap> laps;
+};
+
+inline bool operator==(const ReadCurrentIacLapReply &a,
+                       const ReadCurrentIacLapReply &b)
+{
+    return a.status == b.status && a.laps == b.laps;
+}
+
+inline std::ostream &operator<<(std::ostream &os,
+                                const ReadCurrentIacLapReply &r)
+{
+    os << "(status " << r.status << ")[";
+    for (const auto &e : r.laps)
+        os << std::hex << std::setw(6) << setfill('0') << e << ", ";
+    os << "]";
+    return os;
+}
+
 } /* namespace StoredTypes */
 
 #endif /* BTE_TEST_TYPE_UTILS_H */

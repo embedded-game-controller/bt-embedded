@@ -793,6 +793,59 @@ void bte_hci_set_host_buffer_size(BteHci *hci,
     _bte_hci_send_command(b);
 }
 
+static void read_current_iac_lap_cb(BteHci *hci, BteBuffer *buffer,
+                                    void *client_cb)
+{
+    BteHciReadCurrentIacLapReply reply;
+    reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    const uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
+    reply.num_laps = data[0]; data++;
+    /* We trust the controller that the reply len is long enough */
+    BteLap *laps = malloc(sizeof(BteLap) * reply.num_laps);
+    for (int i = 0; i < reply.num_laps; i++) {
+        BteLap lap = data[0];
+        lap |= ((uint32_t)data[1] << 8);
+        lap |= ((uint32_t)data[2] << 16);
+        data += 3;
+        laps[i] = lap;
+    }
+    reply.laps = laps;
+    printf("Laps %p, size %d\n", laps, reply.num_laps);
+    BteHciReadCurrentIacLapCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+    free(laps);
+}
+
+void bte_hci_read_current_iac_lap(BteHci *hci,
+                                  BteHciReadCurrentIacLapCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_R_CUR_IACLAP_OCF, HCI_HC_BB_OGF, HCI_R_CUR_IACLAP_PLEN,
+        read_current_iac_lap_cb, callback);
+    _bte_hci_send_command(b);
+}
+
+void bte_hci_write_current_iac_lap(BteHci *hci,
+                                   uint8_t num_laps, const BteLap *laps,
+                                   BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_W_CUR_IACLAP_OCF, HCI_HC_BB_OGF,
+        HCI_W_CUR_IACLAP_PLEN + 3 * num_laps,
+        command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    data[0] = num_laps; data++;
+    for (int i = 0; i < num_laps; i++) {
+        BteLap lap = laps[i];
+        data[0] = lap & 0xff;
+        data[1] = (lap >> 8) & 0xff;
+        data[2] = (lap >> 16) & 0xff;
+        data += 3;
+    }
+    _bte_hci_send_command(b);
+}
+
 static void read_link_sv_timeout_cb(BteHci *hci, BteBuffer *buffer,
                                        void *client_cb)
 {

@@ -250,6 +250,14 @@ static const std::vector<CommandNoReplyRow> s_commandsWithNoReply {
         {0x37, 0xc, 4, 0x23, 0x01, 0x67, 0x45}
     },
     {
+        "write_current_iac_lap",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            BteLap laps[] = { 0x112233, 0x334455, 0x667788 };
+            bte_hci_write_current_iac_lap(hci, 3, laps, cb); },
+        {0x3a, 0xc, 10, 3,
+            0x33, 0x22, 0x11, 0x55, 0x44, 0x33, 0x88, 0x77, 0x66}
+    },
+    {
         "write_inquiry_scan_type",
         [](BteHci *hci, BteHciDoneCb cb) {
             bte_hci_write_inquiry_scan_type(
@@ -840,6 +848,24 @@ TEST(Commands, testReadLinkSvTimeout) {
     ASSERT_EQ(invoker.sentCommand(), expectedCommand);
 
     BteHciReadLinkSvTimeoutReply expectedReply = { 0, conn, 0x5678 };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
+}
+
+TEST(Commands, testReadCurrentIacLap) {
+    GetterInvoker<StoredTypes::ReadCurrentIacLapReply,
+                  BteHciReadCurrentIacLapReply> invoker(
+        [](BteHci *hci, BteHciReadCurrentIacLapCb replyCb) {
+            bte_hci_read_current_iac_lap(hci, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 5 + 3 * 2, 1, 0x39, 0xc, 0, 2,
+        0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
+
+    Buffer expectedCommand{0x39, 0xc, 0};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    StoredTypes::ReadCurrentIacLapReply expectedReply = {
+        0, { 0x332211, 0x665544}
+    };
     ASSERT_EQ(invoker.receivedReply(), expectedReply);
 }
 
