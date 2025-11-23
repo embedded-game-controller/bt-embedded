@@ -774,6 +774,25 @@ void bte_hci_set_ctrl_to_host_flow_control(BteHci *hci, uint8_t enable,
     _bte_hci_send_command(b);
 }
 
+void bte_hci_set_host_buffer_size(BteHci *hci,
+                                  uint16_t acl_packet_len,
+                                  uint16_t acl_packets,
+                                  uint8_t sync_packet_len,
+                                  uint16_t sync_packets,
+                                  BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_HOST_BUF_SIZE_OCF, HCI_HC_BB_OGF, HCI_HOST_BUF_SIZE_PLEN,
+        command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    write_le16(acl_packet_len, data);
+    data[2] = sync_packet_len;
+    write_le16(acl_packets, data + 3);
+    write_le16(sync_packets, data + 5);
+    _bte_hci_send_command(b);
+}
+
 static void read_link_sv_timeout_cb(BteHci *hci, BteBuffer *buffer,
                                        void *client_cb)
 {

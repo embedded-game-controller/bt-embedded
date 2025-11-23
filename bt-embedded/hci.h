@@ -279,6 +279,13 @@ void bte_hci_write_auto_flush_timeout(BteHci *hci,
 void bte_hci_set_ctrl_to_host_flow_control(BteHci *hci, uint8_t enable,
                                            BteHciDoneCb callback);
 
+void bte_hci_set_host_buffer_size(BteHci *hci,
+                                  uint16_t acl_packet_len,
+                                  uint16_t acl_packets,
+                                  uint8_t sync_packet_len,
+                                  uint16_t sync_packets,
+                                  BteHciDoneCb callback);
+
 typedef struct {
     uint8_t status;
     BteHciConnHandle conn_handle;

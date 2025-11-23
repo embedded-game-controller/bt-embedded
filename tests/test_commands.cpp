@@ -237,6 +237,13 @@ static const std::vector<CommandNoReplyRow> s_commandsWithNoReply {
         {0x31, 0xc, 1, BTE_HCI_CTRL_TO_HOST_FLOW_CONTROL_SYNC}
     },
     {
+        "set_host_buffer_size",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_set_host_buffer_size(
+                hci, 0x1234, 0x5678, 0x90, 0x4321, cb); },
+        {0x33, 0xc, 7, 0x34, 0x12, 0x90, 0x78, 0x56, 0x21, 0x43}
+    },
+    {
         "write_link_sv_timeout",
         [](BteHci *hci, BteHciDoneCb cb) {
             bte_hci_write_link_sv_timeout(hci, 0x0123, 0x4567, cb); },

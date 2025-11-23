@@ -322,6 +322,15 @@ public:
                 m_hci, enable, wrap<TAG>(cb));
         }
 
+        void setHostBufferSize(BteHciConnHandle conn_handle,
+                               uint16_t acl_packet_len, uint16_t acl_packets,
+                               uint8_t sync_packet_len, uint16_t sync_packets,
+                               const DoneCb &cb) {
+            bte_hci_set_host_buffer_size(m_hci, acl_packet_len, acl_packets,
+                                         sync_packet_len, sync_packets,
+                                         wrap<TAG>(cb));
+        }
+
         void writeLinkSvTimeout(BteHciConnHandle conn_handle,
                                 uint8_t timeout, const DoneCb &cb) {
             bte_hci_write_link_sv_timeout(
