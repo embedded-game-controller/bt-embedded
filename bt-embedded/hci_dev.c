@@ -64,7 +64,7 @@ static BteHciPendingCommand *find_pending_command(const BteBuffer *buffer)
     return NULL;
 }
 
-static void deliver_status_to_client(BteBuffer *buffer, uint8_t status)
+static void deliver_status_to_client(BteBuffer *buffer)
 {
     BteHciDev *dev = &_bte_hci_dev;
 
@@ -82,6 +82,7 @@ static void deliver_status_to_client(BteBuffer *buffer, uint8_t status)
         bte_data_matcher_init(&pc->matcher);
         dev->num_pending_commands--;
 
+        uint8_t status = buffer->data[HCI_CMD_STATUS_POS_STATUS];
         command_status_cb(hci, status);
 
         BteHciReply reply;
@@ -176,9 +177,8 @@ int _bte_hci_dev_handle_event(BteBuffer *buf)
         deliver_reply_to_client(buf);
         break;
     case HCI_COMMAND_STATUS:
-        uint8_t status = data[0];
         _bte_hci_dev.num_packets = data[1];
-        deliver_status_to_client(buf, status);
+        deliver_status_to_client(buf);
         break;
     }
 
