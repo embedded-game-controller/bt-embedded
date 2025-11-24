@@ -73,8 +73,9 @@ static void deliver_status_to_client(BteBuffer *buffer, uint8_t status)
         /* Free the pending command, but before doing it save the data that we
          * are still using. */
         BteHci *hci = pc->hci;
-        BteHciCommandStatusCb command_status_cb = pc->command_cb.status;
-        BteHciDoneCb client_status_cb = pc->client_status_cb;
+        BteHciCommandStatusCb command_status_cb =
+            pc->command_cb.cmd_status.status;
+        BteHciDoneCb client_cb = pc->command_cb.cmd_status.client_cb;
 
         bte_buffer_unref(pc->buffer);
         pc->buffer = NULL;
@@ -85,7 +86,7 @@ static void deliver_status_to_client(BteBuffer *buffer, uint8_t status)
 
         BteHciReply reply;
         reply.status = status;
-        client_status_cb(hci, &reply, hci_userdata(hci));
+        client_cb(hci, &reply, hci_userdata(hci));
     }
 }
 
@@ -95,12 +96,13 @@ static void deliver_reply_to_client(BteBuffer *buffer)
 
     BteHciPendingCommand *pc = find_pending_command(buffer);
     if (LIKELY(pc)) {
-        BteHciCommandCb command_cb = pc->command_cb.complete;
+        BteHciCommandCb command_cb = pc->command_cb.cmd_complete.complete;
+        void *client_cb = pc->command_cb.cmd_complete.client_cb;
         bte_buffer_unref(pc->buffer);
         bte_data_matcher_init(&pc->matcher);
         dev->num_pending_commands--;
 
-        command_cb(pc->hci, buffer, pc->client_cb);
+        command_cb(pc->hci, buffer, client_cb);
     }
 }
 
@@ -265,12 +267,12 @@ void _bte_hci_dev_set_status(BteHciInitStatus status)
 BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
                                     uint8_t ogf, uint8_t len,
                                     uint8_t reply_event,
-                                    BteHciCommandCbUnion command_cb,
-                                    void *client_cb)
+                                    const BteHciCommandCbUnion *command_cb)
 {
     BteHciDev *dev = &_bte_hci_dev;
 
-    BteHciDoneCb base_cb = client_cb;
+    /* We could also take cmd_complete.client_cb, it makes no difference */
+    BteHciDoneCb base_cb = command_cb->cmd_status.client_cb;
     BteBuffer *buffer = hci_command_alloc(ocf, ogf, len);
     if (UNLIKELY(!buffer ||
                  dev->num_pending_commands >= BTE_HCI_MAX_PENDING_COMMANDS)) {
@@ -321,9 +323,8 @@ BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
     if (LIKELY(pending_command)) {
         bte_data_matcher_copy(&pending_command->matcher, &matcher);
         pending_command->buffer = bte_buffer_ref(buffer);
-        pending_command->command_cb = command_cb;
+        pending_command->command_cb = *command_cb;
         pending_command->hci = hci;
-        pending_command->client_cb = client_cb;
         dev->num_pending_commands++;
         return buffer;
     }

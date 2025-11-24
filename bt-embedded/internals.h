@@ -61,21 +61,24 @@ typedef struct bte_hci_dev_t {
         /* When a result is received, we will look at the opcode (and possibly
          * other data) to deliver the reply to the correct client */
         BteDataMatcher matcher;
-        union bte_hci_command_cb_u {
-            /* This callback is used in sync commands to parse the buffer into
-             * a structured reply for the client. */
-            BteHciCommandCb complete;
-            /* This callback is used to process the Command Status event: it
-             * should deliver the status callback to the client and install any
-             * needed event listeners for the actual command complete event. */
-            BteHciCommandStatusCb status;
-        } command_cb;
         BteHci *hci;
         BteBuffer *buffer;
-        union {
-            void *client_cb;
-            BteHciDoneCb client_status_cb; /* Only for async commands */
-        };
+        union bte_hci_command_cb_u {
+            struct bte_hci_cmd_complete_t {
+                /* This callback is used in sync commands to parse the buffer
+                 * into a structured reply for the client. */
+                BteHciCommandCb complete;
+                void *client_cb;
+            } cmd_complete;
+            struct bte_hci_cmd_status_t {
+                /* This callback is used to process the Command Status event:
+                 * it should deliver the status callback to the client and
+                 * install any needed event listeners for the actual command
+                 * complete event. */
+                BteHciCommandStatusCb status;
+                BteHciDoneCb client_cb;
+            } cmd_status;
+        } command_cb;
     } pending_commands[BTE_HCI_MAX_PENDING_COMMANDS];
 
     BteClient *clients[BTE_HCI_MAX_CLIENTS];
@@ -155,8 +158,7 @@ int _bte_hci_dev_handle_data(BteBuffer *buf);
 BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
                                     uint8_t ogf, uint8_t len,
                                     uint8_t reply_event,
-                                    BteHciCommandCbUnion command_cb,
-                                    void *client_cb);
+                                    const BteHciCommandCbUnion *command_cb);
 #ifndef __cplusplus
 static inline BteBuffer *
 _bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
@@ -164,10 +166,11 @@ _bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
                                  BteHciCommandCb command_cb,
                                  void *client_cb)
 {
-    BteHciCommandCbUnion cmd = { .complete = command_cb };
+    BteHciCommandCbUnion cmd = {
+        .cmd_complete = { command_cb, client_cb }
+    };
     return _bte_hci_dev_add_command(hci, ocf, ogf, len,
-                                    HCI_COMMAND_COMPLETE,
-                                    cmd, client_cb);
+                                    HCI_COMMAND_COMPLETE, &cmd);
 }
 
 static inline BteBuffer *
@@ -176,10 +179,11 @@ _bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
                                        BteHciCommandStatusCb command_cb,
                                        void *client_cb)
 {
-    BteHciCommandCbUnion cmd = { .status = command_cb };
+    BteHciCommandCbUnion cmd = {
+        .cmd_status = { command_cb, client_cb }
+    };
     return _bte_hci_dev_add_command(hci, ocf, ogf, len,
-                                    HCI_COMMAND_STATUS,
-                                    cmd, client_cb);
+                                    HCI_COMMAND_STATUS, &cmd);
 }
 #endif // __cplusplus
 
