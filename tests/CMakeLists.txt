@@ -21,6 +21,7 @@ add_executable(test_commands
     mock_backend.cpp
     test_commands.cpp
     test_cpp_api.cpp
+    test_data_matcher.cpp
     test_events.cpp
 )
 target_link_libraries(test_commands
