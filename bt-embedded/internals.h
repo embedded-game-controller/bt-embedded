@@ -72,9 +72,8 @@ typedef struct bte_hci_dev_t {
             } cmd_complete;
             struct bte_hci_cmd_status_t {
                 /* This callback is used to process the Command Status event:
-                 * it should deliver the status callback to the client and
-                 * install any needed event listeners for the actual command
-                 * complete event. */
+                 * it should install any needed event listeners for the actual
+                 * command complete event. */
                 BteHciCommandStatusCb status;
                 BteHciDoneCb client_cb;
             } cmd_status;
