@@ -734,7 +734,7 @@ TEST(Commands, testDeleteStoredLinkKeyByAddress) {
     ASSERT_EQ(backend.lastCommand(), expectedCommand);
 
     uint8_t status = 0;
-    backend.sendEvent({ HCI_COMMAND_COMPLETE, 5, 1, 0x12, 0xc, status, 1 });
+    backend.sendEvent({ HCI_COMMAND_COMPLETE, 5, 1, 0x12, 0xc, status, 1, 0 });
     bte_handle_events();
 
     std::vector<BteHciDeleteStoredLinkKeyReply> expectedReplies = {
@@ -760,7 +760,7 @@ TEST(Commands, testDeleteStoredLinkKeyAll) {
     ASSERT_EQ(lastCommand[3 + 6], uint8_t(1));
 
     uint8_t status = 0;
-    backend.sendEvent({ HCI_COMMAND_COMPLETE, 5, 1, 0x12, 0xc, status, 4 });
+    backend.sendEvent({ HCI_COMMAND_COMPLETE, 5, 1, 0x12, 0xc, status, 4, 0 });
     bte_handle_events();
 
     std::vector<BteHciDeleteStoredLinkKeyReply> expectedReplies = {
