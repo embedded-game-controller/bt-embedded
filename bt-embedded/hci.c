@@ -4,18 +4,6 @@
 #include "internals.h"
 #include "logging.h"
 
-#define HCI_CMD_REPLY_POS_CODE    0
-#define HCI_CMD_REPLY_POS_LEN     1
-#define HCI_CMD_REPLY_POS_HDR_LEN 2
-#define HCI_CMD_REPLY_POS_PACKETS 2
-#define HCI_CMD_REPLY_POS_OPCODE  3
-#define HCI_CMD_REPLY_POS_STATUS  5
-#define HCI_CMD_REPLY_POS_DATA    6
-
-#define HCI_CMD_EVENT_POS_CODE 0
-#define HCI_CMD_EVENT_POS_LEN  1
-#define HCI_CMD_EVENT_POS_DATA 2
-
 static void command_complete_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
 {
     if (!client_cb) return;
