@@ -49,26 +49,26 @@ static inline uint16_t hci_command_opcode(BteBuffer *buffer)
     return *(uint16_t *)buffer->data;
 }
 
-static BteHciPendingCommand *find_pending_command(uint16_t opcode)
+static BteHciPendingCommand *find_pending_command(const BteBuffer *buffer)
 {
     BteHciDev *dev = &_bte_hci_dev;
 
     for (int i = 0; i < BTE_HCI_MAX_PENDING_COMMANDS; i++) {
         BteHciPendingCommand *pc = &dev->pending_commands[i];
-        if (pc->buffer && hci_command_opcode(pc->buffer) == opcode) {
+        if (!bte_data_matcher_is_empty(&pc->matcher) &&
+            bte_data_matcher_compare(&pc->matcher,
+                                     buffer->data, buffer->size)) {
             return pc;
         }
     }
     return NULL;
 }
 
-static void deliver_status_to_client(uint16_t opcode, uint8_t status)
+static void deliver_status_to_client(BteBuffer *buffer, uint8_t status)
 {
     BteHciDev *dev = &_bte_hci_dev;
 
-    BTE_DEBUG("%s, %d pending commands, got opcode %02x \n", __func__,
-              dev->num_pending_commands, opcode);
-    BteHciPendingCommand *pc = find_pending_command(opcode);
+    BteHciPendingCommand *pc = find_pending_command(buffer);
     if (LIKELY(pc)) {
         /* Free the pending command, but before doing it save the data that we
          * are still using. */
@@ -78,6 +78,7 @@ static void deliver_status_to_client(uint16_t opcode, uint8_t status)
 
         bte_buffer_unref(pc->buffer);
         pc->buffer = NULL;
+        bte_data_matcher_init(&pc->matcher);
         dev->num_pending_commands--;
 
         command_status_cb(hci, status);
@@ -88,17 +89,15 @@ static void deliver_status_to_client(uint16_t opcode, uint8_t status)
     }
 }
 
-static void deliver_reply_to_client(uint16_t opcode, BteBuffer *buffer)
+static void deliver_reply_to_client(BteBuffer *buffer)
 {
     BteHciDev *dev = &_bte_hci_dev;
 
-    BTE_DEBUG("%s, %d pending commands, got opcode %02x \n", __func__,
-              dev->num_pending_commands, opcode);
-    BteHciPendingCommand *pc = find_pending_command(opcode);
+    BteHciPendingCommand *pc = find_pending_command(buffer);
     if (LIKELY(pc)) {
         BteHciCommandCb command_cb = pc->command_cb.complete;
         bte_buffer_unref(pc->buffer);
-        pc->buffer = NULL;
+        bte_data_matcher_init(&pc->matcher);
         dev->num_pending_commands--;
 
         command_cb(pc->hci, buffer, pc->client_cb);
@@ -172,13 +171,12 @@ int _bte_hci_dev_handle_event(BteBuffer *buf)
             handle_host_control(ocf, data + 3, len - 3);
             break;
         }
-        deliver_reply_to_client(opcode, buf);
+        deliver_reply_to_client(buf);
         break;
     case HCI_COMMAND_STATUS:
         uint8_t status = data[0];
         _bte_hci_dev.num_packets = data[1];
-        opcode = *(uint16_t *)(data + 2);
-        deliver_status_to_client(opcode, status);
+        deliver_status_to_client(buf, status);
         break;
     }
 
@@ -266,6 +264,7 @@ void _bte_hci_dev_set_status(BteHciInitStatus status)
 
 BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
                                     uint8_t ogf, uint8_t len,
+                                    uint8_t reply_event,
                                     BteHciCommandCbUnion command_cb,
                                     void *client_cb)
 {
@@ -283,6 +282,17 @@ BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
         return NULL;
     }
 
+    BteDataMatcher matcher;
+    bte_data_matcher_init(&matcher);
+    bte_data_matcher_add_rule(&matcher, &reply_event, 1, 0);
+    if (reply_event == HCI_COMMAND_COMPLETE) {
+        bte_data_matcher_add_rule(&matcher, buffer->data, 2,
+                                  HCI_CMD_REPLY_POS_OPCODE);
+    } else { /* reply_event == HCI_COMMAND_STATUS */
+        bte_data_matcher_add_rule(&matcher, buffer->data, 2,
+                                  HCI_CMD_STATUS_POS_OPCODE);
+    }
+
     BteHciPendingCommand *pending_command = NULL;
     if (dev->num_pending_commands == 0) {
         /* Fast track, no checks needed */
@@ -290,11 +300,10 @@ BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
     } else {
         for (int i = 0; i < BTE_HCI_MAX_PENDING_COMMANDS; i++) {
             BteHciPendingCommand *pc = &dev->pending_commands[i];
-            if (!pc->buffer) {
+            if (bte_data_matcher_is_empty(&pc->matcher)) {
                 /* Found a free slot */
                 if (!pending_command) pending_command = pc;
-            } else if (hci_command_opcode(pc->buffer) ==
-                       hci_command_opcode(buffer)) {
+            } else if (bte_data_matcher_is_same(&matcher, &pc->matcher)) {
                 /* The same command has been queued; unless we do some deeper
                  * checks on the buffer data in the reply handler, we won't be
                  * able to match the reply with the pending command, therefore
@@ -310,6 +319,7 @@ BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
     }
 
     if (LIKELY(pending_command)) {
+        bte_data_matcher_copy(&pending_command->matcher, &matcher);
         pending_command->buffer = bte_buffer_ref(buffer);
         pending_command->command_cb = command_cb;
         pending_command->hci = hci;

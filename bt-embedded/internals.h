@@ -1,6 +1,7 @@
 #ifndef BTE_INTERNALS_H
 #define BTE_INTERNALS_H
 
+#include "data_matcher.h"
 #include "hci.h"
 #include "types.h"
 #include "utils.h"
@@ -59,7 +60,7 @@ typedef struct bte_hci_dev_t {
     struct bte_hci_pending_command_t {
         /* When a result is received, we will look at the opcode (and possibly
          * other data) to deliver the reply to the correct client */
-        BteBuffer *buffer;
+        BteDataMatcher matcher;
         union bte_hci_command_cb_u {
             /* This callback is used in sync commands to parse the buffer into
              * a structured reply for the client. */
@@ -70,6 +71,7 @@ typedef struct bte_hci_dev_t {
             BteHciCommandStatusCb status;
         } command_cb;
         BteHci *hci;
+        BteBuffer *buffer;
         union {
             void *client_cb;
             BteHciDoneCb client_status_cb; /* Only for async commands */
@@ -152,6 +154,7 @@ int _bte_hci_dev_handle_data(BteBuffer *buf);
 /* Called by the HCI layer */
 BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
                                     uint8_t ogf, uint8_t len,
+                                    uint8_t reply_event,
                                     BteHciCommandCbUnion command_cb,
                                     void *client_cb);
 #ifndef __cplusplus
@@ -163,6 +166,7 @@ _bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
 {
     BteHciCommandCbUnion cmd = { .complete = command_cb };
     return _bte_hci_dev_add_command(hci, ocf, ogf, len,
+                                    HCI_COMMAND_COMPLETE,
                                     cmd, client_cb);
 }
 
@@ -174,6 +178,7 @@ _bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
 {
     BteHciCommandCbUnion cmd = { .status = command_cb };
     return _bte_hci_dev_add_command(hci, ocf, ogf, len,
+                                    HCI_COMMAND_STATUS,
                                     cmd, client_cb);
 }
 #endif // __cplusplus
