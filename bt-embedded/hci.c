@@ -361,6 +361,45 @@ void bte_hci_pin_code_req_neg_reply(BteHci *hci, const BteBdAddr *address,
     _bte_hci_send_command(b);
 }
 
+static void read_link_policy_settings_cb(BteHci *hci, BteBuffer *buffer,
+                                         void *client_cb)
+{
+    BteHciReadLinkPolicySettingsReply reply;
+    reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
+    const uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
+    reply.conn_handle = read_le16(data);
+    reply.settings = read_le16(data + 2);
+    BteHciReadLinkPolicySettingsCb callback = client_cb;
+    callback(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_read_link_policy_settings(BteHci *hci,
+                                       BteHciConnHandle conn_handle,
+                                       BteHciReadLinkPolicySettingsCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_R_LINK_POLICY_OCF, HCI_LINK_POLICY_OGF, HCI_R_LINK_POLICY_PLEN,
+        read_link_policy_settings_cb, callback);
+    if (UNLIKELY(!b)) return;
+    write_le16(conn_handle, b->data + HCI_CMD_HDR_LEN);
+    _bte_hci_send_command(b);
+}
+
+void bte_hci_write_link_policy_settings(BteHci *hci,
+                                        BteHciConnHandle conn_handle,
+                                        BteHciLinkPolicySettings settings,
+                                        BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_W_LINK_POLICY_OCF, HCI_LINK_POLICY_OGF,
+        HCI_W_LINK_POLICY_PLEN,
+        command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
+    write_le16(conn_handle, b->data + HCI_CMD_HDR_LEN);
+    write_le16(settings, b->data + HCI_CMD_HDR_LEN + 2);
+    _bte_hci_send_command(b);
+}
+
 void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
                             BteHciDoneCb callback)
 {

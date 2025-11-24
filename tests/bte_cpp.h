@@ -196,6 +196,21 @@ public:
             bte_hci_pin_code_req_neg_reply(m_hci, &address, wrap<TAG>(cb));
         }
 
+        void writeLinkPolicySettings(BteHciConnHandle conn_handle,
+                                     BteHciLinkPolicySettings settings,
+                                     const DoneCb &cb) {
+            bte_hci_write_link_policy_settings(
+                m_hci, conn_handle, settings, wrap<TAG>(cb));
+        }
+
+        using ReadLinkPolicySettingsCb =
+            std::function<void(const BteHciReadLinkPolicySettingsReply &)>;
+        void readLinkPolicySettings(BteHciConnHandle conn_handle,
+                                    const ReadLinkPolicySettingsCb &cb) {
+            bte_hci_read_link_policy_settings(m_hci, conn_handle,
+                                              wrap<TAG>(cb));
+        }
+
         void setEventMask(BteHciEventMask mask, const DoneCb &cb) {
             bte_hci_set_event_mask(m_hci, mask, wrap<TAG>(cb));
         }

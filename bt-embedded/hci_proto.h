@@ -98,6 +98,7 @@ extern "C" {
 #define HCI_EXIT_SNIFF_MODE_OCF 0x04
 #define HCI_PARK_MODE_OCF       0x05
 #define HCI_EXIT_PARK_MODE_OCF  0x06
+#define HCI_R_LINK_POLICY_OCF   0x0C
 #define HCI_W_LINK_POLICY_OCF   0x0D
 
 /* Host-Controller and Baseband Commands */
@@ -178,6 +179,7 @@ extern "C" {
 
 /* Link Policy Commands */
 #define HCI_SNIFF_MODE_PLEN    13
+#define HCI_R_LINK_POLICY_PLEN 5
 #define HCI_W_LINK_POLICY_PLEN 7
 
 /* Host-Controller and Baseband Commands */

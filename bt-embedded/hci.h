@@ -10,6 +10,7 @@ extern "C" {
 
 typedef uint64_t BteHciEventMask;
 typedef uint16_t BteHciConnHandle;
+typedef uint16_t BteHciLinkPolicySettings;
 
 BteHci *bte_hci_get(BteClient *client);
 
@@ -107,6 +108,31 @@ void bte_hci_pin_code_req_reply(BteHci *hci, const BteBdAddr *address,
                                 BteHciPinCodeReqReplyCb callback);
 void bte_hci_pin_code_req_neg_reply(BteHci *hci, const BteBdAddr *address,
                                     BteHciPinCodeReqReplyCb callback);
+
+/* Link policy commands */
+
+#define BTE_HCI_LINK_POLICY_SETTINGS_DISABLE (uint8_t)0
+#define BTE_HCI_LINK_POLICY_SETTINGS_ROLE_SW (uint8_t)1
+#define BTE_HCI_LINK_POLICY_SETTINGS_HOLD    (uint8_t)2
+#define BTE_HCI_LINK_POLICY_SETTINGS_SNIFF   (uint8_t)4
+#define BTE_HCI_LINK_POLICY_SETTINGS_PARK    (uint8_t)8
+
+typedef struct {
+    uint8_t status;
+    BteHciConnHandle conn_handle;
+    BteHciLinkPolicySettings settings;
+} BteHciReadLinkPolicySettingsReply;
+
+typedef void (*BteHciReadLinkPolicySettingsCb)(
+    BteHci *hci, const BteHciReadLinkPolicySettingsReply *reply,
+    void *userdata);
+void bte_hci_read_link_policy_settings(
+    BteHci *hci, BteHciConnHandle conn_handle,
+    BteHciReadLinkPolicySettingsCb callback);
+void bte_hci_write_link_policy_settings(BteHci *hci,
+                                        BteHciConnHandle conn_handle,
+                                        BteHciLinkPolicySettings settings,
+                                        BteHciDoneCb callback);
 
 /* Controller & baseband commands */
 

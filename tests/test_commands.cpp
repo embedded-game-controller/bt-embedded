@@ -99,6 +99,12 @@ static const std::vector<CommandNoReplyRow> s_commandsWithNoReply {
         {0x4, 0x4, 0}
     },
     {
+        "write_link_policy_settings",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_write_link_policy_settings(hci, 0x0123, 0x4567, cb); },
+        {0xd, 0x8, 4, 0x23, 0x01, 0x67, 0x45}
+    },
+    {
         "set_event_mask",
         [](BteHci *hci, BteHciDoneCb cb) {
             bte_hci_set_event_mask(hci, 0x1122334455667788, cb);
@@ -536,6 +542,21 @@ TEST(Commands, testPinCodeReqNegReply) {
         { status, address },
     };
     ASSERT_EQ(replies, expectedReplies);
+}
+
+TEST(Commands, testReadLinkPolicySettings) {
+    BteHciConnHandle conn = 0x0123;
+    GetterInvoker<BteHciReadLinkPolicySettingsReply> invoker(
+        [&](BteHci *hci, BteHciReadLinkPolicySettingsCb replyCb) {
+            bte_hci_read_link_policy_settings(hci, conn, replyCb);
+        },
+        {HCI_COMMAND_COMPLETE, 5, 1, 0xc, 0x8, 0, 0x23, 0x01, 0x78, 0x56 });
+
+    Buffer expectedCommand{0xc, 0x8, 2, 0x23, 0x01};
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+
+    BteHciReadLinkPolicySettingsReply expectedReply = { 0, conn, 0x5678 };
+    ASSERT_EQ(invoker.receivedReply(), expectedReply);
 }
 
 TEST(Commands, testReadPinType) {
