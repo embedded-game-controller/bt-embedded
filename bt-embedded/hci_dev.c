@@ -264,25 +264,50 @@ void _bte_hci_dev_set_status(BteHciInitStatus status)
     }
 }
 
+BteHciPendingCommand *_bte_hci_dev_alloc_command(const BteDataMatcher *matcher)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+
+    BteHciPendingCommand *pending_command = NULL;
+    if (dev->num_pending_commands == 0) {
+        /* Fast track, no checks needed */
+        pending_command = &dev->pending_commands[0];
+    } else if (dev->num_pending_commands < BTE_HCI_MAX_PENDING_COMMANDS) {
+        for (int i = 0; i < BTE_HCI_MAX_PENDING_COMMANDS; i++) {
+            BteHciPendingCommand *pc = &dev->pending_commands[i];
+            if (bte_data_matcher_is_empty(&pc->matcher)) {
+                /* Found a free slot */
+                if (!pending_command) {
+                    pending_command = pc;
+                    break;
+                }
+            } else if (bte_data_matcher_is_same(matcher, &pc->matcher)) {
+                /* The same command has been queued; unless we do some deeper
+                 * checks on the buffer data in the reply handler, we won't be
+                 * able to match the reply with the pending command, therefore
+                 * we refuse it. */
+                return NULL;
+            }
+        }
+    }
+
+    if (LIKELY(pending_command)) {
+        bte_data_matcher_copy(&pending_command->matcher, matcher);
+        dev->num_pending_commands++;
+    }
+
+    return pending_command;
+}
+
 BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
                                     uint8_t ogf, uint8_t len,
                                     uint8_t reply_event,
                                     const BteHciCommandCbUnion *command_cb)
 {
-    BteHciDev *dev = &_bte_hci_dev;
-
     /* We could also take cmd_complete.client_cb, it makes no difference */
     BteHciDoneCb base_cb = command_cb->cmd_status.client_cb;
     BteBuffer *buffer = hci_command_alloc(ocf, ogf, len);
-    if (UNLIKELY(!buffer ||
-                 dev->num_pending_commands >= BTE_HCI_MAX_PENDING_COMMANDS)) {
-        if (buffer) bte_buffer_unref(buffer);
-        if (base_cb) {
-            BteHciReply reply = { HCI_MEMORY_FULL };
-            base_cb(hci, &reply, hci_userdata(hci));
-        }
-        return NULL;
-    }
+    if (UNLIKELY(!buffer)) goto error_buffer;
 
     BteDataMatcher matcher;
     bte_data_matcher_init(&matcher);
@@ -295,41 +320,22 @@ BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
                                   HCI_CMD_STATUS_POS_OPCODE);
     }
 
-    BteHciPendingCommand *pending_command = NULL;
-    if (dev->num_pending_commands == 0) {
-        /* Fast track, no checks needed */
-        pending_command = &dev->pending_commands[0];
-    } else {
-        for (int i = 0; i < BTE_HCI_MAX_PENDING_COMMANDS; i++) {
-            BteHciPendingCommand *pc = &dev->pending_commands[i];
-            if (bte_data_matcher_is_empty(&pc->matcher)) {
-                /* Found a free slot */
-                if (!pending_command) pending_command = pc;
-            } else if (bte_data_matcher_is_same(&matcher, &pc->matcher)) {
-                /* The same command has been queued; unless we do some deeper
-                 * checks on the buffer data in the reply handler, we won't be
-                 * able to match the reply with the pending command, therefore
-                 * we refuse it. */
-                bte_buffer_unref(buffer);
-                if (base_cb) {
-                    BteHciReply reply = { HCI_MEMORY_FULL };
-                    base_cb(hci, &reply, hci_userdata(hci));
-                }
-                return NULL;
-            }
-        }
-    }
+    BteHciPendingCommand *pending_command =
+        _bte_hci_dev_alloc_command(&matcher);
+    if (UNLIKELY(!pending_command)) goto error_command;
 
-    if (LIKELY(pending_command)) {
-        bte_data_matcher_copy(&pending_command->matcher, &matcher);
-        pending_command->buffer = bte_buffer_ref(buffer);
-        pending_command->command_cb = *command_cb;
-        pending_command->hci = hci;
-        dev->num_pending_commands++;
-        return buffer;
-    }
+    pending_command->buffer = bte_buffer_ref(buffer);
+    pending_command->command_cb = *command_cb;
+    pending_command->hci = hci;
+    return buffer;
 
-    /* This should never happen, unless num_pending_commands is wrong */
+error_command:
+    bte_buffer_unref(buffer);
+error_buffer:
+    if (base_cb) {
+        BteHciReply reply = { HCI_MEMORY_FULL };
+        base_cb(hci, &reply, hci_userdata(hci));
+    }
     return NULL;
 }
 
