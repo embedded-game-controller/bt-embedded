@@ -76,9 +76,6 @@ static void deliver_status_to_client(BteBuffer *buffer)
             pc->command_cb.cmd_status.status;
         BteHciDoneCb client_cb = pc->command_cb.cmd_status.client_cb;
 
-        bte_buffer_unref(pc->buffer);
-        pc->buffer = NULL;
-
         uint8_t status = buffer->data[HCI_CMD_STATUS_POS_STATUS];
         command_status_cb(hci, status, pc);
 
@@ -94,7 +91,6 @@ static void deliver_reply_to_client(BteBuffer *buffer)
     if (LIKELY(pc)) {
         BteHciCommandCb command_cb = pc->command_cb.cmd_complete.complete;
         void *client_cb = pc->command_cb.cmd_complete.client_cb;
-        bte_buffer_unref(pc->buffer);
         _bte_hci_dev_free_command(pc);
 
         command_cb(pc->hci, buffer, client_cb);
@@ -318,7 +314,6 @@ BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
         _bte_hci_dev_alloc_command(&matcher);
     if (UNLIKELY(!pending_command)) goto error_command;
 
-    pending_command->buffer = bte_buffer_ref(buffer);
     pending_command->command_cb = *command_cb;
     pending_command->hci = hci;
     return buffer;

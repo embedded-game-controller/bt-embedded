@@ -63,7 +63,6 @@ typedef struct bte_hci_dev_t {
          * other data) to deliver the reply to the correct client */
         BteDataMatcher matcher;
         BteHci *hci;
-        BteBuffer *buffer;
         union bte_hci_command_cb_u {
             struct bte_hci_cmd_complete_t {
                 /* This callback is used in sync commands to parse the buffer
