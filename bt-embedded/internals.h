@@ -189,6 +189,7 @@ _bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
 }
 #endif // __cplusplus
 
+void _bte_hci_dev_free_command(BteHciPendingCommand *cmd);
 int _bte_hci_send_command(BteBuffer *buffer);
 
 void _bte_hci_dev_install_event_handler(uint8_t event_code,

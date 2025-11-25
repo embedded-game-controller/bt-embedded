@@ -66,8 +66,6 @@ static BteHciPendingCommand *find_pending_command(const BteBuffer *buffer)
 
 static void deliver_status_to_client(BteBuffer *buffer)
 {
-    BteHciDev *dev = &_bte_hci_dev;
-
     BteHciPendingCommand *pc = find_pending_command(buffer);
     if (LIKELY(pc)) {
         /* Free the pending command, but before doing it save the data that we
@@ -79,8 +77,7 @@ static void deliver_status_to_client(BteBuffer *buffer)
 
         bte_buffer_unref(pc->buffer);
         pc->buffer = NULL;
-        bte_data_matcher_init(&pc->matcher);
-        dev->num_pending_commands--;
+        _bte_hci_dev_free_command(pc);
 
         uint8_t status = buffer->data[HCI_CMD_STATUS_POS_STATUS];
         command_status_cb(hci, status);
@@ -93,15 +90,12 @@ static void deliver_status_to_client(BteBuffer *buffer)
 
 static void deliver_reply_to_client(BteBuffer *buffer)
 {
-    BteHciDev *dev = &_bte_hci_dev;
-
     BteHciPendingCommand *pc = find_pending_command(buffer);
     if (LIKELY(pc)) {
         BteHciCommandCb command_cb = pc->command_cb.cmd_complete.complete;
         void *client_cb = pc->command_cb.cmd_complete.client_cb;
         bte_buffer_unref(pc->buffer);
-        bte_data_matcher_init(&pc->matcher);
-        dev->num_pending_commands--;
+        _bte_hci_dev_free_command(pc);
 
         command_cb(pc->hci, buffer, client_cb);
     }
@@ -337,6 +331,13 @@ error_buffer:
         base_cb(hci, &reply, hci_userdata(hci));
     }
     return NULL;
+}
+
+void _bte_hci_dev_free_command(BteHciPendingCommand *cmd)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+    bte_data_matcher_init(&cmd->matcher);
+    dev->num_pending_commands--;
 }
 
 void _bte_hci_dev_install_event_handler(uint8_t event_code,
