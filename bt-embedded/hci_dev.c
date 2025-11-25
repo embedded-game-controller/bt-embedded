@@ -78,10 +78,9 @@ static void deliver_status_to_client(BteBuffer *buffer)
 
         bte_buffer_unref(pc->buffer);
         pc->buffer = NULL;
-        _bte_hci_dev_free_command(pc);
 
         uint8_t status = buffer->data[HCI_CMD_STATUS_POS_STATUS];
-        command_status_cb(hci, status);
+        command_status_cb(hci, status, pc);
 
         BteHciReply reply;
         reply.status = status;

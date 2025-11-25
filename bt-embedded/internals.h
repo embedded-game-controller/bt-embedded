@@ -47,7 +47,8 @@ typedef union bte_hci_command_cb_u BteHciCommandCbUnion;
 
 typedef void (*BteHciCommandCb)(BteHci *hci, BteBuffer *buffer,
                                 void *client_cb);
-typedef void (*BteHciCommandStatusCb)(BteHci *hci, uint8_t status);
+typedef void (*BteHciCommandStatusCb)(BteHci *hci, uint8_t status,
+                                      BteHciPendingCommand *pc);
 
 typedef struct bte_hci_event_handler_t BteHciEventHandler;
 typedef void (*BteHciEventHandlerCb)(BteBuffer *buffer, void *cb_data);

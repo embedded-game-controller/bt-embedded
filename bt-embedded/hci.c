@@ -124,7 +124,8 @@ static void inquiry_event_cb(BteBuffer *buffer, void *cb_data)
     _bte_hci_dev_inquiry_cleanup();
 }
 
-static void inquiry_status_cb(BteHci *hci, uint8_t status)
+static void inquiry_status_cb(BteHci *hci, uint8_t status,
+                              BteHciPendingCommand *pc)
 {
     if (status == 0) {
         _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT,
@@ -134,6 +135,7 @@ static void inquiry_status_cb(BteHci *hci, uint8_t status)
     } else {
         hci->inquiry_cb = NULL;
     }
+    _bte_hci_dev_free_command(pc);
 }
 
 void bte_hci_inquiry(BteHci *hci, BteLap lap, uint8_t len, uint8_t max_resp,
