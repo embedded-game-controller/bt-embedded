@@ -49,7 +49,8 @@ static inline uint16_t hci_command_opcode(BteBuffer *buffer)
     return *(uint16_t *)buffer->data;
 }
 
-static BteHciPendingCommand *find_pending_command(const BteBuffer *buffer)
+BteHciPendingCommand *_bte_hci_dev_find_pending_command(
+    const BteBuffer *buffer)
 {
     BteHciDev *dev = &_bte_hci_dev;
 
@@ -66,7 +67,7 @@ static BteHciPendingCommand *find_pending_command(const BteBuffer *buffer)
 
 static void deliver_status_to_client(BteBuffer *buffer)
 {
-    BteHciPendingCommand *pc = find_pending_command(buffer);
+    BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);
     if (LIKELY(pc)) {
         /* Free the pending command, but before doing it save the data that we
          * are still using. */
@@ -90,7 +91,7 @@ static void deliver_status_to_client(BteBuffer *buffer)
 
 static void deliver_reply_to_client(BteBuffer *buffer)
 {
-    BteHciPendingCommand *pc = find_pending_command(buffer);
+    BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);
     if (LIKELY(pc)) {
         BteHciCommandCb command_cb = pc->command_cb.cmd_complete.complete;
         void *client_cb = pc->command_cb.cmd_complete.client_cb;
