@@ -9,7 +9,7 @@
 
 BteHciDev _bte_hci_dev;
 
-static BteHciEventHandler *handler_for_event(uint8_t event_code)
+BteHciEventHandler *_bte_hci_dev_handler_for_event(uint8_t event_code)
 {
     if (UNLIKELY(event_code > BTE_HCI_EVENT_LAST)) {
         return NULL;
@@ -172,7 +172,7 @@ int _bte_hci_dev_handle_event(BteBuffer *buf)
         break;
     }
 
-    BteHciEventHandler *handler = handler_for_event(code);
+    BteHciEventHandler *handler = _bte_hci_dev_handler_for_event(code);
     if (handler && handler->handler_cb) {
         handler->handler_cb(buf, handler->cb_data);
     }
@@ -339,7 +339,7 @@ void _bte_hci_dev_install_event_handler(uint8_t event_code,
                                         BteHciEventHandlerCb handler_cb,
                                         void *cb_data)
 {
-    BteHciEventHandler *h = handler_for_event(event_code);
+    BteHciEventHandler *h = _bte_hci_dev_handler_for_event(event_code);
     if (UNLIKELY(!h)) return;
 
     if (UNLIKELY(handler_cb && h->handler_cb)) {
