@@ -5,6 +5,7 @@
 #include "bt-embedded/client.h"
 #include "bt-embedded/bte.h"
 #include "bt-embedded/hci.h"
+#include "bt-embedded/internals.h"
 #include <gtest/gtest.h>
 #include <iostream>
 
@@ -428,6 +429,148 @@ TEST(Commands, PeriodicInquiry) {
     for (uint8_t i = 0; i < addresses.size(); i++) {
         ASSERT_EQ(reply2.responses[i].address, addresses[i]);
     };
+}
+
+TEST(Commands, testCreateConnection) {
+    /* We test the C API here because the C++ one uses a fixed callback,
+     * whereas we want to test that the API supports different callbacks */
+    MockBackend backend;
+    BteClient *client = bte_client_new();
+    BteHci *hci = bte_hci_get(client);
+
+    BteBdAddr address0 = {1, 2, 3, 4, 5, 6};
+    BteBdAddr address1 = {8, 2, 3, 7, 5, 9};
+    BtePacketType packet_type0 = BTE_PACKET_TYPE_DM1 | BTE_PACKET_TYPE_DM3;
+    BtePacketType packet_type1 = BTE_PACKET_TYPE_DH1 | BTE_PACKET_TYPE_DH5;
+    uint8_t page_scan_rep_mode0 = 2;
+    uint8_t page_scan_rep_mode1 = 1;
+    uint16_t clock_offset0 = BTE_HCI_CLOCK_OFFSET_INVALID;
+    uint16_t clock_offset1 = 0x1122;
+    bool allow_role_switch0 = true;
+    bool allow_role_switch1 = false;
+
+    using StoredReply = std::tuple<int,BteHciCreateConnectionReply>;
+    using StoredStatusReply = std::tuple<int,uint8_t>;
+    struct Callbacks {
+        std::vector<StoredReply> replies;
+        std::vector<StoredStatusReply> statusReplies;
+
+        static void cb0(BteHci *, const BteHciCreateConnectionReply *reply,
+                        void *userdata) {
+            Callbacks *callbacks = static_cast<Callbacks*>(userdata);
+            callbacks->replies.push_back({0, *reply});
+        }
+        static void cb1(BteHci *, const BteHciCreateConnectionReply *reply,
+                        void *userdata) {
+            Callbacks *callbacks = static_cast<Callbacks*>(userdata);
+            callbacks->replies.push_back({1, *reply});
+        }
+        static void st0(BteHci *, const BteHciReply *reply, void *userdata) {
+            Callbacks *callbacks = static_cast<Callbacks*>(userdata);
+            callbacks->statusReplies.push_back({0, reply->status});
+        }
+        static void st1(BteHci *, const BteHciReply *reply, void *userdata) {
+            Callbacks *callbacks = static_cast<Callbacks*>(userdata);
+            callbacks->statusReplies.push_back({1, reply->status});
+        }
+    } callbacks;
+    bte_client_set_userdata(client, &callbacks);
+
+    /* Issue the first command */
+    bte_hci_create_connection(hci, &address0, packet_type0,
+                              page_scan_rep_mode0, clock_offset0,
+                              allow_role_switch0,
+                              &Callbacks::st0, &Callbacks::cb0);
+    const uint8_t cmdSize = 6 + 2 + 1 + 1 + 2 + 1; /* one reserved byte */
+    Buffer expectedCommand{0x5, 0x4, cmdSize};
+    expectedCommand += address0;
+    expectedCommand += Buffer{
+        0x8, 0x4, page_scan_rep_mode0, 0x00, 0x00, 0x00, allow_role_switch0};
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+
+    /* Send the status reply */
+    uint8_t status = 0;
+    backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x5, 0x4});
+    bte_handle_events();
+
+    /* Issue a second command, becure the completion event for the first */
+    bte_hci_create_connection(hci, &address1, packet_type1,
+                              page_scan_rep_mode1, clock_offset1,
+                              allow_role_switch1,
+                              &Callbacks::st1, &Callbacks::cb1);
+    expectedCommand = {0x5, 0x4, cmdSize};
+    expectedCommand += address1;
+    expectedCommand += Buffer{
+        0x10, 0x40, page_scan_rep_mode1, 0x00, 0x22, 0x11, allow_role_switch1};
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+
+    /* Send the status reply for this second command */
+    backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x5, 0x4});
+    bte_handle_events();
+
+    /* Now send the replies, but in inverted order */
+    const uint8_t eventSize = 1 + 2 + 6 + 1 + 1;
+    uint8_t link_type0 = 1;
+    uint8_t link_type1 = 0;
+    uint8_t enc_mode0 = 0;
+    uint8_t enc_mode1 = 1;
+    backend.sendEvent(
+        Buffer{HCI_CONNECTION_COMPLETE, eventSize, status, 0x33, 0x44} +
+        address1 + Buffer{link_type1, enc_mode1});
+    backend.sendEvent(
+        Buffer{HCI_CONNECTION_COMPLETE, eventSize, status, 0x55, 0x66} +
+        address0 + Buffer{link_type0, enc_mode0});
+    bte_handle_events();
+
+    std::vector<StoredStatusReply> expectedStatusReplies = {
+        { 0, 0 },
+        { 1, 0 },
+    };
+    ASSERT_EQ(callbacks.statusReplies, expectedStatusReplies);
+
+    std::vector<StoredReply> expectedReplies = {
+        { 1, {status,link_type1, 0x4433, address1, enc_mode1} },
+        { 0, {status,link_type0, 0x6655, address0, enc_mode0} },
+    };
+    ASSERT_EQ(callbacks.replies, expectedReplies);
+
+    ASSERT_EQ(_bte_hci_dev.num_pending_commands, 0);
+
+    /* Now repeat the test, making the first request fail; we should still
+     * receive the second, and have no leaks */
+    callbacks.replies.clear();
+    callbacks.statusReplies.clear();
+    uint8_t status0 = HCI_NO_CONNECTION;
+    bte_hci_create_connection(hci, &address0, packet_type0,
+                              page_scan_rep_mode0, clock_offset0,
+                              allow_role_switch0,
+                              &Callbacks::st0, &Callbacks::cb0);
+    backend.sendEvent({HCI_COMMAND_STATUS, 4, status0, 1, 0x5, 0x4});
+    bte_handle_events();
+    bte_hci_create_connection(hci, &address1, packet_type1,
+                              page_scan_rep_mode1, clock_offset1,
+                              allow_role_switch1,
+                              &Callbacks::st1, &Callbacks::cb1);
+    backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x5, 0x4});
+    backend.sendEvent(
+        Buffer{HCI_CONNECTION_COMPLETE, eventSize, status, 0x77, 0x88} +
+        address1 + Buffer{link_type1, enc_mode1});
+    bte_handle_events();
+
+    expectedStatusReplies = {
+        { 0, HCI_NO_CONNECTION },
+        { 1, 0 },
+    };
+    ASSERT_EQ(callbacks.statusReplies, expectedStatusReplies);
+
+    expectedReplies = {
+        { 1, {status,link_type1, 0x8877, address1, enc_mode1} },
+    };
+    ASSERT_EQ(callbacks.replies, expectedReplies);
+
+    ASSERT_EQ(_bte_hci_dev.num_pending_commands, 0);
+
+    bte_client_unref(client);
 }
 
 TEST(Commands, testLinkKeyReqReply) {

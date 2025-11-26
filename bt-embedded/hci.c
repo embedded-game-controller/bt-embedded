@@ -242,6 +242,98 @@ void bte_hci_exit_periodic_inquiry(BteHci *hci, BteHciDoneCb callback)
     _bte_hci_send_command(b);
 }
 
+static void create_connection_event_cb(BteBuffer *buffer, void *)
+{
+    BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);
+    if (UNLIKELY(!pc)) return;
+
+    BteHci *hci = pc->hci;
+    uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_HDR_LEN;
+    BteHciCreateConnectionReply reply;
+    reply.status = data[0];
+    data++;
+    reply.conn_handle = read_le16(data);
+    data += 2;
+    memcpy(&reply.address, data, 6);
+    data += 6;
+    reply.link_type = data[0];
+    reply.encryption_mode = data[1];
+
+    BteHciCreateConnectionCb create_connection_cb =
+        pc->command_cb.event_conn_complete.client_cb;
+    _bte_hci_dev_free_command(pc);
+
+    create_connection_cb(hci, &reply, hci_userdata(hci));
+}
+
+static void create_connection_status_cb(BteHci *hci, uint8_t status,
+                                        BteHciPendingCommand *pc)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+    if (status != 0) goto error;
+
+    struct _bte_hci_tmpdata_create_connection_t *tmpdata =
+        &dev->last_async_cmd_data.create_connection;
+    BteDataMatcher matcher;
+    bte_data_matcher_init(&matcher);
+    uint8_t event_type = HCI_CONNECTION_COMPLETE;
+    bte_data_matcher_add_rule(&matcher, &event_type, 1, 0);
+    bte_data_matcher_add_rule(&matcher,
+                              &tmpdata->address, 6,
+                              /* 3 = 1 status byte + 2 conn handle */
+                              HCI_CMD_REPLY_POS_HDR_LEN + 3);
+    BteHciPendingCommand *ev = _bte_hci_dev_alloc_command(&matcher);
+    if (UNLIKELY(!ev)) goto error;
+
+    ev->hci = hci;
+    ev->command_cb.event_conn_complete.client_cb = tmpdata->client_cb;
+    _bte_hci_dev_install_event_handler(HCI_CONNECTION_COMPLETE,
+                                       create_connection_event_cb, NULL);
+
+error:
+    _bte_hci_dev_free_command(pc);
+}
+
+void bte_hci_create_connection(BteHci *hci,
+                               const BteBdAddr *address,
+                               BtePacketType packet_type,
+                               uint8_t page_scan_rep_mode,
+                               uint16_t clock_offset,
+                               bool allow_role_switch,
+                               BteHciDoneCb status_cb,
+                               BteHciCreateConnectionCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_async_command(
+        hci, HCI_CREATE_CONN_OCF, HCI_LINK_CTRL_OGF, HCI_CREATE_CONN_PLEN,
+        create_connection_status_cb, status_cb);
+    if (UNLIKELY(!b)) return;
+
+    /* In the status callback we read this and setup the event matcher */
+    BteHciDev *dev = &_bte_hci_dev;
+    struct _bte_hci_tmpdata_create_connection_t *tmpdata =
+        &dev->last_async_cmd_data.create_connection;
+    memcpy(&tmpdata->address, address, sizeof(*address));
+    tmpdata->client_cb = callback;
+
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    memcpy(data, address, sizeof(*address));
+    data += sizeof(*address);
+    write_le16(packet_type, data);
+    data += 2;
+    data[0] = page_scan_rep_mode;
+    data++;
+    data[0] = 0; /* reserved */
+    data++;
+    if (clock_offset != BTE_HCI_CLOCK_OFFSET_INVALID) {
+        write_le16(clock_offset & 0x7fff, data);
+    } else {
+        write_le16(0, data);
+    }
+    data += 2;
+    data[0] = allow_role_switch;
+    _bte_hci_send_command(b);
+}
+
 static bool client_handle_link_key_request(BteHci *hci, void *cb_data)
 {
     const BteBdAddr *address = cb_data;

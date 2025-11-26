@@ -69,6 +69,27 @@ void bte_hci_periodic_inquiry(BteHci *hci,
                               BteHciInquiryCb callback);
 void bte_hci_exit_periodic_inquiry(BteHci *hci, BteHciDoneCb callback);
 
+#define BTE_HCI_CLOCK_OFFSET_INVALID (uint16_t)0xffff
+
+typedef struct {
+    uint8_t status;
+    uint8_t link_type;
+    BteHciConnHandle conn_handle;
+    BteBdAddr address;
+    uint8_t encryption_mode;
+} BteHciCreateConnectionReply;
+
+typedef void (*BteHciCreateConnectionCb)(
+    BteHci *hci, const BteHciCreateConnectionReply *reply, void *userdata);
+void bte_hci_create_connection(BteHci *hci,
+                               const BteBdAddr *address,
+                               BtePacketType packet_type,
+                               uint8_t page_scan_rep_mode,
+                               uint16_t clock_offset,
+                               bool allow_role_switch,
+                               BteHciDoneCb status_cb,
+                               BteHciCreateConnectionCb callback);
+
 /* Return true if this client will handle the event */
 typedef bool (*BteHciLinkKeyRequestCb)(BteHci *hci,
                                        const BteBdAddr *address,

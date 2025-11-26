@@ -77,8 +77,21 @@ typedef struct bte_hci_dev_t {
                 BteHciCommandStatusCb status;
                 BteHciDoneCb client_cb;
             } cmd_status;
+            struct bte_hci_event_conn_complete_t {
+                BteHciCreateConnectionCb client_cb;
+            } event_conn_complete;
         } command_cb;
     } pending_commands[BTE_HCI_MAX_PENDING_COMMANDS];
+
+    /* Storage for temporary data, only valid since issuing an asynchronous
+     * command till the time that its corresponding command status event has
+     * been received. */
+    union _bte_hci_last_async_cmd_data_u {
+        struct _bte_hci_tmpdata_create_connection_t {
+            BteHciCreateConnectionCb client_cb;
+            BteBdAddr address;
+        } create_connection;
+    } last_async_cmd_data;
 
     BteClient *clients[BTE_HCI_MAX_CLIENTS];
 

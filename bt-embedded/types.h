@@ -30,6 +30,15 @@ typedef struct {
 
 typedef uint32_t BteLap;
 
+typedef uint16_t BtePacketType;
+
+#define BTE_PACKET_TYPE_DM1 (BtePacketType)0x0008
+#define BTE_PACKET_TYPE_DH1 (BtePacketType)0x0010
+#define BTE_PACKET_TYPE_DM3 (BtePacketType)0x0400
+#define BTE_PACKET_TYPE_DH3 (BtePacketType)0x0800
+#define BTE_PACKET_TYPE_DH5 (BtePacketType)0x4000
+#define BTE_PACKET_TYPE_DM5 (BtePacketType)0x8000
+
 #ifdef __cplusplus
 }
 #endif

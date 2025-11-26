@@ -10,11 +10,6 @@
 #include <ranges>
 #include <vector>
 
-inline bool operator==(const BteBdAddr &a, const BteBdAddr &b)
-{
-    return memcmp(a.bytes, b.bytes, sizeof(a.bytes)) == 0;
-}
-
 inline std::ostream &operator<<(std::ostream &os, const BteBdAddr &a)
 {
     for (size_t i = 0; i < sizeof(a); i++) {
@@ -41,6 +36,14 @@ inline bool operator==(const BteClassOfDevice &a, const BteClassOfDevice &b)
 inline bool operator==(const BteHciReply &a, const BteHciReply &b)
 {
     return a.status == b.status;
+}
+
+inline bool operator==(const BteHciCreateConnectionReply &a,
+                       const BteHciCreateConnectionReply &b)
+{
+    return a.status == b.status && a.link_type == b.link_type &&
+        a.conn_handle == b.conn_handle && a.address == b.address &&
+        a.encryption_mode == b.encryption_mode;
 }
 
 inline bool operator==(const BteHciLinkKeyReqReply &a,

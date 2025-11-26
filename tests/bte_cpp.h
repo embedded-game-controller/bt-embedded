@@ -14,6 +14,19 @@
 #include <type_traits>
 #include <unordered_map>
 
+inline bool operator==(const BteBdAddr &a, const BteBdAddr &b)
+{
+    return memcmp(a.bytes, b.bytes, sizeof(a.bytes)) == 0;
+}
+
+template <> struct std::hash<BteBdAddr> {
+    size_t operator()(const BteBdAddr &a) const noexcept {
+        return std::hash<std::string>()(
+            std::string(reinterpret_cast<const char*>(a.bytes),
+                        sizeof(a.bytes)));
+    }
+};
+
 /* C++ wrapper for the bt-embedded API. Used for testing, but we might make it
  * part of bt-embedded, if someone needs it. */
 namespace Bte {
@@ -156,6 +169,23 @@ public:
 
         void exitPeriodicInquiry(const DoneCb &cb) {
             bte_hci_exit_periodic_inquiry(m_hci, wrap<TAG>(cb));
+        }
+
+        using CreateConnectionCb =
+            std::function<void(const BteHciCreateConnectionReply &)>;
+        void createConnection(const BteBdAddr &address,
+                              BtePacketType packet_type,
+                              uint8_t page_scan_rep_mode,
+                              uint16_t clock_offset,
+                              bool allow_role_switch,
+                              const DoneCb &statusCb,
+                              const CreateConnectionCb &cb) {
+            m_createConnectionCallbacks[address] = cb;
+            bte_hci_create_connection(m_hci, &address, packet_type,
+                                      page_scan_rep_mode, clock_offset,
+                                      allow_role_switch,
+                                      wrap<TAG>(statusCb),
+                                      &Hci::Callbacks::createConnection);
         }
 
         using LinkKeyRequestCb = std::function<bool(const BteBdAddr &address)>;
@@ -462,6 +492,12 @@ public:
                                 void *cb_data) {
                 _this(cb_data)->m_inquiryCb.second(*reply);
             }
+            static void createConnection(
+                BteHci *hci, const BteHciCreateConnectionReply *reply,
+                void *cb_data) {
+                _this(cb_data)->m_createConnectionCallbacks[reply->address](
+                    *reply);
+            }
             static bool linkKeyRequest(BteHci *hci, const BteBdAddr *address,
                                        void *cb_data) {
                 return _this(cb_data)->m_linkKeyRequestCb(*address);
@@ -477,6 +513,7 @@ public:
         friend class Client;
         InitializedCb m_initializedCb;
         std::pair<DoneCb, InquiryCb> m_inquiryCb;
+        std::unordered_map<BteBdAddr, CreateConnectionCb> m_createConnectionCallbacks;
         LinkKeyRequestCb m_linkKeyRequestCb;
         PinCodeRequestCb m_pinCodeRequestCb;
         BteHci *m_hci;
