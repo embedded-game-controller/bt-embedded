@@ -334,6 +334,30 @@ void bte_hci_create_connection(BteHci *hci,
     _bte_hci_send_command(b);
 }
 
+static bool client_handle_connection_request(BteHci *hci, void *cb_data)
+{
+    const uint8_t *data = cb_data;
+    const BteBdAddr *address = (void*)data;
+    const BteClassOfDevice *cod = (void*)(data + 6);
+    uint8_t link_type = data[6 + 3];
+    return hci->connection_request_cb &&
+        hci->connection_request_cb(hci, address, cod, link_type,
+                                   hci_userdata(hci));
+}
+
+static void connection_request_event_cb(BteBuffer *buffer, void *cb_data)
+{
+    uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
+    _bte_hci_dev_foreach_hci_client(client_handle_connection_request, data);
+}
+
+void bte_hci_on_connection_request(BteHci *hci, BteHciConnectionRequestCb callback)
+{
+    hci->connection_request_cb = callback;
+    _bte_hci_dev_install_event_handler(HCI_CONNECTION_REQUEST,
+                                       connection_request_event_cb, NULL);
+}
+
 static bool client_handle_link_key_request(BteHci *hci, void *cb_data)
 {
     const BteBdAddr *address = cb_data;

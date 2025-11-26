@@ -4,6 +4,53 @@
 
 #include <gtest/gtest.h>
 
+TEST(Events, testConnectionRequested)
+{
+    MockBackend backend;
+    Bte::Client client0, client1, client2;
+    auto &hci0 = client0.hci();
+    auto &hci1 = client1.hci();
+    auto &hci2 = client2.hci();
+
+    /* The first int is the index of the hci instance */
+    using Call = std::tuple<int, BteBdAddr, BteClassOfDevice, uint8_t>;
+    std::vector<Call> calls;
+    hci0.onConnectionRequest([&](const BteBdAddr &address,
+                                 const BteClassOfDevice &cod,
+                                 uint8_t link_type) {
+        calls.push_back({0, address, cod, link_type});
+        return false;
+    });
+    hci1.onConnectionRequest([&](const BteBdAddr &address,
+                                 const BteClassOfDevice &cod,
+                                 uint8_t link_type) {
+        calls.push_back({1, address, cod, link_type});
+        return true;
+    });
+    hci2.onConnectionRequest([&](const BteBdAddr &address,
+                                 const BteClassOfDevice &cod,
+                                 uint8_t link_type) {
+        calls.push_back({2, address, cod, link_type});
+        return false;
+    });
+
+    /* Emit the ConnectionRequest event */
+    BteBdAddr address = {1, 2, 3, 4, 5, 6};
+    BteClassOfDevice cod = {7, 8, 9};
+    uint8_t link_type = 2;
+    backend.sendEvent(
+        Buffer{ HCI_CONNECTION_REQUEST, 6 + 3 + 1 } + address + cod +
+        Buffer{link_type});
+    bte_handle_events();
+
+    /* The second handler returned true, so the third should not be invoked */
+    std::vector<Call> expectedCalls = {
+        {0, address, cod, link_type},
+        {1, address, cod, link_type},
+    };
+    ASSERT_EQ(calls, expectedCalls);
+}
+
 TEST(Events, testLinkKeyRequested)
 {
     MockBackend backend;

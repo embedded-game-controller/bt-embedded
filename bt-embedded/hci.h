@@ -91,6 +91,14 @@ void bte_hci_create_connection(BteHci *hci,
                                BteHciCreateConnectionCb callback);
 
 /* Return true if this client will handle the event */
+typedef bool (*BteHciConnectionRequestCb)(BteHci *hci,
+                                          const BteBdAddr *address,
+                                          const BteClassOfDevice *cod,
+                                          uint8_t link_type,
+                                          void *userdata);
+void bte_hci_on_connection_request(BteHci *hci, BteHciConnectionRequestCb callback);
+
+/* Return true if this client will handle the event */
 typedef bool (*BteHciLinkKeyRequestCb)(BteHci *hci,
                                        const BteBdAddr *address,
                                        void *userdata);

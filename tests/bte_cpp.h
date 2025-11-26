@@ -188,6 +188,16 @@ public:
                                       &Hci::Callbacks::createConnection);
         }
 
+        using ConnectionRequestCb =
+            std::function<bool(const BteBdAddr &address,
+                               const BteClassOfDevice &cod,
+                               uint8_t link_type)>;
+        void onConnectionRequest(const ConnectionRequestCb &cb) {
+            m_connectionRequestCb = cb;
+            bte_hci_on_connection_request(
+                m_hci, &Hci::Callbacks::connectionRequest);
+        }
+
         using LinkKeyRequestCb = std::function<bool(const BteBdAddr &address)>;
         void onLinkKeyRequest(const LinkKeyRequestCb &cb) {
             m_linkKeyRequestCb = cb;
@@ -498,6 +508,14 @@ public:
                 _this(cb_data)->m_createConnectionCallbacks[reply->address](
                     *reply);
             }
+            static bool connectionRequest(BteHci *hci,
+                                          const BteBdAddr *address,
+                                          const BteClassOfDevice *cod,
+                                          uint8_t link_type,
+                                          void *cb_data) {
+                return _this(cb_data)->m_connectionRequestCb(
+                    *address, *cod, link_type);
+            }
             static bool linkKeyRequest(BteHci *hci, const BteBdAddr *address,
                                        void *cb_data) {
                 return _this(cb_data)->m_linkKeyRequestCb(*address);
@@ -514,6 +532,7 @@ public:
         InitializedCb m_initializedCb;
         std::pair<DoneCb, InquiryCb> m_inquiryCb;
         std::unordered_map<BteBdAddr, CreateConnectionCb> m_createConnectionCallbacks;
+        ConnectionRequestCb m_connectionRequestCb;
         LinkKeyRequestCb m_linkKeyRequestCb;
         PinCodeRequestCb m_pinCodeRequestCb;
         BteHci *m_hci;
