@@ -4,9 +4,11 @@
 #include "bt-embedded/hci.h"
 
 #include <algorithm>
+#include <cstring>
 #include <iomanip>
 #include <ostream>
 #include <ranges>
+#include <vector>
 
 inline bool operator==(const BteBdAddr &a, const BteBdAddr &b)
 {
@@ -16,7 +18,7 @@ inline bool operator==(const BteBdAddr &a, const BteBdAddr &b)
 inline std::ostream &operator<<(std::ostream &os, const BteBdAddr &a)
 {
     for (size_t i = 0; i < sizeof(a); i++) {
-        os << std::hex << std::setw(2) << setfill('0') << int(a.bytes[i]);
+        os << std::hex << std::setw(2) << std::setfill('0') << int(a.bytes[i]);
         if (i < sizeof(a) - 1) os << ':';
     }
     return os;
@@ -25,7 +27,7 @@ inline std::ostream &operator<<(std::ostream &os, const BteBdAddr &a)
 inline std::ostream &operator<<(std::ostream &os, const BteLinkKey &a)
 {
     for (size_t i = 0; i < sizeof(a); i++) {
-        os << std::hex << std::setw(2) << setfill('0') << int(a.bytes[i]);
+        os << std::hex << std::setw(2) << std::setfill('0') << int(a.bytes[i]);
         if (i < sizeof(a) - 1) os << '-';
     }
     return os;
