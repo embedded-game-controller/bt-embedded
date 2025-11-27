@@ -96,6 +96,7 @@ extern "C" {
 #define HCI_EXIT_PERIODIC_INQUIRY_OCF   0x04
 #define HCI_CREATE_CONN_OCF             0x05
 #define HCI_DISCONN_OCF                 0x06
+#define HCI_CREATE_CONN_CANCEL_OCF      0x08
 #define HCI_ACCEPT_CONN_REQ_OCF         0x09
 #define HCI_REJECT_CONN_REQ_OCF         0x0A
 #define HCI_LINK_KEY_REQ_REP_OCF        0x0B
@@ -182,6 +183,7 @@ extern "C" {
 #define HCI_EXIT_PERIODIC_INQUIRY_PLEN 3
 #define HCI_CREATE_CONN_PLEN           16
 #define HCI_DISCONN_PLEN               6
+#define HCI_CREATE_CONN_CANCEL_PLEN    9
 #define HCI_ACCEPT_CONN_REQ_PLEN       10
 #define HCI_REJECT_CONN_REQ_PLEN       10
 #define HCI_LINK_KEY_REQ_REP_PLEN      25

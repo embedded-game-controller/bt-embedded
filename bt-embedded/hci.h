@@ -89,6 +89,30 @@ void bte_hci_create_connection(BteHci *hci,
                                bool allow_role_switch,
                                BteHciDoneCb status_cb,
                                BteHciCreateConnectionCb callback);
+void bte_hci_disconnect(BteHci *hci, BteHciConnHandle handle, uint8_t reason,
+                        BteHciDoneCb callback);
+void bte_hci_create_connection_cancel(BteHci *hci, const BteBdAddr *address,
+                                      BteHciDoneCb callback);
+
+
+#define BTE_HCI_ROLE_MASTER (uint8_t)0
+#define BTE_HCI_ROLE_SLAVE  (uint8_t)1
+
+typedef BteHciCreateConnectionReply BteHciAcceptConnectionReply;
+typedef void (*BteHciAcceptConnectionCb)(
+    BteHci *hci, const BteHciAcceptConnectionReply *reply, void *userdata);
+void bte_hci_accept_connection(BteHci *hci,
+                               const BteBdAddr *address, uint8_t role,
+                               BteHciDoneCb status_cb,
+                               BteHciAcceptConnectionCb callback);
+
+typedef BteHciCreateConnectionReply BteHciRejectConnectionReply;
+typedef void (*BteHciRejectConnectionCb)(
+    BteHci *hci, const BteHciRejectConnectionReply *reply, void *userdata);
+void bte_hci_reject_connection(BteHci *hci,
+                               const BteBdAddr *address, uint8_t reason,
+                               BteHciDoneCb status_cb,
+                               BteHciRejectConnectionCb callback);
 
 /* Return true if this client will handle the event */
 typedef bool (*BteHciConnectionRequestCb)(BteHci *hci,

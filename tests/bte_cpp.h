@@ -188,6 +188,31 @@ public:
                                       &Hci::Callbacks::createConnection);
         }
 
+        void createConnectionCancel(const BteBdAddr &address,
+                                    const DoneCb &cb) {
+            bte_hci_create_connection_cancel(m_hci, &address, wrap<TAG>(cb));
+        }
+
+        using AcceptConnectionCb = CreateConnectionCb;
+        void acceptConnection(const BteBdAddr &address, uint8_t role,
+                              const DoneCb &statusCb,
+                              const AcceptConnectionCb &cb) {
+            m_createConnectionCallbacks[address] = cb;
+            bte_hci_accept_connection(m_hci, &address, role,
+                                      wrap<TAG>(statusCb),
+                                      &Hci::Callbacks::createConnection);
+        }
+
+        using RejectConnectionCb = CreateConnectionCb;
+        void rejectConnection(const BteBdAddr &address, uint8_t reason,
+                              const DoneCb &statusCb,
+                              const RejectConnectionCb &cb) {
+            m_createConnectionCallbacks[address] = cb;
+            bte_hci_reject_connection(m_hci, &address, reason,
+                                      wrap<TAG>(statusCb),
+                                      &Hci::Callbacks::createConnection);
+        }
+
         using ConnectionRequestCb =
             std::function<bool(const BteBdAddr &address,
                                const BteClassOfDevice &cod,

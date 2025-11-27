@@ -242,7 +242,7 @@ void bte_hci_exit_periodic_inquiry(BteHci *hci, BteHciDoneCb callback)
     _bte_hci_send_command(b);
 }
 
-static void create_connection_event_cb(BteBuffer *buffer, void *)
+static void conn_complete_event_cb(BteBuffer *buffer, void *)
 {
     BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);
     if (UNLIKELY(!pc)) return;
@@ -288,7 +288,7 @@ static void create_connection_status_cb(BteHci *hci, uint8_t status,
     ev->hci = hci;
     ev->command_cb.event_conn_complete.client_cb = tmpdata->client_cb;
     _bte_hci_dev_install_event_handler(HCI_CONNECTION_COMPLETE,
-                                       create_connection_event_cb, NULL);
+                                       conn_complete_event_cb, NULL);
 
 error:
     _bte_hci_dev_free_command(pc);
@@ -331,6 +331,89 @@ void bte_hci_create_connection(BteHci *hci,
     }
     data += 2;
     data[0] = allow_role_switch;
+    _bte_hci_send_command(b);
+}
+
+static void disconnect_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+{
+    /* TODO: will need to propagate this to the higher layers */
+    command_complete_cb(hci, buffer, client_cb);
+}
+
+void bte_hci_disconnect(BteHci *hci, BteHciConnHandle handle, uint8_t reason,
+                        BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_DISCONN_OCF, HCI_LINK_CTRL_OGF, HCI_DISCONN_PLEN,
+        disconnect_cb, callback);
+    if (UNLIKELY(!b)) return;
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    write_le16(handle, data);
+    data[2] = reason;
+    _bte_hci_send_command(b);
+}
+
+void bte_hci_create_connection_cancel(BteHci *hci, const BteBdAddr *address,
+                                      BteHciDoneCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_command(
+        hci, HCI_CREATE_CONN_CANCEL_OCF, HCI_LINK_CTRL_OGF,
+        HCI_CREATE_CONN_CANCEL_PLEN,
+        command_complete_cb, callback);
+    if (UNLIKELY(!b)) return;
+    memcpy(b->data + HCI_CMD_HDR_LEN, address, sizeof(*address));
+    _bte_hci_send_command(b);
+}
+
+void bte_hci_accept_connection(BteHci *hci,
+                               const BteBdAddr *address, uint8_t role,
+                               BteHciDoneCb status_cb,
+                               BteHciAcceptConnectionCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_async_command(
+        hci, HCI_ACCEPT_CONN_REQ_OCF, HCI_LINK_CTRL_OGF,
+        HCI_ACCEPT_CONN_REQ_PLEN,
+        /* The status CB for the create connection fits us as well */
+        create_connection_status_cb, status_cb);
+    if (UNLIKELY(!b)) return;
+
+    /* In the status callback we read this and setup the event matcher */
+    BteHciDev *dev = &_bte_hci_dev;
+    struct _bte_hci_tmpdata_create_connection_t *tmpdata =
+        &dev->last_async_cmd_data.create_connection;
+    memcpy(&tmpdata->address, address, sizeof(*address));
+    tmpdata->client_cb = callback;
+
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    memcpy(data, address, sizeof(*address));
+    data += sizeof(*address);
+    data[0] = role;
+    _bte_hci_send_command(b);
+}
+
+void bte_hci_reject_connection(BteHci *hci,
+                               const BteBdAddr *address, uint8_t reason,
+                               BteHciDoneCb status_cb,
+                               BteHciRejectConnectionCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_async_command(
+        hci, HCI_REJECT_CONN_REQ_OCF, HCI_LINK_CTRL_OGF,
+        HCI_REJECT_CONN_REQ_PLEN,
+        /* The status CB for the create connection fits us as well */
+        create_connection_status_cb, status_cb);
+    if (UNLIKELY(!b)) return;
+
+    /* In the status callback we read this and setup the event matcher */
+    BteHciDev *dev = &_bte_hci_dev;
+    struct _bte_hci_tmpdata_create_connection_t *tmpdata =
+        &dev->last_async_cmd_data.create_connection;
+    memcpy(&tmpdata->address, address, sizeof(*address));
+    tmpdata->client_cb = callback;
+
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    memcpy(data, address, sizeof(*address));
+    data += sizeof(*address);
+    data[0] = reason;
     _bte_hci_send_command(b);
 }
 
