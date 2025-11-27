@@ -300,7 +300,7 @@ TEST(Commands, Inquiry) {
     uint8_t requestedMaxResp = 9;
     uint8_t status = 0;
 
-    AsyncCommandInvoker<StoredInquiryReply> invoker(
+    AsyncCommandInvoker<StoredInquiryReply, BteHciInquiryReply> invoker(
         [&](BteHci *hci, BteHciDoneCb statusCb, BteHciInquiryCb replyCb) {
             bte_hci_inquiry(hci, requestedLap, requestedLen, requestedMaxResp,
                             statusCb, replyCb);
@@ -346,7 +346,7 @@ TEST(Commands, InquiryFailed) {
     uint8_t requestedMaxResp = 9;
     uint8_t status = HCI_HW_FAILURE;
 
-    AsyncCommandInvoker<StoredInquiryReply> invoker(
+    AsyncCommandInvoker<StoredInquiryReply, BteHciInquiryReply> invoker(
         [&](BteHci *hci, BteHciDoneCb statusCb, BteHciInquiryCb replyCb) {
             bte_hci_inquiry(hci, requestedLap, requestedLen, requestedMaxResp,
                             statusCb, replyCb);
@@ -367,7 +367,7 @@ TEST(Commands, PeriodicInquiry) {
     uint8_t requestedMaxResp = 9;
     uint8_t status = 0;
 
-    AsyncCommandInvoker<StoredInquiryReply> invoker(
+    AsyncCommandInvoker<StoredInquiryReply, BteHciInquiryReply> invoker(
         [&](BteHci *hci, BteHciDoneCb statusCb, BteHciInquiryCb replyCb) {
             bte_hci_periodic_inquiry(
                 hci, min_period, max_period,

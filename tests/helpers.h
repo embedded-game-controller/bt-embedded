@@ -60,10 +60,9 @@ private:
     std::vector<ReplyParams> m_replies;
 };
 
-template <typename ReplyType>
+template <typename ReplyType, typename BteType = ReplyType>
 class AsyncCommandInvoker {
 public:
-    using BteType = typename ReplyType::BteType;
     typedef void (*ReplyCb)(BteHci *hci, const BteType *reply, void *userdata);
     using InvokerCb = std::function<void(BteHci *,
                                          BteHciDoneCb statusCb,
@@ -118,11 +117,13 @@ public:
 
     static void statusCb(BteHci *hci, const BteHciReply *reply,
                          void *userdata) {
-        auto _this = static_cast<AsyncCommandInvoker<ReplyType> *>(userdata);
+        auto _this =
+            static_cast<AsyncCommandInvoker<ReplyType, BteType> *>(userdata);
         _this->m_statuses.push_back({hci, *reply, userdata});
     }
     static void replyCb(BteHci *hci, const BteType *reply, void *userdata) {
-        auto _this = static_cast<AsyncCommandInvoker<ReplyType> *>(userdata);
+        auto _this =
+            static_cast<AsyncCommandInvoker<ReplyType, BteType> *>(userdata);
         _this->m_replies.push_back({hci, *reply, userdata});
     }
 
