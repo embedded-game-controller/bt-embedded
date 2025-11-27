@@ -379,6 +379,10 @@ void bte_hci_write_current_iac_lap(BteHci *hci,
                                    uint8_t num_laps, const BteLap *laps,
                                    BteHciDoneCb callback);
 
+void bte_hci_host_num_comp_packets(BteHci *hci,
+                                   BteHciConnHandle conn_handle,
+                                   uint16_t num_packets);
+
 typedef struct {
     uint8_t status;
     BteHciConnHandle conn_handle;

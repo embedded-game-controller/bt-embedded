@@ -171,6 +171,8 @@ int _bte_hci_dev_handle_data(BteBuffer *buf);
 BteHciPendingCommand *_bte_hci_dev_alloc_command(
     const BteDataMatcher *matcher);
 
+BteBuffer *_bte_hci_dev_add_command_no_reply(uint16_t ocf, uint8_t ogf,
+                                             uint8_t len);
 BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
                                     uint8_t ogf, uint8_t len,
                                     uint8_t reply_event,

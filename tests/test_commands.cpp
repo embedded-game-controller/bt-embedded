@@ -266,6 +266,17 @@ static const std::vector<CommandNoReplyRow> s_commandsWithNoReply {
         {0x33, 0xc, 7, 0x34, 0x12, 0x90, 0x78, 0x56, 0x21, 0x43}
     },
     {
+        "host_num_comp_packets",
+        [](BteHci *hci, BteHciDoneCb cb) {
+            bte_hci_host_num_comp_packets(hci, 0x1234, 0x5678);
+            /* There's no callback here, so invoke cb manually to make the test
+             * happy */
+            BteHciReply reply = {0};
+            cb(hci, &reply, bte_client_get_userdata(bte_hci_get_client(hci)));
+        },
+        {0x35, 0xc, 5, 1, 0x34, 0x12, 0x78, 0x56}
+    },
+    {
         "write_link_sv_timeout",
         [](BteHci *hci, BteHciDoneCb cb) {
             bte_hci_write_link_sv_timeout(hci, 0x0123, 0x4567, cb); },

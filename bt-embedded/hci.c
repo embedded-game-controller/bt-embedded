@@ -1074,6 +1074,22 @@ void bte_hci_write_current_iac_lap(BteHci *hci,
     _bte_hci_send_command(b);
 }
 
+void bte_hci_host_num_comp_packets(BteHci *hci,
+                                   BteHciConnHandle conn_handle,
+                                   uint16_t num_packets)
+{
+    BteBuffer *b = _bte_hci_dev_add_command_no_reply(
+        HCI_HOST_NUM_COMPL_OCF, HCI_HC_BB_OGF, HCI_H_NUM_COMPL_PLEN);
+    if (UNLIKELY(!b)) return;
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    data[0] = 1;
+    data++;
+    write_le16(conn_handle, data);
+    data += 2;
+    write_le16(num_packets, data);
+    _bte_hci_send_command(b);
+}
+
 static void read_link_sv_timeout_cb(BteHci *hci, BteBuffer *buffer,
                                        void *client_cb)
 {
