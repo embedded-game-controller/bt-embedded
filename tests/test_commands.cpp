@@ -836,6 +836,45 @@ TEST(Commands, testPinCodeReqNegReply) {
     ASSERT_EQ(replies, expectedReplies);
 }
 
+TEST(Commands, testAuthRequested) {
+    MockBackend backend;
+    Bte::Client client;
+    auto &hci = client.hci();
+
+    BteHciConnHandle conn_handle = 0x1234;
+
+    std::vector<BteHciAuthRequestedReply> replies;
+    std::vector<BteHciReply> statusReplies;
+    hci.authRequested(conn_handle,
+                      [&](const BteHciReply &reply) {
+            statusReplies.push_back(reply);
+        },
+        [&](const BteHciAuthRequestedReply &reply) {
+            replies.push_back(reply);
+        });
+
+    Buffer expectedCommand{0x11, 0x4, 2, 0x34, 0x12};
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+
+    /* Send the status reply */
+    uint8_t status = 0;
+    backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x11, 0x4});
+    bte_handle_events();
+
+    /* Send the completed event */
+    backend.sendEvent({HCI_AUTH_COMPLETE, 3, status, 0x34, 0x12});
+    bte_handle_events();
+
+    std::vector<BteHciReply> expectedStatusReplies = {{ 0 }};
+    ASSERT_EQ(statusReplies, expectedStatusReplies);
+
+    std::vector<BteHciAuthRequestedReply> expectedReplies = {
+        {status, conn_handle},
+    };
+    ASSERT_EQ(replies, expectedReplies);
+    ASSERT_EQ(_bte_hci_dev.num_pending_commands, 0);
+}
+
 TEST(Commands, testSetSniffMode) {
     GetterInvoker<BteHciReply> invoker(
         [&](BteHci *hci, BteHciDoneCb replyCb) {

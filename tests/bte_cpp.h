@@ -261,6 +261,17 @@ public:
             bte_hci_pin_code_req_neg_reply(m_hci, &address, wrap<TAG>(cb));
         }
 
+        using AuthRequestedCb =
+            std::function<void(const BteHciAuthRequestedReply &)>;
+        void authRequested(BteHciConnHandle conn_handle,
+                           const DoneCb &statusCb,
+                           const AuthRequestedCb &cb) {
+            m_authRequestedCallbacks[conn_handle] = cb;
+            bte_hci_auth_requested(m_hci, conn_handle,
+                                   wrap<TAG>(statusCb),
+                                   &Hci::Callbacks::authRequested);
+        }
+
         void setSniffMode(BteHciConnHandle conn_handle,
                           uint16_t min_interval, uint16_t max_interval,
                           uint16_t attempt_slots, uint16_t timeout,
@@ -567,6 +578,12 @@ public:
                                        void *cb_data) {
                 return _this(cb_data)->m_pinCodeRequestCb(*address);
             }
+            static void authRequested(
+                BteHci *hci, const BteHciAuthRequestedReply *reply,
+                void *cb_data) {
+                _this(cb_data)->m_authRequestedCallbacks[reply->conn_handle](
+                    *reply);
+            }
             static bool modeChange(BteHci *hci,
                                    const BteHciModeChangeReply *reply,
                                    void *cb_data) {
@@ -579,7 +596,10 @@ public:
         friend class Client;
         InitializedCb m_initializedCb;
         std::pair<DoneCb, InquiryCb> m_inquiryCb;
-        std::unordered_map<BteBdAddr, CreateConnectionCb> m_createConnectionCallbacks;
+        std::unordered_map<BteBdAddr, CreateConnectionCb>
+            m_createConnectionCallbacks;
+        std::unordered_map<BteHciConnHandle, AuthRequestedCb>
+            m_authRequestedCallbacks;
         ConnectionRequestCb m_connectionRequestCb;
         LinkKeyRequestCb m_linkKeyRequestCb;
         PinCodeRequestCb m_pinCodeRequestCb;

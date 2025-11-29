@@ -162,6 +162,18 @@ void bte_hci_pin_code_req_reply(BteHci *hci, const BteBdAddr *address,
 void bte_hci_pin_code_req_neg_reply(BteHci *hci, const BteBdAddr *address,
                                     BteHciPinCodeReqReplyCb callback);
 
+typedef struct {
+    uint8_t status;
+    BteHciConnHandle conn_handle;
+} BteHciAuthRequestedReply;
+
+typedef void (*BteHciAuthRequestedCb)(
+    BteHci *hci, const BteHciAuthRequestedReply *reply, void *userdata);
+void bte_hci_auth_requested(BteHci *hci,
+                            BteHciConnHandle conn_handle,
+                            BteHciDoneCb status_cb,
+                            BteHciAuthRequestedCb callback);
+
 /* Link policy commands */
 
 #define BTE_HCI_MODE_ACTIVE (uint8_t)0

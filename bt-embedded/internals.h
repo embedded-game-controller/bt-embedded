@@ -80,6 +80,9 @@ typedef struct bte_hci_dev_t {
             struct bte_hci_event_conn_complete_t {
                 BteHciCreateConnectionCb client_cb;
             } event_conn_complete;
+            struct bte_hci_event_auth_complete_t {
+                BteHciAuthRequestedCb client_cb;
+            } event_auth_complete;
             struct bte_hci_event_mode_change_t {
                 BteHciModeChangeCb client_cb;
             } event_mode_change;
@@ -94,6 +97,10 @@ typedef struct bte_hci_dev_t {
             BteHciCreateConnectionCb client_cb;
             BteBdAddr address;
         } create_connection;
+        struct _bte_hci_tmpdata_auth_requested_t {
+            BteHciAuthRequestedCb client_cb;
+            BteHciConnHandle conn_handle;
+        } auth_requested;
     } last_async_cmd_data;
 
     BteClient *clients[BTE_HCI_MAX_CLIENTS];

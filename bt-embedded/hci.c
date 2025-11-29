@@ -550,6 +550,76 @@ void bte_hci_pin_code_req_neg_reply(BteHci *hci, const BteBdAddr *address,
     _bte_hci_send_command(b);
 }
 
+static void auth_complete_event_cb(BteBuffer *buffer, void *)
+{
+    BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);
+    if (UNLIKELY(!pc)) return;
+
+    BteHci *hci = pc->hci;
+    uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
+    BteHciAuthRequestedReply reply;
+    reply.status = data[0];
+    reply.conn_handle = read_le16(data + 1);
+
+    BteHciAuthRequestedCb auth_requested_cb =
+        pc->command_cb.event_auth_complete.client_cb;
+    _bte_hci_dev_free_command(pc);
+
+    auth_requested_cb(hci, &reply, hci_userdata(hci));
+}
+
+static void auth_requested_status_cb(BteHci *hci, uint8_t status,
+                                     BteHciPendingCommand *pc)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+    if (status != 0) goto error;
+
+    struct _bte_hci_tmpdata_auth_requested_t *tmpdata =
+        &dev->last_async_cmd_data.auth_requested;
+    BteDataMatcher matcher;
+    bte_data_matcher_init(&matcher);
+    uint8_t event_type = HCI_AUTH_COMPLETE;
+    bte_data_matcher_add_rule(&matcher, &event_type, 1, 0);
+    uint8_t handle_le[2];
+    write_le16(tmpdata->conn_handle, &handle_le);
+    bte_data_matcher_add_rule(&matcher, handle_le, 2,
+                              /* 1 for the status byte */
+                              HCI_CMD_EVENT_POS_DATA + 1);
+    BteHciPendingCommand *ev = _bte_hci_dev_alloc_command(&matcher);
+    if (UNLIKELY(!ev)) goto error;
+
+    ev->hci = hci;
+    ev->command_cb.event_auth_complete.client_cb = tmpdata->client_cb;
+    _bte_hci_dev_install_event_handler(HCI_AUTH_COMPLETE,
+                                       auth_complete_event_cb, NULL);
+
+error:
+    _bte_hci_dev_free_command(pc);
+}
+
+void bte_hci_auth_requested(BteHci *hci,
+                            BteHciConnHandle conn_handle,
+                            BteHciDoneCb status_cb,
+                            BteHciAuthRequestedCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_async_command(
+        hci, HCI_AUTH_REQUESTED_OCF, HCI_LINK_CTRL_OGF,
+        HCI_AUTH_REQUESTED_PLEN,
+        auth_requested_status_cb, status_cb);
+    if (UNLIKELY(!b)) return;
+
+    /* In the status callback we read this and setup the event matcher */
+    BteHciDev *dev = &_bte_hci_dev;
+    struct _bte_hci_tmpdata_auth_requested_t *tmpdata =
+        &dev->last_async_cmd_data.auth_requested;
+    tmpdata->conn_handle = conn_handle;
+    tmpdata->client_cb = callback;
+
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    write_le16(conn_handle, data);
+    _bte_hci_send_command(b);
+}
+
 void bte_hci_set_sniff_mode(BteHci *hci, BteHciConnHandle conn_handle,
                             uint16_t min_interval, uint16_t max_interval,
                             uint16_t attempt_slots, uint16_t timeout,

@@ -58,6 +58,12 @@ inline bool operator==(const BteHciPinCodeReqReply &a,
     return a.status == b.status && a.address == b.address;
 }
 
+inline bool operator==(const BteHciAuthRequestedReply &a,
+                       const BteHciAuthRequestedReply &b)
+{
+    return a.status == b.status && a.conn_handle == b.conn_handle;
+}
+
 inline bool operator==(const BteHciReadPinTypeReply &a,
                        const BteHciReadPinTypeReply &b)
 {
