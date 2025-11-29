@@ -164,6 +164,29 @@ void bte_hci_pin_code_req_neg_reply(BteHci *hci, const BteBdAddr *address,
 
 /* Link policy commands */
 
+#define BTE_HCI_MODE_ACTIVE (uint8_t)0
+#define BTE_HCI_MODE_HOLD   (uint8_t)1
+#define BTE_HCI_MODE_SNIFF  (uint8_t)2
+#define BTE_HCI_MODE_PARK   (uint8_t)3
+
+/* Use bte_hci_on_mode_change() to be notified of the change */
+void bte_hci_set_sniff_mode(BteHci *hci, BteHciConnHandle conn_handle,
+                            uint16_t min_interval, uint16_t max_interval,
+                            uint16_t attempt_slots, uint16_t timeout,
+                            BteHciDoneCb status_cb);
+
+typedef struct {
+    uint8_t status;
+    BteHciConnHandle conn_handle;
+    uint8_t current_mode;
+    uint16_t interval;
+} BteHciModeChangeReply;
+typedef bool (*BteHciModeChangeCb)(BteHci *hci,
+                                   const BteHciModeChangeReply *reply,
+                                   void *userdata);
+void bte_hci_on_mode_change(BteHci *hci, BteHciConnHandle conn_handle,
+                            BteHciModeChangeCb callback);
+
 #define BTE_HCI_LINK_POLICY_SETTINGS_DISABLE (uint8_t)0
 #define BTE_HCI_LINK_POLICY_SETTINGS_ROLE_SW (uint8_t)1
 #define BTE_HCI_LINK_POLICY_SETTINGS_HOLD    (uint8_t)2

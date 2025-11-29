@@ -550,6 +550,77 @@ void bte_hci_pin_code_req_neg_reply(BteHci *hci, const BteBdAddr *address,
     _bte_hci_send_command(b);
 }
 
+void bte_hci_set_sniff_mode(BteHci *hci, BteHciConnHandle conn_handle,
+                            uint16_t min_interval, uint16_t max_interval,
+                            uint16_t attempt_slots, uint16_t timeout,
+                            BteHciDoneCb status_cb)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_async_command(
+        hci, HCI_SNIFF_MODE_OCF, HCI_LINK_POLICY_OGF, HCI_SNIFF_MODE_PLEN,
+        NULL, status_cb);
+    if (UNLIKELY(!b)) return;
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    write_le16(conn_handle, data);
+    data += 2;
+    write_le16(max_interval, data);
+    data += 2;
+    write_le16(min_interval, data);
+    data += 2;
+    write_le16(attempt_slots, data);
+    data += 2;
+    write_le16(timeout, data);
+    _bte_hci_send_command(b);
+}
+
+static void mode_change_event_cb(BteBuffer *buffer, void *)
+{
+    BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);
+    if (UNLIKELY(!pc)) return;
+
+    BteHci *hci = pc->hci;
+    uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
+    BteHciModeChangeReply reply;
+    reply.status = data[0];
+    data++;
+    reply.conn_handle = read_le16(data);
+    data += 2;
+    reply.current_mode = data[0];
+    data++;
+    reply.interval = read_le16(data);
+
+    BteHciModeChangeCb cb = pc->command_cb.event_mode_change.client_cb;
+    if (cb(hci, &reply, hci_userdata(hci))) {
+        _bte_hci_dev_free_command(pc);
+    }
+}
+
+void bte_hci_on_mode_change(BteHci *hci, BteHciConnHandle conn_handle,
+                            BteHciModeChangeCb callback)
+{
+    BteDataMatcher matcher;
+    bte_data_matcher_init(&matcher);
+    uint8_t event_type = HCI_MODE_CHANGE;
+    bte_data_matcher_add_rule(&matcher, &event_type, 1, 0);
+    uint8_t handle_le[2];
+    write_le16(conn_handle, &handle_le);
+    bte_data_matcher_add_rule(&matcher, handle_le, 2,
+                              /* 1 for the status byte */
+                              HCI_CMD_EVENT_POS_DATA + 1);
+    if (!callback) {
+        /* We must remove our listener */
+        BteHciPendingCommand *ev = _bte_hci_dev_get_pending_command(&matcher);
+        if (ev && ev->hci == hci) _bte_hci_dev_free_command(ev);
+        return;
+    }
+    BteHciPendingCommand *ev = _bte_hci_dev_alloc_command(&matcher);
+    if (UNLIKELY(!ev)) return; /* already installed */
+
+    ev->hci = hci;
+    ev->command_cb.event_mode_change.client_cb = callback;
+    _bte_hci_dev_install_event_handler(HCI_MODE_CHANGE,
+                                       mode_change_event_cb, NULL);
+}
+
 static void read_link_policy_settings_cb(BteHci *hci, BteBuffer *buffer,
                                          void *client_cb)
 {

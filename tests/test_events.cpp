@@ -130,3 +130,60 @@ TEST(Events, testPinCodeRequested)
     };
     ASSERT_EQ(calls, expectedCalls);
 }
+
+TEST(Events, testModeChange)
+{
+    MockBackend backend;
+    Bte::Client client;
+    auto &hci = client.hci();
+
+    using Call = BteHciModeChangeReply;
+    std::vector<Call> calls;
+    BteHciConnHandle conn_handle = 0x1234;
+    bool cbReturnValue = false;
+    auto handler = [&](const BteHciModeChangeReply &reply) {
+        calls.push_back(reply);
+        return cbReturnValue;
+    };
+    hci.onModeChange(conn_handle, handler);
+
+    /* Emit the ModeChange event for another connection */
+    backend.sendEvent({ HCI_MODE_CHANGE, 6, 0, 0x56, 0x78, 0, 0x11, 0x22 });
+    bte_handle_events();
+    ASSERT_EQ(calls, std::vector<Call>{});
+
+    /* Now emit it for our connection */
+    backend.sendEvent({ HCI_MODE_CHANGE, 6, 0, 0x34, 0x12, 0, 0x11, 0x22 });
+    bte_handle_events();
+    std::vector<Call> expectedCalls = {{0, conn_handle, 0, 0x2211}};
+    ASSERT_EQ(calls, expectedCalls);
+    calls.clear();
+
+    /* One more, but this time return true to unsubscribe */
+    cbReturnValue = true;
+    backend.sendEvent({ HCI_MODE_CHANGE, 6, 0, 0x34, 0x12, 1, 0x11, 0x22 });
+    bte_handle_events();
+    expectedCalls = {{0, conn_handle, 1, 0x2211}};
+    ASSERT_EQ(calls, expectedCalls);
+    calls.clear();
+
+    /* Now we should be unsubscribed */
+    backend.sendEvent({ HCI_MODE_CHANGE, 6, 0, 0x34, 0x12, 0, 0x11, 0x22 });
+    bte_handle_events();
+    ASSERT_EQ(calls, std::vector<Call>{});
+
+    /* Test the explicit disconnection; first, reconnect */
+    cbReturnValue = false;
+    hci.onModeChange(conn_handle, handler);
+    backend.sendEvent({ HCI_MODE_CHANGE, 6, 0, 0x34, 0x12, 2, 0x11, 0x22 });
+    bte_handle_events();
+    expectedCalls = {{0, conn_handle, 2, 0x2211}};
+    ASSERT_EQ(calls, expectedCalls);
+    calls.clear();
+
+    /* Now disconnect */
+    hci.onModeChange(conn_handle, {});
+    backend.sendEvent({ HCI_MODE_CHANGE, 6, 0, 0x34, 0x12, 0, 0x11, 0x22 });
+    bte_handle_events();
+    ASSERT_EQ(calls, std::vector<Call>{});
+}

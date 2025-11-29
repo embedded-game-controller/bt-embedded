@@ -261,6 +261,24 @@ public:
             bte_hci_pin_code_req_neg_reply(m_hci, &address, wrap<TAG>(cb));
         }
 
+        void setSniffMode(BteHciConnHandle conn_handle,
+                          uint16_t min_interval, uint16_t max_interval,
+                          uint16_t attempt_slots, uint16_t timeout,
+                          const DoneCb &cb) {
+            bte_hci_set_sniff_mode(
+                m_hci, conn_handle, min_interval, max_interval,
+                attempt_slots, timeout, wrap<TAG>(cb));
+        }
+
+        using ModeChangeCb =
+            std::function<bool(const BteHciModeChangeReply &reply)>;
+        void onModeChange(BteHciConnHandle conn_handle,
+                          const ModeChangeCb &cb) {
+            m_modeChangeCb = cb;
+            bte_hci_on_mode_change(m_hci, conn_handle,
+                                   cb ? &Hci::Callbacks::modeChange : nullptr);
+        }
+
         void writeLinkPolicySettings(BteHciConnHandle conn_handle,
                                      BteHciLinkPolicySettings settings,
                                      const DoneCb &cb) {
@@ -549,6 +567,11 @@ public:
                                        void *cb_data) {
                 return _this(cb_data)->m_pinCodeRequestCb(*address);
             }
+            static bool modeChange(BteHci *hci,
+                                   const BteHciModeChangeReply *reply,
+                                   void *cb_data) {
+                return _this(cb_data)->m_modeChangeCb(*reply);
+            }
         };
 
         Hci(BteHci *hci): m_hci(hci) {}
@@ -560,6 +583,7 @@ public:
         ConnectionRequestCb m_connectionRequestCb;
         LinkKeyRequestCb m_linkKeyRequestCb;
         PinCodeRequestCb m_pinCodeRequestCb;
+        ModeChangeCb m_modeChangeCb;
         BteHci *m_hci;
     };
 

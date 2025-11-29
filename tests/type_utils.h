@@ -64,6 +64,13 @@ inline bool operator==(const BteHciReadPinTypeReply &a,
     return a.status == b.status && a.pin_type == b.pin_type;
 }
 
+inline bool operator==(const BteHciModeChangeReply &a,
+                       const BteHciModeChangeReply &b)
+{
+    return a.status == b.status && a.conn_handle == b.conn_handle &&
+        a.current_mode == b.current_mode && a.interval == b.interval;
+}
+
 inline bool operator==(const BteHciReadLinkPolicySettingsReply &a,
                        const BteHciReadLinkPolicySettingsReply &b)
 {

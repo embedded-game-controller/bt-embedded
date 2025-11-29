@@ -49,20 +49,36 @@ static inline uint16_t hci_command_opcode(BteBuffer *buffer)
     return *(uint16_t *)buffer->data;
 }
 
-BteHciPendingCommand *_bte_hci_dev_find_pending_command(
-    const BteBuffer *buffer)
+static void hci_dev_dispose(BteHciDev *dev, BteHci *hci)
+{
+    /* Remove all registered handlers for this client */
+    for (int i = 0; i < BTE_HCI_MAX_PENDING_COMMANDS; i++) {
+        BteHciPendingCommand *pc = &dev->pending_commands[i];
+        if (!bte_data_matcher_is_empty(&pc->matcher) && pc->hci == hci) {
+            _bte_hci_dev_free_command(pc);
+        }
+    }
+}
+
+BteHciPendingCommand *_bte_hci_dev_find_pending_command_raw(
+    const void *data, uint8_t len)
 {
     BteHciDev *dev = &_bte_hci_dev;
 
     for (int i = 0; i < BTE_HCI_MAX_PENDING_COMMANDS; i++) {
         BteHciPendingCommand *pc = &dev->pending_commands[i];
         if (!bte_data_matcher_is_empty(&pc->matcher) &&
-            bte_data_matcher_compare(&pc->matcher,
-                                     buffer->data, buffer->size)) {
+            bte_data_matcher_compare(&pc->matcher, data, len)) {
             return pc;
         }
     }
     return NULL;
+}
+
+BteHciPendingCommand *_bte_hci_dev_find_pending_command(
+    const BteBuffer *buffer)
+{
+    return _bte_hci_dev_find_pending_command_raw(buffer->data, buffer->size);
 }
 
 static void deliver_status_to_client(BteBuffer *buffer)
@@ -77,7 +93,11 @@ static void deliver_status_to_client(BteBuffer *buffer)
         BteHciDoneCb client_cb = pc->command_cb.cmd_status.client_cb;
 
         uint8_t status = buffer->data[HCI_CMD_STATUS_POS_STATUS];
-        command_status_cb(hci, status, pc);
+        if (command_status_cb) {
+            command_status_cb(hci, status, pc);
+        } else {
+            _bte_hci_dev_free_command(pc);
+        }
 
         BteHciReply reply;
         reply.status = status;
@@ -226,6 +246,9 @@ bool _bte_hci_dev_add_client(BteClient *client)
 void _bte_hci_dev_remove_client(BteClient *client)
 {
     BteHciDev *dev = &_bte_hci_dev;
+
+    hci_dev_dispose(dev, &client->hci);
+
     for (int i = 0; i < BTE_HCI_MAX_CLIENTS; i++) {
         if (dev->clients[i] == client) {
             dev->clients[i] = NULL;
@@ -287,6 +310,20 @@ BteHciPendingCommand *_bte_hci_dev_alloc_command(const BteDataMatcher *matcher)
     }
 
     return pending_command;
+}
+
+BteHciPendingCommand *_bte_hci_dev_get_pending_command(
+    const BteDataMatcher *matcher)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+
+    for (int i = 0; i < BTE_HCI_MAX_PENDING_COMMANDS; i++) {
+        BteHciPendingCommand *pc = &dev->pending_commands[i];
+        if (bte_data_matcher_is_same(matcher, &pc->matcher)) {
+            return pc;
+        }
+    }
+    return NULL;
 }
 
 BteBuffer *_bte_hci_dev_add_command_no_reply(uint16_t ocf, uint8_t ogf,

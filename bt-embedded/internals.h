@@ -80,6 +80,9 @@ typedef struct bte_hci_dev_t {
             struct bte_hci_event_conn_complete_t {
                 BteHciCreateConnectionCb client_cb;
             } event_conn_complete;
+            struct bte_hci_event_mode_change_t {
+                BteHciModeChangeCb client_cb;
+            } event_mode_change;
         } command_cb;
     } pending_commands[BTE_HCI_MAX_PENDING_COMMANDS];
 
@@ -155,6 +158,7 @@ extern BteHciDev _bte_hci_dev;
 int _bte_hci_dev_init(void);
 bool _bte_hci_dev_add_client(BteClient *client);
 void _bte_hci_dev_remove_client(BteClient *client);
+void _bte_hci_dispose(BteHci *hci);
 
 typedef bool (*BteHciForeachHciClientCb)(BteHci *hci, void *cb_data);
 bool _bte_hci_dev_foreach_hci_client(BteHciForeachHciClientCb callback,
@@ -169,6 +173,8 @@ int _bte_hci_dev_handle_data(BteBuffer *buf);
 
 /* Called by the HCI layer */
 BteHciPendingCommand *_bte_hci_dev_alloc_command(
+    const BteDataMatcher *matcher);
+BteHciPendingCommand *_bte_hci_dev_get_pending_command(
     const BteDataMatcher *matcher);
 
 BteBuffer *_bte_hci_dev_add_command_no_reply(uint16_t ocf, uint8_t ogf,
@@ -207,6 +213,8 @@ _bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
 
 BteHciPendingCommand *_bte_hci_dev_find_pending_command(
     const BteBuffer *buffer);
+BteHciPendingCommand *_bte_hci_dev_find_pending_command_raw(
+    const void *buffer, uint8_t len);
 void _bte_hci_dev_free_command(BteHciPendingCommand *cmd);
 int _bte_hci_send_command(BteBuffer *buffer);
 

@@ -836,6 +836,22 @@ TEST(Commands, testPinCodeReqNegReply) {
     ASSERT_EQ(replies, expectedReplies);
 }
 
+TEST(Commands, testSetSniffMode) {
+    GetterInvoker<BteHciReply> invoker(
+        [&](BteHci *hci, BteHciDoneCb replyCb) {
+            bte_hci_set_sniff_mode(
+                hci, 0x0123, 0x4567, 0x8901, 0x2345, 0x6789, replyCb);
+        },
+        {HCI_COMMAND_STATUS, 4, 1, 0x3, 0x8, 0});
+
+    Buffer expectedCommand{
+        0x3, 0x8, 10, 0x23, 0x01, 0x01, 0x89,
+        0x67, 0x45, 0x45, 0x23, 0x89, 0x67,
+    };
+    ASSERT_EQ(invoker.sentCommand(), expectedCommand);
+    ASSERT_EQ(invoker.receivedReply(), BteHciReply{0});
+}
+
 TEST(Commands, testReadLinkPolicySettings) {
     BteHciConnHandle conn = 0x0123;
     GetterInvoker<BteHciReadLinkPolicySettingsReply> invoker(
