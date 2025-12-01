@@ -1336,7 +1336,6 @@ static void read_current_iac_lap_cb(BteHci *hci, BteBuffer *buffer,
         laps[i] = lap;
     }
     reply.laps = laps;
-    printf("Laps %p, size %d\n", laps, reply.num_laps);
     BteHciReadCurrentIacLapCb callback = client_cb;
     callback(hci, &reply, hci_userdata(hci));
     free(laps);
