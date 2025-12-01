@@ -61,7 +61,7 @@ static void hci_dev_dispose(BteHciDev *dev, BteHci *hci)
 }
 
 BteHciPendingCommand *_bte_hci_dev_find_pending_command_raw(
-    const void *data, uint8_t len)
+    const void *data, size_t len)
 {
     BteHciDev *dev = &_bte_hci_dev;
 

@@ -221,7 +221,7 @@ _bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
 BteHciPendingCommand *_bte_hci_dev_find_pending_command(
     const BteBuffer *buffer);
 BteHciPendingCommand *_bte_hci_dev_find_pending_command_raw(
-    const void *buffer, uint8_t len);
+    const void *buffer, size_t len);
 void _bte_hci_dev_free_command(BteHciPendingCommand *cmd);
 int _bte_hci_send_command(BteBuffer *buffer);
 

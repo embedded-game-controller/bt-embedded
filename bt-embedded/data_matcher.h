@@ -67,7 +67,7 @@ static inline bool bte_data_matcher_add_rule(BteDataMatcher *matcher,
 }
 
 static inline bool bte_data_matcher_compare(const BteDataMatcher *matcher,
-                                            const void *data, uint8_t data_len)
+                                            const void *data, size_t data_len)
 {
     const uint8_t *ptr = matcher->bytes;
     for (int i = 0; i < matcher->num_rules; i++) {
