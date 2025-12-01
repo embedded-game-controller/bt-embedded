@@ -13,6 +13,15 @@ static void command_complete_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
     callback(hci, &reply, hci_userdata(hci));
 }
 
+static void write_clock_offset(uint16_t clock_offset, uint8_t *data)
+{
+    if (clock_offset != BTE_HCI_CLOCK_OFFSET_INVALID) {
+        write_le16(clock_offset & 0x7fff, data);
+    } else {
+        write_le16(0, data);
+    }
+}
+
 BteHci *bte_hci_get(BteClient *client)
 {
     return &client->hci;
@@ -324,11 +333,7 @@ void bte_hci_create_connection(BteHci *hci,
     data++;
     data[0] = 0; /* reserved */
     data++;
-    if (clock_offset != BTE_HCI_CLOCK_OFFSET_INVALID) {
-        write_le16(clock_offset & 0x7fff, data);
-    } else {
-        write_le16(0, data);
-    }
+    write_clock_offset(clock_offset, data);
     data += 2;
     data[0] = allow_role_switch;
     _bte_hci_send_command(b);
