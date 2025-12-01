@@ -64,6 +64,20 @@ inline bool operator==(const BteHciAuthRequestedReply &a,
     return a.status == b.status && a.conn_handle == b.conn_handle;
 }
 
+inline bool operator==(const BteHciReadRemoteNameReply &a,
+                       const BteHciReadRemoteNameReply &b)
+{
+    return a.status == b.status && a.address == b.address &&
+        strcmp(a.name, b.name) == 0;
+}
+
+inline bool operator==(const BteHciReadClockOffsetReply &a,
+                       const BteHciReadClockOffsetReply &b)
+{
+    return a.status == b.status && a.conn_handle == b.conn_handle &&
+        a.clock_offset == b.clock_offset;
+}
+
 inline bool operator==(const BteHciReadPinTypeReply &a,
                        const BteHciReadPinTypeReply &b)
 {

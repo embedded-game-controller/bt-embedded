@@ -174,6 +174,34 @@ void bte_hci_auth_requested(BteHci *hci,
                             BteHciDoneCb status_cb,
                             BteHciAuthRequestedCb callback);
 
+typedef struct {
+    uint8_t status;
+    BteBdAddr address;
+    char name[248 + 1];
+} BteHciReadRemoteNameReply;
+
+typedef void (*BteHciReadRemoteNameCb)(
+    BteHci *hci, const BteHciReadRemoteNameReply *reply, void *userdata);
+void bte_hci_read_remote_name(BteHci *hci,
+                              const BteBdAddr *address,
+                              uint8_t page_scan_rep_mode,
+                              uint16_t clock_offset,
+                              BteHciDoneCb status_cb,
+                              BteHciReadRemoteNameCb callback);
+
+typedef struct {
+    uint8_t status;
+    BteHciConnHandle conn_handle;
+    uint16_t clock_offset;
+} BteHciReadClockOffsetReply;
+
+typedef void (*BteHciReadClockOffsetCb)(
+    BteHci *hci, const BteHciReadClockOffsetReply *reply, void *userdata);
+void bte_hci_read_clock_offset(BteHci *hci,
+                               BteHciConnHandle conn_handle,
+                               BteHciDoneCb status_cb,
+                               BteHciReadClockOffsetCb callback);
+
 /* Link policy commands */
 
 #define BTE_HCI_MODE_ACTIVE (uint8_t)0

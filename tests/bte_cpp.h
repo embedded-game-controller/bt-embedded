@@ -272,6 +272,29 @@ public:
                                    &Hci::Callbacks::authRequested);
         }
 
+        using ReadRemoteNameCb =
+            std::function<void(const BteHciReadRemoteNameReply &)>;
+        void readRemoteName(const BteBdAddr &address,
+                            uint8_t page_scan_rep_mode,
+                            uint16_t clock_offset,
+                            const DoneCb &statusCb,
+                            const ReadRemoteNameCb &cb) {
+            m_readRemoteNameCallbacks[address] = cb;
+            bte_hci_read_remote_name(m_hci, &address, page_scan_rep_mode,
+                                     clock_offset, wrap<TAG>(statusCb),
+                                     &Hci::Callbacks::readRemoteName);
+        }
+
+        using ReadClockOffsetCb =
+            std::function<void(const BteHciReadClockOffsetReply &)>;
+        void readClockOffset(BteHciConnHandle conn_handle,
+                             const DoneCb &statusCb,
+                             const ReadClockOffsetCb &cb) {
+            m_readClockOffsetCallbacks[conn_handle] = cb;
+            bte_hci_read_clock_offset(m_hci, conn_handle, wrap<TAG>(statusCb),
+                                      &Hci::Callbacks::readClockOffset);
+        }
+
         void setSniffMode(BteHciConnHandle conn_handle,
                           uint16_t min_interval, uint16_t max_interval,
                           uint16_t attempt_slots, uint16_t timeout,
@@ -584,6 +607,18 @@ public:
                 _this(cb_data)->m_authRequestedCallbacks[reply->conn_handle](
                     *reply);
             }
+            static void readRemoteName(
+                BteHci *hci, const BteHciReadRemoteNameReply *reply,
+                void *cb_data) {
+                _this(cb_data)->m_readRemoteNameCallbacks[reply->address](
+                    *reply);
+            }
+            static void readClockOffset(
+                BteHci *hci, const BteHciReadClockOffsetReply *reply,
+                void *cb_data) {
+                _this(cb_data)->m_readClockOffsetCallbacks[reply->conn_handle](
+                    *reply);
+            }
             static bool modeChange(BteHci *hci,
                                    const BteHciModeChangeReply *reply,
                                    void *cb_data) {
@@ -600,6 +635,10 @@ public:
             m_createConnectionCallbacks;
         std::unordered_map<BteHciConnHandle, AuthRequestedCb>
             m_authRequestedCallbacks;
+        std::unordered_map<BteBdAddr, ReadRemoteNameCb>
+            m_readRemoteNameCallbacks;
+        std::unordered_map<BteHciConnHandle, ReadClockOffsetCb>
+            m_readClockOffsetCallbacks;
         ConnectionRequestCb m_connectionRequestCb;
         LinkKeyRequestCb m_linkKeyRequestCb;
         PinCodeRequestCb m_pinCodeRequestCb;

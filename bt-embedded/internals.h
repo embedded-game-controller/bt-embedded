@@ -83,6 +83,12 @@ typedef struct bte_hci_dev_t {
             struct bte_hci_event_auth_complete_t {
                 BteHciAuthRequestedCb client_cb;
             } event_auth_complete;
+            struct bte_hci_event_remote_name_req_complete_t {
+                BteHciReadRemoteNameCb client_cb;
+            } event_remote_name_req_complete;
+            struct bte_hci_event_read_clock_offset_complete_t {
+                BteHciReadClockOffsetCb client_cb;
+            } event_read_clock_offset_complete;
             struct bte_hci_event_mode_change_t {
                 BteHciModeChangeCb client_cb;
             } event_mode_change;
@@ -101,6 +107,14 @@ typedef struct bte_hci_dev_t {
             BteHciAuthRequestedCb client_cb;
             BteHciConnHandle conn_handle;
         } auth_requested;
+        struct _bte_hci_tmpdata_read_remote_name_t {
+            BteHciReadRemoteNameCb client_cb;
+            BteBdAddr address;
+        } read_remote_name;
+        struct _bte_hci_tmpdata_read_clock_offset_t {
+            BteHciReadClockOffsetCb client_cb;
+            BteHciConnHandle conn_handle;
+        } read_clock_offset;
     } last_async_cmd_data;
 
     BteClient *clients[BTE_HCI_MAX_CLIENTS];

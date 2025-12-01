@@ -875,6 +875,96 @@ TEST(Commands, testAuthRequested) {
     ASSERT_EQ(_bte_hci_dev.num_pending_commands, 0);
 }
 
+TEST(Commands, testReadRemoteName) {
+    MockBackend backend;
+    Bte::Client client;
+    auto &hci = client.hci();
+
+    BteBdAddr address = {1, 2, 3, 4, 5, 6};
+    uint8_t page_scan_rep_mode = 1;
+    uint16_t clock_offset = BTE_HCI_CLOCK_OFFSET_INVALID;
+
+    std::vector<BteHciReadRemoteNameReply> replies;
+    std::vector<BteHciReply> statusReplies;
+    hci.readRemoteName(address, page_scan_rep_mode, clock_offset,
+                       [&](const BteHciReply &reply) {
+            statusReplies.push_back(reply);
+        },
+        [&](const BteHciReadRemoteNameReply &reply) {
+            replies.push_back(reply);
+        });
+
+    const uint8_t cmdSize = 6 + 1 + 1 + 2; /* there's one reserved byte */
+    Buffer expectedCommand{0x19, 0x4, cmdSize};
+    expectedCommand += address;
+    expectedCommand += Buffer{page_scan_rep_mode, 0, 0, 0};
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+
+    /* Send the status reply */
+    uint8_t status = 0;
+    backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x19, 0x4});
+    bte_handle_events();
+
+    /* Send the completed event */
+    const uint8_t eventSize = 1 + 6 + 248;
+    Buffer nameBuffer = { 'H', 'e', 'l', 'l', 'o', 0 };
+    nameBuffer.resize(248);
+    backend.sendEvent(Buffer{HCI_REMOTE_NAME_REQ_COMPLETE, eventSize, status} +
+                      address + nameBuffer);
+    bte_handle_events();
+
+    std::vector<BteHciReply> expectedStatusReplies = {{ 0 }};
+    ASSERT_EQ(statusReplies, expectedStatusReplies);
+
+    std::vector<BteHciReadRemoteNameReply> expectedReplies = {
+        {status, address, "Hello"},
+    };
+    ASSERT_EQ(replies, expectedReplies);
+    ASSERT_EQ(_bte_hci_dev.num_pending_commands, 0);
+}
+
+TEST(Commands, testReadClockOffset) {
+    MockBackend backend;
+    Bte::Client client;
+    auto &hci = client.hci();
+
+    BteHciConnHandle conn_handle = 0x1234;
+
+    std::vector<BteHciReadClockOffsetReply> replies;
+    std::vector<BteHciReply> statusReplies;
+    hci.readClockOffset(conn_handle, [&](const BteHciReply &reply) {
+            statusReplies.push_back(reply);
+        },
+        [&](const BteHciReadClockOffsetReply &reply) {
+            replies.push_back(reply);
+        });
+
+    const uint8_t cmdSize = 2;
+    Buffer expectedCommand{0x1f, 0x4, cmdSize, 0x34, 0x12};
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+
+    /* Send the status reply */
+    uint8_t status = 0;
+    backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x1f, 0x4});
+    bte_handle_events();
+
+    /* Send the completed event */
+    const uint8_t eventSize = 1 + 2 + 2;
+    backend.sendEvent({
+        HCI_READ_CLOCK_OFFSET_COMPLETE, eventSize, status,
+        0x34, 0x12, 0x56, 0x78});
+    bte_handle_events();
+
+    std::vector<BteHciReply> expectedStatusReplies = {{ 0 }};
+    ASSERT_EQ(statusReplies, expectedStatusReplies);
+
+    std::vector<BteHciReadClockOffsetReply> expectedReplies = {
+        {status, conn_handle, 0x7856},
+    };
+    ASSERT_EQ(replies, expectedReplies);
+    ASSERT_EQ(_bte_hci_dev.num_pending_commands, 0);
+}
+
 TEST(Commands, testSetSniffMode) {
     GetterInvoker<BteHciReply> invoker(
         [&](BteHci *hci, BteHciDoneCb replyCb) {

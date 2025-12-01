@@ -625,6 +625,158 @@ void bte_hci_auth_requested(BteHci *hci,
     _bte_hci_send_command(b);
 }
 
+static void remote_name_req_complete_event_cb(BteBuffer *buffer, void *)
+{
+    BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);
+    if (UNLIKELY(!pc)) return;
+
+    BteHci *hci = pc->hci;
+    const uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
+    BteHciReadRemoteNameReply reply;
+    reply.status = data[0];
+    memcpy(&reply.address, data + 1, 6);
+    strncpy(reply.name, (const void*)(data + 1 + 6), 248);
+    reply.name[248] = '\0';
+
+    BteHciReadRemoteNameCb read_remote_name_cb =
+        pc->command_cb.event_remote_name_req_complete.client_cb;
+    _bte_hci_dev_free_command(pc);
+
+    read_remote_name_cb(hci, &reply, hci_userdata(hci));
+}
+
+static void read_remote_name_status_cb(BteHci *hci, uint8_t status,
+                                       BteHciPendingCommand *pc)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+    if (status != 0) goto error;
+
+    struct _bte_hci_tmpdata_read_remote_name_t *tmpdata =
+        &dev->last_async_cmd_data.read_remote_name;
+    BteDataMatcher matcher;
+    bte_data_matcher_init(&matcher);
+    uint8_t event_type = HCI_REMOTE_NAME_REQ_COMPLETE;
+    bte_data_matcher_add_rule(&matcher, &event_type, 1, 0);
+    bte_data_matcher_add_rule(&matcher, &tmpdata->address, 6,
+                              /* 1 for the status byte */
+                              HCI_CMD_EVENT_POS_DATA + 1);
+    BteHciPendingCommand *ev = _bte_hci_dev_alloc_command(&matcher);
+    if (UNLIKELY(!ev)) goto error;
+
+    ev->hci = hci;
+    ev->command_cb.event_remote_name_req_complete.client_cb =
+        tmpdata->client_cb;
+    _bte_hci_dev_install_event_handler(
+        HCI_REMOTE_NAME_REQ_COMPLETE, remote_name_req_complete_event_cb, NULL);
+
+error:
+    _bte_hci_dev_free_command(pc);
+}
+
+void bte_hci_read_remote_name(BteHci *hci,
+                              const BteBdAddr *address,
+                              uint8_t page_scan_rep_mode,
+                              uint16_t clock_offset,
+                              BteHciDoneCb status_cb,
+                              BteHciReadRemoteNameCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_async_command(
+        hci, HCI_R_REMOTE_NAME_OCF, HCI_LINK_CTRL_OGF,
+        HCI_R_REMOTE_NAME_PLEN,
+        read_remote_name_status_cb, status_cb);
+    if (UNLIKELY(!b)) return;
+
+    /* In the status callback we read this and setup the event matcher */
+    BteHciDev *dev = &_bte_hci_dev;
+    struct _bte_hci_tmpdata_read_remote_name_t *tmpdata =
+        &dev->last_async_cmd_data.read_remote_name;
+    memcpy(&tmpdata->address, address, sizeof(*address));
+    tmpdata->client_cb = callback;
+
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    memcpy(data, address, sizeof(*address));
+    data += sizeof(*address);
+    data[0] = page_scan_rep_mode;
+    data++;
+    data[0] = 0; /* reserved */
+    data++;
+    write_clock_offset(clock_offset, data);
+    _bte_hci_send_command(b);
+}
+
+static void read_clock_offset_complete_event_cb(BteBuffer *buffer, void *)
+{
+    BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);
+    if (UNLIKELY(!pc)) return;
+
+    BteHci *hci = pc->hci;
+    const uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
+    BteHciReadClockOffsetReply reply;
+    reply.status = data[0];
+    reply.conn_handle = read_le16(data + 1);
+    reply.clock_offset = read_le16(data + 3);
+
+    BteHciReadClockOffsetCb read_clock_offset_cb =
+        pc->command_cb.event_read_clock_offset_complete.client_cb;
+    _bte_hci_dev_free_command(pc);
+
+    read_clock_offset_cb(hci, &reply, hci_userdata(hci));
+}
+
+static void read_clock_offset_status_cb(BteHci *hci, uint8_t status,
+                                        BteHciPendingCommand *pc)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+    if (status != 0) goto error;
+
+    struct _bte_hci_tmpdata_read_clock_offset_t *tmpdata =
+        &dev->last_async_cmd_data.read_clock_offset;
+    BteDataMatcher matcher;
+    bte_data_matcher_init(&matcher);
+    uint8_t event_type = HCI_READ_CLOCK_OFFSET_COMPLETE;
+    bte_data_matcher_add_rule(&matcher, &event_type, 1, 0);
+    uint8_t handle_le[2];
+    write_le16(tmpdata->conn_handle, &handle_le);
+    bte_data_matcher_add_rule(&matcher, handle_le, 2,
+                              /* 1 for the status byte */
+                              HCI_CMD_EVENT_POS_DATA + 1);
+    BteHciPendingCommand *ev = _bte_hci_dev_alloc_command(&matcher);
+    if (UNLIKELY(!ev)) goto error;
+
+    ev->hci = hci;
+    ev->command_cb.event_read_clock_offset_complete.client_cb =
+        tmpdata->client_cb;
+    _bte_hci_dev_install_event_handler(
+        HCI_READ_CLOCK_OFFSET_COMPLETE, read_clock_offset_complete_event_cb,
+        NULL);
+
+error:
+    _bte_hci_dev_free_command(pc);
+}
+
+void bte_hci_read_clock_offset(BteHci *hci,
+                               BteHciConnHandle conn_handle,
+                               BteHciDoneCb status_cb,
+                               BteHciReadClockOffsetCb callback)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_async_command(
+        hci, HCI_R_CLOCK_OFFSET_OCF, HCI_LINK_CTRL_OGF,
+        HCI_R_CLOCK_OFFSET_PLEN,
+        read_clock_offset_status_cb, status_cb);
+    if (UNLIKELY(!b)) return;
+
+    /* In the status callback we read this and setup the event matcher */
+    BteHciDev *dev = &_bte_hci_dev;
+    struct _bte_hci_tmpdata_read_clock_offset_t *tmpdata =
+        &dev->last_async_cmd_data.read_clock_offset;
+    tmpdata->conn_handle = conn_handle;
+    tmpdata->client_cb = callback;
+
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    write_le16(conn_handle, data);
+    _bte_hci_send_command(b);
+}
+
 void bte_hci_set_sniff_mode(BteHci *hci, BteHciConnHandle conn_handle,
                             uint16_t min_interval, uint16_t max_interval,
                             uint16_t attempt_slots, uint16_t timeout,
