@@ -20,7 +20,6 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_compile_options(
     ${ARCH}
-    -O2
     -fomit-frame-pointer
     -ffunction-sections
     -Wall
