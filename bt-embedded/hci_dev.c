@@ -378,6 +378,32 @@ void _bte_hci_dev_free_command(BteHciPendingCommand *cmd)
     dev->num_pending_commands--;
 }
 
+BteBuffer *
+_bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
+                                 uint8_t ogf, uint8_t len,
+                                 BteHciCommandCb command_cb,
+                                 void *client_cb)
+{
+    BteHciCommandCbUnion cmd = {
+        .cmd_complete = { command_cb, client_cb }
+    };
+    return _bte_hci_dev_add_command(hci, ocf, ogf, len,
+                                    HCI_COMMAND_COMPLETE, &cmd);
+}
+
+BteBuffer *
+_bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
+                                       uint8_t ogf, uint8_t len,
+                                       BteHciCommandStatusCb command_cb,
+                                       void *client_cb)
+{
+    BteHciCommandCbUnion cmd = {
+        .cmd_status = { command_cb, client_cb }
+    };
+    return _bte_hci_dev_add_command(hci, ocf, ogf, len,
+                                    HCI_COMMAND_STATUS, &cmd);
+}
+
 void _bte_hci_dev_install_event_handler(uint8_t event_code,
                                         BteHciEventHandlerCb handler_cb,
                                         void *cb_data)

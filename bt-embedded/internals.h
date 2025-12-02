@@ -204,33 +204,16 @@ BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
                                     uint8_t ogf, uint8_t len,
                                     uint8_t reply_event,
                                     const BteHciCommandCbUnion *command_cb);
-#ifndef __cplusplus
-static inline BteBuffer *
+BteBuffer *
 _bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
                                  uint8_t ogf, uint8_t len,
                                  BteHciCommandCb command_cb,
-                                 void *client_cb)
-{
-    BteHciCommandCbUnion cmd = {
-        .cmd_complete = { command_cb, client_cb }
-    };
-    return _bte_hci_dev_add_command(hci, ocf, ogf, len,
-                                    HCI_COMMAND_COMPLETE, &cmd);
-}
-
-static inline BteBuffer *
+                                 void *client_cb);
+BteBuffer *
 _bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
                                        uint8_t ogf, uint8_t len,
                                        BteHciCommandStatusCb command_cb,
-                                       void *client_cb)
-{
-    BteHciCommandCbUnion cmd = {
-        .cmd_status = { command_cb, client_cb }
-    };
-    return _bte_hci_dev_add_command(hci, ocf, ogf, len,
-                                    HCI_COMMAND_STATUS, &cmd);
-}
-#endif // __cplusplus
+                                       void *client_cb);
 
 BteHciPendingCommand *_bte_hci_dev_find_pending_command(
     const BteBuffer *buffer);
