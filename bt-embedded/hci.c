@@ -34,7 +34,13 @@ BteClient *bte_hci_get_client(BteHci *hci)
 
 void bte_hci_on_initialized(BteHci *hci, BteInitializedCb callback)
 {
+    BteHciDev *dev = &_bte_hci_dev;
     hci->initialized_cb = callback;
+    if (dev->init_status == BTE_HCI_INIT_STATUS_INITIALIZED ||
+        dev->init_status == BTE_HCI_INIT_STATUS_FAILED) {
+        callback(hci, dev->init_status == BTE_HCI_INIT_STATUS_INITIALIZED,
+                 hci_userdata(hci));
+    }
 }
 
 BteHciSupportedFeatures bte_hci_get_supported_features(BteHci *)
