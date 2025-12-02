@@ -95,28 +95,6 @@ typedef struct bte_hci_dev_t {
         } command_cb;
     } pending_commands[BTE_HCI_MAX_PENDING_COMMANDS];
 
-    /* Storage for temporary data, only valid since issuing an asynchronous
-     * command till the time that its corresponding command status event has
-     * been received. */
-    union _bte_hci_last_async_cmd_data_u {
-        struct _bte_hci_tmpdata_create_connection_t {
-            BteHciCreateConnectionCb client_cb;
-            BteBdAddr address;
-        } create_connection;
-        struct _bte_hci_tmpdata_auth_requested_t {
-            BteHciAuthRequestedCb client_cb;
-            BteHciConnHandle conn_handle;
-        } auth_requested;
-        struct _bte_hci_tmpdata_read_remote_name_t {
-            BteHciReadRemoteNameCb client_cb;
-            BteBdAddr address;
-        } read_remote_name;
-        struct _bte_hci_tmpdata_read_clock_offset_t {
-            BteHciReadClockOffsetCb client_cb;
-            BteHciConnHandle conn_handle;
-        } read_clock_offset;
-    } last_async_cmd_data;
-
     BteClient *clients[BTE_HCI_MAX_CLIENTS];
 
     BteBdAddr address;
@@ -157,6 +135,28 @@ struct bte_client_t {
         BteHciConnectionRequestCb connection_request_cb;
         BteHciLinkKeyRequestCb link_key_request_cb;
         BteHciPinCodeRequestCb pin_code_request_cb;
+
+        /* Storage for temporary data, only valid since issuing an asynchronous
+         * command till the time that its corresponding command status event
+         * has been received. */
+        union _bte_hci_last_async_cmd_data_u {
+            struct _bte_hci_tmpdata_create_connection_t {
+                BteHciCreateConnectionCb client_cb;
+                BteBdAddr address;
+            } create_connection;
+            struct _bte_hci_tmpdata_auth_requested_t {
+                BteHciAuthRequestedCb client_cb;
+                BteHciConnHandle conn_handle;
+            } auth_requested;
+            struct _bte_hci_tmpdata_read_remote_name_t {
+                BteHciReadRemoteNameCb client_cb;
+                BteBdAddr address;
+            } read_remote_name;
+            struct _bte_hci_tmpdata_read_clock_offset_t {
+                BteHciReadClockOffsetCb client_cb;
+                BteHciConnHandle conn_handle;
+            } read_clock_offset;
+        } last_async_cmd_data;
 
         /* Should we ever start supporting more than one HCI device, we should
          * store a pointer to the HCI device here. AS of now, we have a single

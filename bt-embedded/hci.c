@@ -284,11 +284,10 @@ static void conn_complete_event_cb(BteBuffer *buffer, void *)
 static void create_connection_status_cb(BteHci *hci, uint8_t status,
                                         BteHciPendingCommand *pc)
 {
-    BteHciDev *dev = &_bte_hci_dev;
     if (status != 0) goto error;
 
     struct _bte_hci_tmpdata_create_connection_t *tmpdata =
-        &dev->last_async_cmd_data.create_connection;
+        &hci->last_async_cmd_data.create_connection;
     BteDataMatcher matcher;
     bte_data_matcher_init(&matcher);
     uint8_t event_type = HCI_CONNECTION_COMPLETE;
@@ -324,9 +323,8 @@ void bte_hci_create_connection(BteHci *hci,
     if (UNLIKELY(!b)) return;
 
     /* In the status callback we read this and setup the event matcher */
-    BteHciDev *dev = &_bte_hci_dev;
     struct _bte_hci_tmpdata_create_connection_t *tmpdata =
-        &dev->last_async_cmd_data.create_connection;
+        &hci->last_async_cmd_data.create_connection;
     memcpy(&tmpdata->address, address, sizeof(*address));
     tmpdata->client_cb = callback;
 
@@ -389,9 +387,8 @@ void bte_hci_accept_connection(BteHci *hci,
     if (UNLIKELY(!b)) return;
 
     /* In the status callback we read this and setup the event matcher */
-    BteHciDev *dev = &_bte_hci_dev;
     struct _bte_hci_tmpdata_create_connection_t *tmpdata =
-        &dev->last_async_cmd_data.create_connection;
+        &hci->last_async_cmd_data.create_connection;
     memcpy(&tmpdata->address, address, sizeof(*address));
     tmpdata->client_cb = callback;
 
@@ -415,9 +412,8 @@ void bte_hci_reject_connection(BteHci *hci,
     if (UNLIKELY(!b)) return;
 
     /* In the status callback we read this and setup the event matcher */
-    BteHciDev *dev = &_bte_hci_dev;
     struct _bte_hci_tmpdata_create_connection_t *tmpdata =
-        &dev->last_async_cmd_data.create_connection;
+        &hci->last_async_cmd_data.create_connection;
     memcpy(&tmpdata->address, address, sizeof(*address));
     tmpdata->client_cb = callback;
 
@@ -582,11 +578,10 @@ static void auth_complete_event_cb(BteBuffer *buffer, void *)
 static void auth_requested_status_cb(BteHci *hci, uint8_t status,
                                      BteHciPendingCommand *pc)
 {
-    BteHciDev *dev = &_bte_hci_dev;
     if (status != 0) goto error;
 
     struct _bte_hci_tmpdata_auth_requested_t *tmpdata =
-        &dev->last_async_cmd_data.auth_requested;
+        &hci->last_async_cmd_data.auth_requested;
     BteDataMatcher matcher;
     bte_data_matcher_init(&matcher);
     uint8_t event_type = HCI_AUTH_COMPLETE;
@@ -620,9 +615,8 @@ void bte_hci_auth_requested(BteHci *hci,
     if (UNLIKELY(!b)) return;
 
     /* In the status callback we read this and setup the event matcher */
-    BteHciDev *dev = &_bte_hci_dev;
     struct _bte_hci_tmpdata_auth_requested_t *tmpdata =
-        &dev->last_async_cmd_data.auth_requested;
+        &hci->last_async_cmd_data.auth_requested;
     tmpdata->conn_handle = conn_handle;
     tmpdata->client_cb = callback;
 
@@ -654,11 +648,10 @@ static void remote_name_req_complete_event_cb(BteBuffer *buffer, void *)
 static void read_remote_name_status_cb(BteHci *hci, uint8_t status,
                                        BteHciPendingCommand *pc)
 {
-    BteHciDev *dev = &_bte_hci_dev;
     if (status != 0) goto error;
 
     struct _bte_hci_tmpdata_read_remote_name_t *tmpdata =
-        &dev->last_async_cmd_data.read_remote_name;
+        &hci->last_async_cmd_data.read_remote_name;
     BteDataMatcher matcher;
     bte_data_matcher_init(&matcher);
     uint8_t event_type = HCI_REMOTE_NAME_REQ_COMPLETE;
@@ -693,9 +686,8 @@ void bte_hci_read_remote_name(BteHci *hci,
     if (UNLIKELY(!b)) return;
 
     /* In the status callback we read this and setup the event matcher */
-    BteHciDev *dev = &_bte_hci_dev;
     struct _bte_hci_tmpdata_read_remote_name_t *tmpdata =
-        &dev->last_async_cmd_data.read_remote_name;
+        &hci->last_async_cmd_data.read_remote_name;
     memcpy(&tmpdata->address, address, sizeof(*address));
     tmpdata->client_cb = callback;
 
@@ -732,11 +724,10 @@ static void read_clock_offset_complete_event_cb(BteBuffer *buffer, void *)
 static void read_clock_offset_status_cb(BteHci *hci, uint8_t status,
                                         BteHciPendingCommand *pc)
 {
-    BteHciDev *dev = &_bte_hci_dev;
     if (status != 0) goto error;
 
     struct _bte_hci_tmpdata_read_clock_offset_t *tmpdata =
-        &dev->last_async_cmd_data.read_clock_offset;
+        &hci->last_async_cmd_data.read_clock_offset;
     BteDataMatcher matcher;
     bte_data_matcher_init(&matcher);
     uint8_t event_type = HCI_READ_CLOCK_OFFSET_COMPLETE;
@@ -772,9 +763,8 @@ void bte_hci_read_clock_offset(BteHci *hci,
     if (UNLIKELY(!b)) return;
 
     /* In the status callback we read this and setup the event matcher */
-    BteHciDev *dev = &_bte_hci_dev;
     struct _bte_hci_tmpdata_read_clock_offset_t *tmpdata =
-        &dev->last_async_cmd_data.read_clock_offset;
+        &hci->last_async_cmd_data.read_clock_offset;
     tmpdata->conn_handle = conn_handle;
     tmpdata->client_cb = callback;
 
