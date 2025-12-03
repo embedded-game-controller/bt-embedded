@@ -22,6 +22,60 @@ static void write_clock_offset(uint16_t clock_offset, uint8_t *data)
     }
 }
 
+static void common_read_connection_status_cb(BteHci *hci, uint8_t status,
+                                             BteHciPendingCommand *pc)
+{
+    if (status != 0) goto error;
+
+    struct _bte_hci_tmpdata_common_read_connection_t *tmpdata =
+        &hci->last_async_cmd_data.common_read_connection;
+    BteDataMatcher matcher;
+    bte_data_matcher_init(&matcher);
+    bte_data_matcher_add_rule(&matcher, &tmpdata->event_code, 1, 0);
+    uint8_t handle_le[2];
+    write_le16(tmpdata->conn_handle, &handle_le);
+    bte_data_matcher_add_rule(&matcher, handle_le, 2,
+                              /* 1 for the status byte */
+                              HCI_CMD_EVENT_POS_DATA + 1);
+    BteHciPendingCommand *ev = _bte_hci_dev_alloc_command(&matcher);
+    if (UNLIKELY(!ev)) goto error;
+
+    ev->hci = hci;
+    ev->command_cb.event_common_read_connection.client_cb = tmpdata->client_cb;
+    _bte_hci_dev_install_event_handler(
+        tmpdata->event_code, tmpdata->handler_cb, NULL);
+
+error:
+    _bte_hci_dev_free_command(pc);
+}
+
+static void common_read_connection(BteHci *hci,
+                                   uint16_t ocf, uint8_t ogf,
+                                   BteHciConnHandle conn_handle,
+                                   uint8_t event_code,
+                                   BteHciEventHandlerCb event_handler_cb,
+                                   BteHciDoneCb status_cb,
+                                   void *client_cb)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_async_command(
+        hci, ocf, ogf,
+        HCI_CMD_HDR_LEN + 2, /* 2 for the connection handle */
+        common_read_connection_status_cb, status_cb);
+    if (UNLIKELY(!b)) return;
+
+    /* In the status callback we read this and setup the event matcher */
+    struct _bte_hci_tmpdata_common_read_connection_t *tmpdata =
+        &hci->last_async_cmd_data.common_read_connection;
+    tmpdata->conn_handle = conn_handle;
+    tmpdata->client_cb = client_cb;
+    tmpdata->event_code = event_code;
+    tmpdata->handler_cb = event_handler_cb;
+
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    write_le16(conn_handle, data);
+    _bte_hci_send_command(b);
+}
+
 BteHci *bte_hci_get(BteClient *client)
 {
     return &client->hci;
@@ -575,54 +629,15 @@ static void auth_complete_event_cb(BteBuffer *buffer, void *)
     auth_requested_cb(hci, &reply, hci_userdata(hci));
 }
 
-static void auth_requested_status_cb(BteHci *hci, uint8_t status,
-                                     BteHciPendingCommand *pc)
-{
-    if (status != 0) goto error;
-
-    struct _bte_hci_tmpdata_auth_requested_t *tmpdata =
-        &hci->last_async_cmd_data.auth_requested;
-    BteDataMatcher matcher;
-    bte_data_matcher_init(&matcher);
-    uint8_t event_type = HCI_AUTH_COMPLETE;
-    bte_data_matcher_add_rule(&matcher, &event_type, 1, 0);
-    uint8_t handle_le[2];
-    write_le16(tmpdata->conn_handle, &handle_le);
-    bte_data_matcher_add_rule(&matcher, handle_le, 2,
-                              /* 1 for the status byte */
-                              HCI_CMD_EVENT_POS_DATA + 1);
-    BteHciPendingCommand *ev = _bte_hci_dev_alloc_command(&matcher);
-    if (UNLIKELY(!ev)) goto error;
-
-    ev->hci = hci;
-    ev->command_cb.event_auth_complete.client_cb = tmpdata->client_cb;
-    _bte_hci_dev_install_event_handler(HCI_AUTH_COMPLETE,
-                                       auth_complete_event_cb, NULL);
-
-error:
-    _bte_hci_dev_free_command(pc);
-}
-
 void bte_hci_auth_requested(BteHci *hci,
                             BteHciConnHandle conn_handle,
                             BteHciDoneCb status_cb,
                             BteHciAuthRequestedCb callback)
 {
-    BteBuffer *b = _bte_hci_dev_add_pending_async_command(
-        hci, HCI_AUTH_REQUESTED_OCF, HCI_LINK_CTRL_OGF,
-        HCI_AUTH_REQUESTED_PLEN,
-        auth_requested_status_cb, status_cb);
-    if (UNLIKELY(!b)) return;
-
-    /* In the status callback we read this and setup the event matcher */
-    struct _bte_hci_tmpdata_auth_requested_t *tmpdata =
-        &hci->last_async_cmd_data.auth_requested;
-    tmpdata->conn_handle = conn_handle;
-    tmpdata->client_cb = callback;
-
-    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
-    write_le16(conn_handle, data);
-    _bte_hci_send_command(b);
+    common_read_connection(hci, HCI_AUTH_REQUESTED_OCF, HCI_LINK_CTRL_OGF,
+                           conn_handle,
+                           HCI_AUTH_COMPLETE, auth_complete_event_cb,
+                           status_cb, callback);
 }
 
 static void remote_name_req_complete_event_cb(BteBuffer *buffer, void *)
@@ -721,56 +736,15 @@ static void read_clock_offset_complete_event_cb(BteBuffer *buffer, void *)
     read_clock_offset_cb(hci, &reply, hci_userdata(hci));
 }
 
-static void read_clock_offset_status_cb(BteHci *hci, uint8_t status,
-                                        BteHciPendingCommand *pc)
-{
-    if (status != 0) goto error;
-
-    struct _bte_hci_tmpdata_read_clock_offset_t *tmpdata =
-        &hci->last_async_cmd_data.read_clock_offset;
-    BteDataMatcher matcher;
-    bte_data_matcher_init(&matcher);
-    uint8_t event_type = HCI_READ_CLOCK_OFFSET_COMPLETE;
-    bte_data_matcher_add_rule(&matcher, &event_type, 1, 0);
-    uint8_t handle_le[2];
-    write_le16(tmpdata->conn_handle, &handle_le);
-    bte_data_matcher_add_rule(&matcher, handle_le, 2,
-                              /* 1 for the status byte */
-                              HCI_CMD_EVENT_POS_DATA + 1);
-    BteHciPendingCommand *ev = _bte_hci_dev_alloc_command(&matcher);
-    if (UNLIKELY(!ev)) goto error;
-
-    ev->hci = hci;
-    ev->command_cb.event_read_clock_offset_complete.client_cb =
-        tmpdata->client_cb;
-    _bte_hci_dev_install_event_handler(
-        HCI_READ_CLOCK_OFFSET_COMPLETE, read_clock_offset_complete_event_cb,
-        NULL);
-
-error:
-    _bte_hci_dev_free_command(pc);
-}
-
 void bte_hci_read_clock_offset(BteHci *hci,
                                BteHciConnHandle conn_handle,
                                BteHciDoneCb status_cb,
                                BteHciReadClockOffsetCb callback)
 {
-    BteBuffer *b = _bte_hci_dev_add_pending_async_command(
-        hci, HCI_R_CLOCK_OFFSET_OCF, HCI_LINK_CTRL_OGF,
-        HCI_R_CLOCK_OFFSET_PLEN,
-        read_clock_offset_status_cb, status_cb);
-    if (UNLIKELY(!b)) return;
-
-    /* In the status callback we read this and setup the event matcher */
-    struct _bte_hci_tmpdata_read_clock_offset_t *tmpdata =
-        &hci->last_async_cmd_data.read_clock_offset;
-    tmpdata->conn_handle = conn_handle;
-    tmpdata->client_cb = callback;
-
-    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
-    write_le16(conn_handle, data);
-    _bte_hci_send_command(b);
+    common_read_connection(
+        hci, HCI_R_CLOCK_OFFSET_OCF, HCI_LINK_CTRL_OGF, conn_handle,
+        HCI_READ_CLOCK_OFFSET_COMPLETE, read_clock_offset_complete_event_cb,
+        status_cb, callback);
 }
 
 void bte_hci_set_sniff_mode(BteHci *hci, BteHciConnHandle conn_handle,

@@ -77,6 +77,9 @@ typedef struct bte_hci_dev_t {
                 BteHciCommandStatusCb status;
                 BteHciDoneCb client_cb;
             } cmd_status;
+            struct bte_hci_event_common_read_connection_t {
+                void *client_cb;
+            } event_common_read_connection;
             struct bte_hci_event_conn_complete_t {
                 BteHciCreateConnectionCb client_cb;
             } event_conn_complete;
@@ -140,22 +143,20 @@ struct bte_client_t {
          * command till the time that its corresponding command status event
          * has been received. */
         union _bte_hci_last_async_cmd_data_u {
+            struct _bte_hci_tmpdata_common_read_connection_t {
+                void *client_cb;
+                BteHciConnHandle conn_handle;
+                uint8_t event_code;
+                BteHciEventHandlerCb handler_cb;
+            } common_read_connection;
             struct _bte_hci_tmpdata_create_connection_t {
                 BteHciCreateConnectionCb client_cb;
                 BteBdAddr address;
             } create_connection;
-            struct _bte_hci_tmpdata_auth_requested_t {
-                BteHciAuthRequestedCb client_cb;
-                BteHciConnHandle conn_handle;
-            } auth_requested;
             struct _bte_hci_tmpdata_read_remote_name_t {
                 BteHciReadRemoteNameCb client_cb;
                 BteBdAddr address;
             } read_remote_name;
-            struct _bte_hci_tmpdata_read_clock_offset_t {
-                BteHciReadClockOffsetCb client_cb;
-                BteHciConnHandle conn_handle;
-            } read_clock_offset;
         } last_async_cmd_data;
 
         /* Should we ever start supporting more than one HCI device, we should
