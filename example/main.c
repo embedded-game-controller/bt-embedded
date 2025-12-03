@@ -3,11 +3,21 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "bt-embedded/bte.h"
 #include "bt-embedded/client.h"
 #include "bt-embedded/hci.h"
+
+
+static struct {
+    int num_responses;
+    int curr_index;
+    BteHciInquiryResponse *responses;
+} s_inquiry_responses;
+
+static void query_next_name(BteHci *hci);
 
 static void inquiry_status_cb(BteHci *hci, const BteHciReply *reply, void *)
 {
@@ -31,22 +41,80 @@ static inline void print_key(const BteLinkKey *key)
     print_hex(key->bytes, sizeof(*key), '-');
 }
 
+static void read_remote_name_status_cb(BteHci *hci,
+                                       const BteHciReply *reply,
+                                       void *)
+{
+    printf("%s, status = %d\n", __func__, reply->status);
+}
+
+static void read_remote_name_cb(BteHci *hci,
+                                const BteHciReadRemoteNameReply *reply,
+                                void *)
+{
+    printf("%s, status = %d\n", __func__, reply->status);
+    if (reply->status == 0) {
+        printf("Name of ");
+        print_addr(&reply->address);
+        printf(": %s\n", reply->name);
+    }
+    query_next_name(hci);
+}
+
+static bool address_is_new(const BteBdAddr *address)
+{
+    for (int i = 0; i < s_inquiry_responses.num_responses; i++) {
+        if (memcmp(address, &s_inquiry_responses.responses[i].address, 6) == 0)
+            return false;
+    }
+    return true;
+}
+
+static void query_next_name(BteHci *hci)
+{
+    if (s_inquiry_responses.curr_index >= s_inquiry_responses.num_responses)
+        return;
+
+    const BteHciInquiryResponse *r =
+        &s_inquiry_responses.responses[s_inquiry_responses.curr_index++];
+
+    bte_hci_read_remote_name(hci, &r->address,
+                             r->page_scan_rep_mode,
+                             r->clock_offset,
+                             read_remote_name_status_cb,
+                             read_remote_name_cb);
+}
+
 static void inquiry_cb(BteHci *hci, const BteHciInquiryReply *reply, void *)
 {
     printf("Inquiry done, status = %d\n", reply->status);
     if (reply->status != 0) return;
 
     printf("Results: %d\n", reply->num_responses);
+
+    s_inquiry_responses.num_responses = 0;
+    s_inquiry_responses.curr_index = 0;
+    free(s_inquiry_responses.responses);
+    s_inquiry_responses.responses =
+        malloc(sizeof(BteHciInquiryResponse) * reply->num_responses);
     for (int i = 0; i < reply->num_responses; i++) {
-        const uint8_t *b = reply->responses[i].address.bytes;
+        const BteHciInquiryResponse *r = &reply->responses[i];
+
+        const uint8_t *b = r->address.bytes;
         printf(" - %02x:%02x:%02x:%02x:%02x:%02x\n", b[0], b[1], b[2], b[3],
                b[4], b[5]);
+
+        if (address_is_new(&r->address)) {
+            int j = s_inquiry_responses.num_responses++;
+            memcpy(&s_inquiry_responses.responses[j], r, sizeof(*r));
+        }
     }
     static int count = 0;
-    if (count++ > 3) {
+    if (count++ > 5) {
         bte_hci_exit_periodic_inquiry(hci, NULL);
     }
-    // bte_hci_inquiry(hci, BTE_LAP_GIAC, 3, 0, inquiry_status_cb, inquiry_cb);
+
+    query_next_name(hci);
 }
 
 static void read_bd_addr_cb(BteHci *hci, const BteHciReadBdAddrReply *reply,
@@ -81,9 +149,9 @@ static void initialized_cb(BteHci *hci, bool success, void *)
            bte_hci_get_acl_mtu(hci),
            bte_hci_get_acl_max_packets(hci));
     // bte_hci_read_bd_addr(hci, read_bd_addr_cb);
-    // bte_hci_periodic_inquiry(hci, 4, 5, BTE_LAP_GIAC, 3, 0,
-    // inquiry_status_cb, inquiry_cb);
-    bte_hci_read_stored_link_key(hci, NULL, read_stored_link_key_cb);
+    bte_hci_periodic_inquiry(hci, 4, 5, BTE_LAP_GIAC, 3, 0,
+                             inquiry_status_cb, inquiry_cb);
+    //bte_hci_read_stored_link_key(hci, NULL, read_stored_link_key_cb);
 }
 
 int main(int argc, char **argv)
