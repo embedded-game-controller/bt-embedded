@@ -285,6 +285,17 @@ public:
                                      &Hci::Callbacks::readRemoteName);
         }
 
+        using ReadRemoteVersionInfoCb =
+            std::function<void(const BteHciReadRemoteVersionInfoReply &)>;
+        void readRemoteVersionInfo(BteHciConnHandle conn_handle,
+                                   const DoneCb &statusCb,
+                                   const ReadRemoteVersionInfoCb &cb) {
+            m_readRemoteVersionInfoCallbacks[conn_handle] = cb;
+            bte_hci_read_remote_version_info(
+                m_hci, conn_handle, wrap<TAG>(statusCb),
+                &Hci::Callbacks::readRemoteVersionInfo);
+        }
+
         using ReadClockOffsetCb =
             std::function<void(const BteHciReadClockOffsetReply &)>;
         void readClockOffset(BteHciConnHandle conn_handle,
@@ -613,6 +624,12 @@ public:
                 _this(cb_data)->m_readRemoteNameCallbacks[reply->address](
                     *reply);
             }
+            static void readRemoteVersionInfo(
+                BteHci *hci, const BteHciReadRemoteVersionInfoReply *reply,
+                void *cb_data) {
+                _this(cb_data)->m_readRemoteVersionInfoCallbacks[
+                    reply->conn_handle](*reply);
+            }
             static void readClockOffset(
                 BteHci *hci, const BteHciReadClockOffsetReply *reply,
                 void *cb_data) {
@@ -637,6 +654,8 @@ public:
             m_authRequestedCallbacks;
         std::unordered_map<BteBdAddr, ReadRemoteNameCb>
             m_readRemoteNameCallbacks;
+        std::unordered_map<BteHciConnHandle, ReadRemoteVersionInfoCb>
+            m_readRemoteVersionInfoCallbacks;
         std::unordered_map<BteHciConnHandle, ReadClockOffsetCb>
             m_readClockOffsetCallbacks;
         ConnectionRequestCb m_connectionRequestCb;

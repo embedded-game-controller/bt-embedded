@@ -192,6 +192,22 @@ void bte_hci_read_remote_name(BteHci *hci,
 typedef struct {
     uint8_t status;
     BteHciConnHandle conn_handle;
+    uint8_t lmp_version;
+    uint16_t lmp_subversion;
+    uint16_t manufacturer_name;
+} BteHciReadRemoteVersionInfoReply;
+
+typedef void (*BteHciReadRemoteVersionInfoCb)(
+    BteHci *hci, const BteHciReadRemoteVersionInfoReply *reply,
+    void *userdata);
+void bte_hci_read_remote_version_info(BteHci *hci,
+                               BteHciConnHandle conn_handle,
+                               BteHciDoneCb status_cb,
+                               BteHciReadRemoteVersionInfoCb callback);
+
+typedef struct {
+    uint8_t status;
+    BteHciConnHandle conn_handle;
     uint16_t clock_offset;
 } BteHciReadClockOffsetReply;
 

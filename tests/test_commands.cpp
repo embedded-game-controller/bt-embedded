@@ -923,6 +923,48 @@ TEST(Commands, testReadRemoteName) {
     ASSERT_EQ(_bte_hci_dev.num_pending_commands, 0);
 }
 
+TEST(Commands, testReadRemoteVersionInfo) {
+    MockBackend backend;
+    Bte::Client client;
+    auto &hci = client.hci();
+
+    BteHciConnHandle conn_handle = 0x1234;
+
+    std::vector<BteHciReadRemoteVersionInfoReply> replies;
+    std::vector<BteHciReply> statusReplies;
+    hci.readRemoteVersionInfo(conn_handle, [&](const BteHciReply &reply) {
+            statusReplies.push_back(reply);
+        },
+        [&](const BteHciReadRemoteVersionInfoReply &reply) {
+            replies.push_back(reply);
+        });
+
+    const uint8_t cmdSize = 2;
+    Buffer expectedCommand{0x1d, 0x4, cmdSize, 0x34, 0x12};
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+
+    /* Send the status reply */
+    uint8_t status = 0;
+    backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x1d, 0x4});
+    bte_handle_events();
+
+    /* Send the completed event */
+    const uint8_t eventSize = 1 + 2 + 1 + 2 + 2;
+    backend.sendEvent({
+        HCI_READ_REMOTE_VERSION_COMPLETE, eventSize, status,
+        0x34, 0x12, 0x55, 0x66, 0x77, 0x88, 0x99});
+    bte_handle_events();
+
+    std::vector<BteHciReply> expectedStatusReplies = {{ 0 }};
+    ASSERT_EQ(statusReplies, expectedStatusReplies);
+
+    std::vector<BteHciReadRemoteVersionInfoReply> expectedReplies = {
+        {status, conn_handle, 0x55, 0x9988, 0x7766},
+    };
+    ASSERT_EQ(replies, expectedReplies);
+    ASSERT_EQ(_bte_hci_dev.num_pending_commands, 0);
+}
+
 TEST(Commands, testReadClockOffset) {
     MockBackend backend;
     Bte::Client client;

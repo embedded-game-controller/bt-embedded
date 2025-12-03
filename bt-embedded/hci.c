@@ -717,6 +717,43 @@ void bte_hci_read_remote_name(BteHci *hci,
     _bte_hci_send_command(b);
 }
 
+static void read_remote_version_info_complete_event_cb(BteBuffer *buffer, void *)
+{
+    BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);
+    if (UNLIKELY(!pc)) return;
+
+    BteHci *hci = pc->hci;
+    const uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
+    BteHciReadRemoteVersionInfoReply reply;
+    reply.status = data[0];
+    data++;
+    reply.conn_handle = read_le16(data);
+    data += 2;
+    reply.lmp_version = data[0];
+    data++;
+    reply.manufacturer_name = read_le16(data);
+    data += 2;
+    reply.lmp_subversion = read_le16(data);
+
+    BteHciReadRemoteVersionInfoCb read_remote_version_info_cb =
+        pc->command_cb.event_read_remote_version_info_complete.client_cb;
+    _bte_hci_dev_free_command(pc);
+
+    read_remote_version_info_cb(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_read_remote_version_info(BteHci *hci,
+                                      BteHciConnHandle conn_handle,
+                                      BteHciDoneCb status_cb,
+                                      BteHciReadRemoteVersionInfoCb callback)
+{
+    common_read_connection(
+        hci, HCI_R_REMOTE_VERSION_INFO_OCF, HCI_LINK_CTRL_OGF, conn_handle,
+        HCI_READ_REMOTE_VERSION_COMPLETE,
+        read_remote_version_info_complete_event_cb,
+        status_cb, callback);
+}
+
 static void read_clock_offset_complete_event_cb(BteBuffer *buffer, void *)
 {
     BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);

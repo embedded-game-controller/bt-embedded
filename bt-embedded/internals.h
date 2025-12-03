@@ -89,6 +89,9 @@ typedef struct bte_hci_dev_t {
             struct bte_hci_event_remote_name_req_complete_t {
                 BteHciReadRemoteNameCb client_cb;
             } event_remote_name_req_complete;
+            struct bte_hci_event_read_remote_version_info_complete_t {
+                BteHciReadRemoteVersionInfoCb client_cb;
+            } event_read_remote_version_info_complete;
             struct bte_hci_event_read_clock_offset_complete_t {
                 BteHciReadClockOffsetCb client_cb;
             } event_read_clock_offset_complete;

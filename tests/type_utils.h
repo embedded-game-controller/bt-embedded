@@ -71,6 +71,15 @@ inline bool operator==(const BteHciReadRemoteNameReply &a,
         strcmp(a.name, b.name) == 0;
 }
 
+inline bool operator==(const BteHciReadRemoteVersionInfoReply &a,
+                       const BteHciReadRemoteVersionInfoReply &b)
+{
+    return a.status == b.status && a.conn_handle == b.conn_handle &&
+        a.lmp_version == b.lmp_version &&
+        a.lmp_subversion == b.lmp_subversion &&
+        a.manufacturer_name == b.manufacturer_name;
+}
+
 inline bool operator==(const BteHciReadClockOffsetReply &a,
                        const BteHciReadClockOffsetReply &b)
 {
