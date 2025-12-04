@@ -192,6 +192,19 @@ void bte_hci_read_remote_name(BteHci *hci,
 typedef struct {
     uint8_t status;
     BteHciConnHandle conn_handle;
+    BteHciSupportedFeatures features;
+} BteHciReadRemoteFeaturesReply;
+
+typedef void (*BteHciReadRemoteFeaturesCb)(
+    BteHci *hci, const BteHciReadRemoteFeaturesReply *reply, void *userdata);
+void bte_hci_read_remote_features(BteHci *hci,
+                                  BteHciConnHandle conn_handle,
+                                  BteHciDoneCb status_cb,
+                                  BteHciReadRemoteFeaturesCb callback);
+
+typedef struct {
+    uint8_t status;
+    BteHciConnHandle conn_handle;
     uint8_t lmp_version;
     uint16_t lmp_subversion;
     uint16_t manufacturer_name;

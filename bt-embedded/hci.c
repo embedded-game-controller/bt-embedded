@@ -717,6 +717,36 @@ void bte_hci_read_remote_name(BteHci *hci,
     _bte_hci_send_command(b);
 }
 
+static void read_remote_features_complete_event_cb(BteBuffer *buffer, void *)
+{
+    BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);
+    if (UNLIKELY(!pc)) return;
+
+    BteHci *hci = pc->hci;
+    const uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
+    BteHciReadRemoteFeaturesReply reply;
+    reply.status = data[0];
+    reply.conn_handle = read_le16(data + 1);
+    reply.features = read_le64(data + 3);
+
+    BteHciReadRemoteFeaturesCb read_remote_features_cb =
+        pc->command_cb.event_read_remote_features_complete.client_cb;
+    _bte_hci_dev_free_command(pc);
+
+    read_remote_features_cb(hci, &reply, hci_userdata(hci));
+}
+
+void bte_hci_read_remote_features(BteHci *hci, BteHciConnHandle conn_handle,
+                                  BteHciDoneCb status_cb,
+                                  BteHciReadRemoteFeaturesCb callback)
+{
+    common_read_connection(
+        hci, HCI_R_REMOTE_FEATURES_OCF, HCI_LINK_CTRL_OGF, conn_handle,
+        HCI_READ_REMOTE_FEATURES_COMPLETE,
+        read_remote_features_complete_event_cb,
+        status_cb, callback);
+}
+
 static void read_remote_version_info_complete_event_cb(BteBuffer *buffer, void *)
 {
     BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);

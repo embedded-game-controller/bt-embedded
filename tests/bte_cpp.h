@@ -285,6 +285,17 @@ public:
                                      &Hci::Callbacks::readRemoteName);
         }
 
+        using ReadRemoteFeaturesCb =
+            std::function<void(const BteHciReadRemoteFeaturesReply &)>;
+        void readRemoteFeatures(BteHciConnHandle conn_handle,
+                                const DoneCb &statusCb,
+                                const ReadRemoteFeaturesCb &cb) {
+            m_readRemoteFeaturesCallbacks[conn_handle] = cb;
+            bte_hci_read_remote_features(m_hci, conn_handle,
+                                         wrap<TAG>(statusCb),
+                                         &Hci::Callbacks::readRemoteFeatures);
+        }
+
         using ReadRemoteVersionInfoCb =
             std::function<void(const BteHciReadRemoteVersionInfoReply &)>;
         void readRemoteVersionInfo(BteHciConnHandle conn_handle,
@@ -624,6 +635,12 @@ public:
                 _this(cb_data)->m_readRemoteNameCallbacks[reply->address](
                     *reply);
             }
+            static void readRemoteFeatures(
+                BteHci *hci, const BteHciReadRemoteFeaturesReply *reply,
+                void *cb_data) {
+                _this(cb_data)->m_readRemoteFeaturesCallbacks[
+                    reply->conn_handle](*reply);
+            }
             static void readRemoteVersionInfo(
                 BteHci *hci, const BteHciReadRemoteVersionInfoReply *reply,
                 void *cb_data) {
@@ -654,6 +671,8 @@ public:
             m_authRequestedCallbacks;
         std::unordered_map<BteBdAddr, ReadRemoteNameCb>
             m_readRemoteNameCallbacks;
+        std::unordered_map<BteHciConnHandle, ReadRemoteFeaturesCb>
+            m_readRemoteFeaturesCallbacks;
         std::unordered_map<BteHciConnHandle, ReadRemoteVersionInfoCb>
             m_readRemoteVersionInfoCallbacks;
         std::unordered_map<BteHciConnHandle, ReadClockOffsetCb>
