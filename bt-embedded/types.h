@@ -39,6 +39,8 @@ typedef uint16_t BtePacketType;
 #define BTE_PACKET_TYPE_DH5 (BtePacketType)0x4000
 #define BTE_PACKET_TYPE_DM5 (BtePacketType)0x8000
 
+typedef uint16_t BteConnHandle;
+
 #ifdef __cplusplus
 }
 #endif

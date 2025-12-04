@@ -152,7 +152,7 @@ struct bte_client_t {
         union _bte_hci_last_async_cmd_data_u {
             struct _bte_hci_tmpdata_common_read_connection_t {
                 void *client_cb;
-                BteHciConnHandle conn_handle;
+                BteConnHandle conn_handle;
                 uint8_t event_code;
                 BteHciEventHandlerCb handler_cb;
             } common_read_connection;

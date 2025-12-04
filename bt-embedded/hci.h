@@ -9,7 +9,6 @@ extern "C" {
 #endif
 
 typedef uint64_t BteHciEventMask;
-typedef uint16_t BteHciConnHandle;
 typedef uint16_t BteHciLinkPolicySettings;
 
 BteHci *bte_hci_get(BteClient *client);
@@ -74,7 +73,7 @@ void bte_hci_exit_periodic_inquiry(BteHci *hci, BteHciDoneCb callback);
 typedef struct {
     uint8_t status;
     uint8_t link_type;
-    BteHciConnHandle conn_handle;
+    BteConnHandle conn_handle;
     BteBdAddr address;
     uint8_t encryption_mode;
 } BteHciCreateConnectionReply;
@@ -89,7 +88,7 @@ void bte_hci_create_connection(BteHci *hci,
                                bool allow_role_switch,
                                BteHciDoneCb status_cb,
                                BteHciCreateConnectionCb callback);
-void bte_hci_disconnect(BteHci *hci, BteHciConnHandle handle, uint8_t reason,
+void bte_hci_disconnect(BteHci *hci, BteConnHandle handle, uint8_t reason,
                         BteHciDoneCb callback);
 void bte_hci_create_connection_cancel(BteHci *hci, const BteBdAddr *address,
                                       BteHciDoneCb callback);
@@ -164,13 +163,13 @@ void bte_hci_pin_code_req_neg_reply(BteHci *hci, const BteBdAddr *address,
 
 typedef struct {
     uint8_t status;
-    BteHciConnHandle conn_handle;
+    BteConnHandle conn_handle;
 } BteHciAuthRequestedReply;
 
 typedef void (*BteHciAuthRequestedCb)(
     BteHci *hci, const BteHciAuthRequestedReply *reply, void *userdata);
 void bte_hci_auth_requested(BteHci *hci,
-                            BteHciConnHandle conn_handle,
+                            BteConnHandle conn_handle,
                             BteHciDoneCb status_cb,
                             BteHciAuthRequestedCb callback);
 
@@ -191,20 +190,20 @@ void bte_hci_read_remote_name(BteHci *hci,
 
 typedef struct {
     uint8_t status;
-    BteHciConnHandle conn_handle;
+    BteConnHandle conn_handle;
     BteHciSupportedFeatures features;
 } BteHciReadRemoteFeaturesReply;
 
 typedef void (*BteHciReadRemoteFeaturesCb)(
     BteHci *hci, const BteHciReadRemoteFeaturesReply *reply, void *userdata);
 void bte_hci_read_remote_features(BteHci *hci,
-                                  BteHciConnHandle conn_handle,
+                                  BteConnHandle conn_handle,
                                   BteHciDoneCb status_cb,
                                   BteHciReadRemoteFeaturesCb callback);
 
 typedef struct {
     uint8_t status;
-    BteHciConnHandle conn_handle;
+    BteConnHandle conn_handle;
     uint8_t lmp_version;
     uint16_t lmp_subversion;
     uint16_t manufacturer_name;
@@ -214,20 +213,20 @@ typedef void (*BteHciReadRemoteVersionInfoCb)(
     BteHci *hci, const BteHciReadRemoteVersionInfoReply *reply,
     void *userdata);
 void bte_hci_read_remote_version_info(BteHci *hci,
-                               BteHciConnHandle conn_handle,
+                               BteConnHandle conn_handle,
                                BteHciDoneCb status_cb,
                                BteHciReadRemoteVersionInfoCb callback);
 
 typedef struct {
     uint8_t status;
-    BteHciConnHandle conn_handle;
+    BteConnHandle conn_handle;
     uint16_t clock_offset;
 } BteHciReadClockOffsetReply;
 
 typedef void (*BteHciReadClockOffsetCb)(
     BteHci *hci, const BteHciReadClockOffsetReply *reply, void *userdata);
 void bte_hci_read_clock_offset(BteHci *hci,
-                               BteHciConnHandle conn_handle,
+                               BteConnHandle conn_handle,
                                BteHciDoneCb status_cb,
                                BteHciReadClockOffsetCb callback);
 
@@ -239,21 +238,21 @@ void bte_hci_read_clock_offset(BteHci *hci,
 #define BTE_HCI_MODE_PARK   (uint8_t)3
 
 /* Use bte_hci_on_mode_change() to be notified of the change */
-void bte_hci_set_sniff_mode(BteHci *hci, BteHciConnHandle conn_handle,
+void bte_hci_set_sniff_mode(BteHci *hci, BteConnHandle conn_handle,
                             uint16_t min_interval, uint16_t max_interval,
                             uint16_t attempt_slots, uint16_t timeout,
                             BteHciDoneCb status_cb);
 
 typedef struct {
     uint8_t status;
-    BteHciConnHandle conn_handle;
+    BteConnHandle conn_handle;
     uint8_t current_mode;
     uint16_t interval;
 } BteHciModeChangeReply;
 typedef bool (*BteHciModeChangeCb)(BteHci *hci,
                                    const BteHciModeChangeReply *reply,
                                    void *userdata);
-void bte_hci_on_mode_change(BteHci *hci, BteHciConnHandle conn_handle,
+void bte_hci_on_mode_change(BteHci *hci, BteConnHandle conn_handle,
                             BteHciModeChangeCb callback);
 
 #define BTE_HCI_LINK_POLICY_SETTINGS_DISABLE (uint8_t)0
@@ -264,7 +263,7 @@ void bte_hci_on_mode_change(BteHci *hci, BteHciConnHandle conn_handle,
 
 typedef struct {
     uint8_t status;
-    BteHciConnHandle conn_handle;
+    BteConnHandle conn_handle;
     BteHciLinkPolicySettings settings;
 } BteHciReadLinkPolicySettingsReply;
 
@@ -272,10 +271,10 @@ typedef void (*BteHciReadLinkPolicySettingsCb)(
     BteHci *hci, const BteHciReadLinkPolicySettingsReply *reply,
     void *userdata);
 void bte_hci_read_link_policy_settings(
-    BteHci *hci, BteHciConnHandle conn_handle,
+    BteHci *hci, BteConnHandle conn_handle,
     BteHciReadLinkPolicySettingsCb callback);
 void bte_hci_write_link_policy_settings(BteHci *hci,
-                                        BteHciConnHandle conn_handle,
+                                        BteConnHandle conn_handle,
                                         BteHciLinkPolicySettings settings,
                                         BteHciDoneCb callback);
 
@@ -428,17 +427,17 @@ void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
 
 typedef struct {
     uint8_t status;
-    BteHciConnHandle conn_handle;
+    BteConnHandle conn_handle;
     uint16_t flush_timeout;
 } BteHciReadAutoFlushTimeoutReply;
 
 typedef void (*BteHciReadAutoFlushTimeoutCb)(
     BteHci *hci, const BteHciReadAutoFlushTimeoutReply *reply, void *userdata);
 void bte_hci_read_auto_flush_timeout(BteHci *hci,
-                                     BteHciConnHandle conn_handle,
+                                     BteConnHandle conn_handle,
                                      BteHciReadAutoFlushTimeoutCb callback);
 void bte_hci_write_auto_flush_timeout(BteHci *hci,
-                                      BteHciConnHandle conn_handle,
+                                      BteConnHandle conn_handle,
                                       uint16_t timeout,
                                       BteHciDoneCb callback);
 
@@ -472,22 +471,22 @@ void bte_hci_write_current_iac_lap(BteHci *hci,
                                    BteHciDoneCb callback);
 
 void bte_hci_host_num_comp_packets(BteHci *hci,
-                                   BteHciConnHandle conn_handle,
+                                   BteConnHandle conn_handle,
                                    uint16_t num_packets);
 
 typedef struct {
     uint8_t status;
-    BteHciConnHandle conn_handle;
+    BteConnHandle conn_handle;
     uint16_t sv_timeout;
 } BteHciReadLinkSvTimeoutReply;
 
 typedef void (*BteHciReadLinkSvTimeoutCb)(
     BteHci *hci, const BteHciReadLinkSvTimeoutReply *reply, void *userdata);
 void bte_hci_read_link_sv_timeout(BteHci *hci,
-                                  BteHciConnHandle conn_handle,
+                                  BteConnHandle conn_handle,
                                   BteHciReadLinkSvTimeoutCb callback);
 void bte_hci_write_link_sv_timeout(BteHci *hci,
-                                   BteHciConnHandle conn_handle,
+                                   BteConnHandle conn_handle,
                                    uint16_t timeout,
                                    BteHciDoneCb callback);
 

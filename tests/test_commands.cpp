@@ -841,7 +841,7 @@ TEST(Commands, testAuthRequested) {
     Bte::Client client;
     auto &hci = client.hci();
 
-    BteHciConnHandle conn_handle = 0x1234;
+    BteConnHandle conn_handle = 0x1234;
 
     std::vector<BteHciAuthRequestedReply> replies;
     std::vector<BteHciReply> statusReplies;
@@ -928,7 +928,7 @@ TEST(Commands, testReadRemoteFeatures) {
     Bte::Client client;
     auto &hci = client.hci();
 
-    BteHciConnHandle conn_handle = 0x1234;
+    BteConnHandle conn_handle = 0x1234;
 
     std::vector<BteHciReadRemoteFeaturesReply> replies;
     std::vector<BteHciReply> statusReplies;
@@ -970,7 +970,7 @@ TEST(Commands, testReadRemoteVersionInfo) {
     Bte::Client client;
     auto &hci = client.hci();
 
-    BteHciConnHandle conn_handle = 0x1234;
+    BteConnHandle conn_handle = 0x1234;
 
     std::vector<BteHciReadRemoteVersionInfoReply> replies;
     std::vector<BteHciReply> statusReplies;
@@ -1012,7 +1012,7 @@ TEST(Commands, testReadClockOffset) {
     Bte::Client client;
     auto &hci = client.hci();
 
-    BteHciConnHandle conn_handle = 0x1234;
+    BteConnHandle conn_handle = 0x1234;
 
     std::vector<BteHciReadClockOffsetReply> replies;
     std::vector<BteHciReply> statusReplies;
@@ -1066,7 +1066,7 @@ TEST(Commands, testSetSniffMode) {
 }
 
 TEST(Commands, testReadLinkPolicySettings) {
-    BteHciConnHandle conn = 0x0123;
+    BteConnHandle conn = 0x0123;
     GetterInvoker<BteHciReadLinkPolicySettingsReply> invoker(
         [&](BteHci *hci, BteHciReadLinkPolicySettingsCb replyCb) {
             bte_hci_read_link_policy_settings(hci, conn, replyCb);
@@ -1364,7 +1364,7 @@ TEST(Commands, testReadClassOfDevice) {
 }
 
 TEST(Commands, testReadAutoFlushTimeout) {
-    BteHciConnHandle conn = 0x0123;
+    BteConnHandle conn = 0x0123;
     GetterInvoker<BteHciReadAutoFlushTimeoutReply> invoker(
         [&](BteHci *hci, BteHciReadAutoFlushTimeoutCb replyCb) {
             bte_hci_read_auto_flush_timeout(hci, conn, replyCb);
@@ -1379,7 +1379,7 @@ TEST(Commands, testReadAutoFlushTimeout) {
 }
 
 TEST(Commands, testReadLinkSvTimeout) {
-    BteHciConnHandle conn = 0x0123;
+    BteConnHandle conn = 0x0123;
     GetterInvoker<BteHciReadLinkSvTimeoutReply> invoker(
         [&](BteHci *hci, BteHciReadLinkSvTimeoutCb replyCb) {
             bte_hci_read_link_sv_timeout(hci, conn, replyCb);

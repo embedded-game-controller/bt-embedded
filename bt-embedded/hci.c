@@ -51,7 +51,7 @@ error:
 
 static void common_read_connection(BteHci *hci,
                                    uint16_t ocf, uint8_t ogf,
-                                   BteHciConnHandle conn_handle,
+                                   BteConnHandle conn_handle,
                                    uint8_t event_code,
                                    BteHciEventHandlerCb event_handler_cb,
                                    BteHciDoneCb status_cb,
@@ -403,7 +403,7 @@ static void disconnect_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
     command_complete_cb(hci, buffer, client_cb);
 }
 
-void bte_hci_disconnect(BteHci *hci, BteHciConnHandle handle, uint8_t reason,
+void bte_hci_disconnect(BteHci *hci, BteConnHandle handle, uint8_t reason,
                         BteHciDoneCb callback)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
@@ -630,7 +630,7 @@ static void auth_complete_event_cb(BteBuffer *buffer, void *)
 }
 
 void bte_hci_auth_requested(BteHci *hci,
-                            BteHciConnHandle conn_handle,
+                            BteConnHandle conn_handle,
                             BteHciDoneCb status_cb,
                             BteHciAuthRequestedCb callback)
 {
@@ -736,7 +736,7 @@ static void read_remote_features_complete_event_cb(BteBuffer *buffer, void *)
     read_remote_features_cb(hci, &reply, hci_userdata(hci));
 }
 
-void bte_hci_read_remote_features(BteHci *hci, BteHciConnHandle conn_handle,
+void bte_hci_read_remote_features(BteHci *hci, BteConnHandle conn_handle,
                                   BteHciDoneCb status_cb,
                                   BteHciReadRemoteFeaturesCb callback)
 {
@@ -773,7 +773,7 @@ static void read_remote_version_info_complete_event_cb(BteBuffer *buffer, void *
 }
 
 void bte_hci_read_remote_version_info(BteHci *hci,
-                                      BteHciConnHandle conn_handle,
+                                      BteConnHandle conn_handle,
                                       BteHciDoneCb status_cb,
                                       BteHciReadRemoteVersionInfoCb callback)
 {
@@ -804,7 +804,7 @@ static void read_clock_offset_complete_event_cb(BteBuffer *buffer, void *)
 }
 
 void bte_hci_read_clock_offset(BteHci *hci,
-                               BteHciConnHandle conn_handle,
+                               BteConnHandle conn_handle,
                                BteHciDoneCb status_cb,
                                BteHciReadClockOffsetCb callback)
 {
@@ -814,7 +814,7 @@ void bte_hci_read_clock_offset(BteHci *hci,
         status_cb, callback);
 }
 
-void bte_hci_set_sniff_mode(BteHci *hci, BteHciConnHandle conn_handle,
+void bte_hci_set_sniff_mode(BteHci *hci, BteConnHandle conn_handle,
                             uint16_t min_interval, uint16_t max_interval,
                             uint16_t attempt_slots, uint16_t timeout,
                             BteHciDoneCb status_cb)
@@ -858,7 +858,7 @@ static void mode_change_event_cb(BteBuffer *buffer, void *)
     }
 }
 
-void bte_hci_on_mode_change(BteHci *hci, BteHciConnHandle conn_handle,
+void bte_hci_on_mode_change(BteHci *hci, BteConnHandle conn_handle,
                             BteHciModeChangeCb callback)
 {
     BteDataMatcher matcher;
@@ -898,7 +898,7 @@ static void read_link_policy_settings_cb(BteHci *hci, BteBuffer *buffer,
 }
 
 void bte_hci_read_link_policy_settings(BteHci *hci,
-                                       BteHciConnHandle conn_handle,
+                                       BteConnHandle conn_handle,
                                        BteHciReadLinkPolicySettingsCb callback)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
@@ -910,7 +910,7 @@ void bte_hci_read_link_policy_settings(BteHci *hci,
 }
 
 void bte_hci_write_link_policy_settings(BteHci *hci,
-                                        BteHciConnHandle conn_handle,
+                                        BteConnHandle conn_handle,
                                         BteHciLinkPolicySettings settings,
                                         BteHciDoneCb callback)
 {
@@ -1301,7 +1301,7 @@ static void read_auto_flush_timeout_cb(BteHci *hci, BteBuffer *buffer,
 }
 
 void bte_hci_read_auto_flush_timeout(BteHci *hci,
-                                     BteHciConnHandle conn_handle,
+                                     BteConnHandle conn_handle,
                                      BteHciReadAutoFlushTimeoutCb callback)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
@@ -1313,7 +1313,7 @@ void bte_hci_read_auto_flush_timeout(BteHci *hci,
 }
 
 void bte_hci_write_auto_flush_timeout(BteHci *hci,
-                                      BteHciConnHandle conn_handle,
+                                      BteConnHandle conn_handle,
                                       uint16_t timeout,
                                       BteHciDoneCb callback)
 {
@@ -1409,7 +1409,7 @@ void bte_hci_write_current_iac_lap(BteHci *hci,
 }
 
 void bte_hci_host_num_comp_packets(BteHci *hci,
-                                   BteHciConnHandle conn_handle,
+                                   BteConnHandle conn_handle,
                                    uint16_t num_packets)
 {
     BteBuffer *b = _bte_hci_dev_add_command_no_reply(
@@ -1437,7 +1437,7 @@ static void read_link_sv_timeout_cb(BteHci *hci, BteBuffer *buffer,
 }
 
 void bte_hci_read_link_sv_timeout(BteHci *hci,
-                                     BteHciConnHandle conn_handle,
+                                     BteConnHandle conn_handle,
                                      BteHciReadLinkSvTimeoutCb callback)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
@@ -1450,7 +1450,7 @@ void bte_hci_read_link_sv_timeout(BteHci *hci,
 }
 
 void bte_hci_write_link_sv_timeout(BteHci *hci,
-                                   BteHciConnHandle conn_handle,
+                                   BteConnHandle conn_handle,
                                    uint16_t timeout,
                                    BteHciDoneCb callback)
 {

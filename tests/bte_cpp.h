@@ -263,7 +263,7 @@ public:
 
         using AuthRequestedCb =
             std::function<void(const BteHciAuthRequestedReply &)>;
-        void authRequested(BteHciConnHandle conn_handle,
+        void authRequested(BteConnHandle conn_handle,
                            const DoneCb &statusCb,
                            const AuthRequestedCb &cb) {
             m_authRequestedCallbacks[conn_handle] = cb;
@@ -287,7 +287,7 @@ public:
 
         using ReadRemoteFeaturesCb =
             std::function<void(const BteHciReadRemoteFeaturesReply &)>;
-        void readRemoteFeatures(BteHciConnHandle conn_handle,
+        void readRemoteFeatures(BteConnHandle conn_handle,
                                 const DoneCb &statusCb,
                                 const ReadRemoteFeaturesCb &cb) {
             m_readRemoteFeaturesCallbacks[conn_handle] = cb;
@@ -298,7 +298,7 @@ public:
 
         using ReadRemoteVersionInfoCb =
             std::function<void(const BteHciReadRemoteVersionInfoReply &)>;
-        void readRemoteVersionInfo(BteHciConnHandle conn_handle,
+        void readRemoteVersionInfo(BteConnHandle conn_handle,
                                    const DoneCb &statusCb,
                                    const ReadRemoteVersionInfoCb &cb) {
             m_readRemoteVersionInfoCallbacks[conn_handle] = cb;
@@ -309,7 +309,7 @@ public:
 
         using ReadClockOffsetCb =
             std::function<void(const BteHciReadClockOffsetReply &)>;
-        void readClockOffset(BteHciConnHandle conn_handle,
+        void readClockOffset(BteConnHandle conn_handle,
                              const DoneCb &statusCb,
                              const ReadClockOffsetCb &cb) {
             m_readClockOffsetCallbacks[conn_handle] = cb;
@@ -317,7 +317,7 @@ public:
                                       &Hci::Callbacks::readClockOffset);
         }
 
-        void setSniffMode(BteHciConnHandle conn_handle,
+        void setSniffMode(BteConnHandle conn_handle,
                           uint16_t min_interval, uint16_t max_interval,
                           uint16_t attempt_slots, uint16_t timeout,
                           const DoneCb &cb) {
@@ -328,14 +328,14 @@ public:
 
         using ModeChangeCb =
             std::function<bool(const BteHciModeChangeReply &reply)>;
-        void onModeChange(BteHciConnHandle conn_handle,
+        void onModeChange(BteConnHandle conn_handle,
                           const ModeChangeCb &cb) {
             m_modeChangeCb = cb;
             bte_hci_on_mode_change(m_hci, conn_handle,
                                    cb ? &Hci::Callbacks::modeChange : nullptr);
         }
 
-        void writeLinkPolicySettings(BteHciConnHandle conn_handle,
+        void writeLinkPolicySettings(BteConnHandle conn_handle,
                                      BteHciLinkPolicySettings settings,
                                      const DoneCb &cb) {
             bte_hci_write_link_policy_settings(
@@ -344,7 +344,7 @@ public:
 
         using ReadLinkPolicySettingsCb =
             std::function<void(const BteHciReadLinkPolicySettingsReply &)>;
-        void readLinkPolicySettings(BteHciConnHandle conn_handle,
+        void readLinkPolicySettings(BteConnHandle conn_handle,
                                     const ReadLinkPolicySettingsCb &cb) {
             bte_hci_read_link_policy_settings(m_hci, conn_handle,
                                               wrap<TAG>(cb));
@@ -457,7 +457,7 @@ public:
             bte_hci_read_class_of_device(m_hci, wrap<TAG>(cb));
         }
 
-        void writeAutoFlushTimeout(BteHciConnHandle conn_handle,
+        void writeAutoFlushTimeout(BteConnHandle conn_handle,
                                    uint8_t timeout, const DoneCb &cb) {
             bte_hci_write_auto_flush_timeout(
                 m_hci, conn_handle, timeout, wrap<TAG>(cb));
@@ -465,18 +465,18 @@ public:
 
         using ReadAutoFlushTimeoutCb =
             std::function<void(const BteHciReadAutoFlushTimeoutReply &)>;
-        void readAutoFlushTimeout(BteHciConnHandle conn_handle,
+        void readAutoFlushTimeout(BteConnHandle conn_handle,
                                   const ReadAutoFlushTimeoutCb &cb) {
             bte_hci_read_auto_flush_timeout(m_hci, conn_handle, wrap<TAG>(cb));
         }
 
-        void setCtrlToHostFlowControl(BteHciConnHandle conn_handle,
+        void setCtrlToHostFlowControl(BteConnHandle conn_handle,
                                       uint8_t enable, const DoneCb &cb) {
             bte_hci_set_ctrl_to_host_flow_control(
                 m_hci, enable, wrap<TAG>(cb));
         }
 
-        void setHostBufferSize(BteHciConnHandle conn_handle,
+        void setHostBufferSize(BteConnHandle conn_handle,
                                uint16_t acl_packet_len, uint16_t acl_packets,
                                uint8_t sync_packet_len, uint16_t sync_packets,
                                const DoneCb &cb) {
@@ -499,13 +499,13 @@ public:
         };
         using ReadCurrentIacLapCb =
             std::function<void(const ReadCurrentIacLapReply &)>;
-        void readCurrentIacLap(BteHciConnHandle conn_handle,
+        void readCurrentIacLap(BteConnHandle conn_handle,
                                const ReadCurrentIacLapCb &cb) {
             bte_hci_read_current_iac_lap(
                 m_hci, wrap<TAG, const BteHciReadCurrentIacLapReply>(cb));
         }
 
-        void writeLinkSvTimeout(BteHciConnHandle conn_handle,
+        void writeLinkSvTimeout(BteConnHandle conn_handle,
                                 uint8_t timeout, const DoneCb &cb) {
             bte_hci_write_link_sv_timeout(
                 m_hci, conn_handle, timeout, wrap<TAG>(cb));
@@ -513,7 +513,7 @@ public:
 
         using ReadLinkSvTimeoutCb =
             std::function<void(const BteHciReadLinkSvTimeoutReply &)>;
-        void readLinkSvTimeout(BteHciConnHandle conn_handle,
+        void readLinkSvTimeout(BteConnHandle conn_handle,
                                const ReadLinkSvTimeoutCb &cb) {
             bte_hci_read_link_sv_timeout(m_hci, conn_handle, wrap<TAG>(cb));
         }
@@ -678,15 +678,15 @@ public:
         std::pair<DoneCb, InquiryCb> m_inquiryCb;
         std::unordered_map<BteBdAddr, CreateConnectionCb>
             m_createConnectionCallbacks;
-        std::unordered_map<BteHciConnHandle, AuthRequestedCb>
+        std::unordered_map<BteConnHandle, AuthRequestedCb>
             m_authRequestedCallbacks;
         std::unordered_map<BteBdAddr, ReadRemoteNameCb>
             m_readRemoteNameCallbacks;
-        std::unordered_map<BteHciConnHandle, ReadRemoteFeaturesCb>
+        std::unordered_map<BteConnHandle, ReadRemoteFeaturesCb>
             m_readRemoteFeaturesCallbacks;
-        std::unordered_map<BteHciConnHandle, ReadRemoteVersionInfoCb>
+        std::unordered_map<BteConnHandle, ReadRemoteVersionInfoCb>
             m_readRemoteVersionInfoCallbacks;
-        std::unordered_map<BteHciConnHandle, ReadClockOffsetCb>
+        std::unordered_map<BteConnHandle, ReadClockOffsetCb>
             m_readClockOffsetCallbacks;
         ConnectionRequestCb m_connectionRequestCb;
         LinkKeyRequestCb m_linkKeyRequestCb;

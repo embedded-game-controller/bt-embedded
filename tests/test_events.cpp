@@ -139,7 +139,7 @@ TEST(Events, testModeChange)
 
     using Call = BteHciModeChangeReply;
     std::vector<Call> calls;
-    BteHciConnHandle conn_handle = 0x1234;
+    BteConnHandle conn_handle = 0x1234;
     bool cbReturnValue = false;
     auto handler = [&](const BteHciModeChangeReply &reply) {
         calls.push_back(reply);
