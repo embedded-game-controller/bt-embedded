@@ -11,10 +11,10 @@ BteHciDev _bte_hci_dev;
 
 BteHciEventHandler *_bte_hci_dev_handler_for_event(uint8_t event_code)
 {
+    if (event_code == HCI_VENDOR_SPECIFIC_EVENT) event_code = 0;
     if (UNLIKELY(event_code > BTE_HCI_EVENT_LAST)) {
         return NULL;
     }
-    if (event_code == HCI_VENDOR_SPECIFIC_EVENT) event_code = 0;
     return &_bte_hci_dev.event_handlers[event_code];
 }
 

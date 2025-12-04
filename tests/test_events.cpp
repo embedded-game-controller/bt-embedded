@@ -187,3 +187,40 @@ TEST(Events, testModeChange)
     bte_handle_events();
     ASSERT_EQ(calls, std::vector<Call>{});
 }
+
+TEST(Events, testVendorEvent)
+{
+    MockBackend backend;
+    Bte::Client client0, client1, client2;
+    auto &hci0 = client0.hci();
+    auto &hci1 = client1.hci();
+    auto &hci2 = client2.hci();
+
+    /* The first int is the index of the hci instance */
+    using Call = std::tuple<int, Buffer>;
+    std::vector<Call> calls;
+    hci0.onVendorEvent([&](const Buffer &buffer) {
+        calls.push_back({0, buffer});
+        return false;
+    });
+    hci1.onVendorEvent([&](const Buffer &buffer) {
+        calls.push_back({1, buffer});
+        return true;
+    });
+    hci2.onVendorEvent([&](const Buffer &buffer) {
+        calls.push_back({2, buffer});
+        return true;
+    });
+
+    /* Emit the VendorEvent event */
+    Buffer data = {HCI_VENDOR_SPECIFIC_EVENT, 1, 2, 3, 4, 5, 6};
+    backend.sendEvent(data);
+    bte_handle_events();
+
+    /* The second handler returned true, so the third should not be invoked */
+    std::vector<Call> expectedCalls = {
+        {0, data},
+        {1, data},
+    };
+    ASSERT_EQ(calls, expectedCalls);
+}

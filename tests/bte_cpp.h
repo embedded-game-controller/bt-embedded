@@ -582,6 +582,13 @@ public:
                                    wrap<TAG, BteBuffer>(cb));
         }
 
+        using VendorEventCb = std::function<bool(const Buffer &buffer)>;
+        void onVendorEvent(const VendorEventCb &cb) {
+            m_vendorEventCb = cb;
+            bte_hci_on_vendor_event(
+                m_hci, cb ? &Hci::Callbacks::vendorEvent : nullptr);
+        }
+
     private:
         std::unordered_map<Tag, std::any> m_callbacks;
 
@@ -658,6 +665,10 @@ public:
                                    void *cb_data) {
                 return _this(cb_data)->m_modeChangeCb(*reply);
             }
+            static bool vendorEvent(BteHci *hci, BteBuffer *buffer,
+                                    void *cb_data) {
+                return _this(cb_data)->m_vendorEventCb(buffer);
+            }
         };
 
         Hci(BteHci *hci): m_hci(hci) {}
@@ -681,6 +692,7 @@ public:
         LinkKeyRequestCb m_linkKeyRequestCb;
         PinCodeRequestCb m_pinCodeRequestCb;
         ModeChangeCb m_modeChangeCb;
+        VendorEventCb m_vendorEventCb;
         BteHci *m_hci;
     };
 

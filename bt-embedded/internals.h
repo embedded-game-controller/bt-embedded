@@ -144,6 +144,7 @@ struct bte_client_t {
         BteHciConnectionRequestCb connection_request_cb;
         BteHciLinkKeyRequestCb link_key_request_cb;
         BteHciPinCodeRequestCb pin_code_request_cb;
+        BteHciVendorEventCb vendor_event_cb;
 
         /* Storage for temporary data, only valid since issuing an asynchronous
          * command till the time that its corresponding command status event

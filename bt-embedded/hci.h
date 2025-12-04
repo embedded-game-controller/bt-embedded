@@ -589,6 +589,10 @@ typedef void (*BteHciVendorCommandCb)(BteHci *hci,
 void bte_hci_vendor_command(BteHci *hci, uint16_t ocf,
                             const void *data, uint8_t len,
                             BteHciVendorCommandCb callback);
+typedef bool (*BteHciVendorEventCb)(BteHci *hci,
+                                    BteBuffer *reply_data,
+                                    void *userdata);
+void bte_hci_on_vendor_event(BteHci *hci, BteHciVendorEventCb callback);
 
 #ifdef __cplusplus
 }

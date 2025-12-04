@@ -1659,3 +1659,22 @@ void bte_hci_vendor_command(BteHci *hci, uint16_t ocf,
     memcpy(b->data + HCI_CMD_HDR_LEN, data, len);
     _bte_hci_send_command(b);
 }
+
+static bool client_handle_vendor_event(BteHci *hci, void *cb_data)
+{
+    BteBuffer *buffer = cb_data;
+    return hci->vendor_event_cb &&
+        hci->vendor_event_cb(hci, buffer, hci_userdata(hci));
+}
+
+static void vendor_event_cb(BteBuffer *buffer, void *cb_data)
+{
+    _bte_hci_dev_foreach_hci_client(client_handle_vendor_event, buffer);
+}
+
+void bte_hci_on_vendor_event(BteHci *hci, BteHciVendorEventCb callback)
+{
+    hci->vendor_event_cb = callback;
+    _bte_hci_dev_install_event_handler(HCI_VENDOR_SPECIFIC_EVENT,
+                                       vendor_event_cb, NULL);
+}
