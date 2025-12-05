@@ -150,6 +150,59 @@ static inline bool bte_buffer_writer_write(BteBufferWriter *writer,
     return true;
 }
 
+/*!
+ * Get a pointer to the next contiguous area. The current position is not
+ * advanced (see bte_buffer_writer_advance() for that).
+ */
+static inline void *bte_buffer_writer_ptr_max(BteBufferWriter *writer,
+                                              uint16_t *size)
+{
+    if (writer->pos_in_packet >= writer->packet->size) {
+        /* move to next packet */
+        if (writer->packet->next) {
+            writer->packet = writer->packet->next;
+            writer->pos_in_packet = 0;
+        } else {
+            if (size) *size = 0;
+            return NULL;
+        }
+    }
+
+    if (size) *size = writer->packet->size - writer->pos_in_packet;
+    return writer->packet->data + writer->pos_in_packet;
+}
+
+static inline void bte_buffer_writer_advance(BteBufferWriter *writer,
+                                             uint16_t size)
+{
+    /* Assume a contiguous block */
+    writer->pos_in_packet += size;
+}
+
+/*!
+ * Get a pointer to the next contiguous area, with the given size; if such a
+ * contiguous block does not exist, returns NULL.
+ * This function advances the current pointer by \a size.
+ */
+static inline void *bte_buffer_writer_ptr_n(BteBufferWriter *writer,
+                                            uint16_t size)
+{
+    if (writer->pos_in_packet >= writer->packet->size) {
+        /* move to next packet */
+        if (writer->packet->next) {
+            writer->packet = writer->packet->next;
+            writer->pos_in_packet = 0;
+        } else {
+            return NULL;
+        }
+    }
+
+    if (size > writer->packet->size - writer->pos_in_packet) return NULL;
+    uint16_t pos_in_packet = writer->pos_in_packet;
+    writer->pos_in_packet += size;
+    return writer->packet->data + pos_in_packet;
+}
+
 static inline void bte_buffer_writer_end(BteBufferWriter *writer)
 {
     writer->packet->size = writer->pos_in_packet;
@@ -200,6 +253,50 @@ static inline uint16_t bte_buffer_reader_read(BteBufferReader *reader,
         }
     }
     return total_read;
+}
+
+/*! Get a pointer to the next contiguous area */
+static inline void *bte_buffer_reader_read_max(BteBufferReader *reader,
+                                               uint16_t *size)
+{
+    if (reader->pos_in_packet >= reader->packet->size) {
+        /* move to next packet */
+        if (reader->packet->next) {
+            reader->packet = reader->packet->next;
+            reader->pos_in_packet = 0;
+        } else {
+            if (size) *size = 0;
+            return NULL;
+        }
+    }
+
+    if (size) *size = reader->packet->size - reader->pos_in_packet;
+    uint16_t pos_in_packet = reader->pos_in_packet;
+    reader->pos_in_packet = reader->packet->size;
+    return reader->packet->data + pos_in_packet;
+}
+
+/*!
+ * Get a pointer to the next contiguous area, with the given size; if such a
+ * contiguous block does not exist, returns NULL.
+ */
+static inline void *bte_buffer_reader_read_n(BteBufferReader *reader,
+                                             uint16_t size)
+{
+    if (reader->pos_in_packet >= reader->packet->size) {
+        /* move to next packet */
+        if (reader->packet->next) {
+            reader->packet = reader->packet->next;
+            reader->pos_in_packet = 0;
+        } else {
+            return NULL;
+        }
+    }
+
+    if (size > reader->packet->size - reader->pos_in_packet) return NULL;
+    uint16_t pos_in_packet = reader->pos_in_packet;
+    reader->pos_in_packet += size;
+    return reader->packet->data + pos_in_packet;
 }
 
 #ifdef __cplusplus

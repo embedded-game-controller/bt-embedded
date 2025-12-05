@@ -44,6 +44,81 @@ TEST(Buffer, testWriterSegmented)
     bte_buffer_unref(buffer);
 }
 
+TEST(Buffer, testWriterZeroCopyMax)
+{
+    BteBuffer *buffer = bte_buffer_alloc(30, 10);
+    ASSERT_TRUE(buffer != nullptr);
+
+    BteBufferWriter writer;
+    bte_buffer_writer_init(&writer, buffer);
+    uint16_t size = 0;
+    char *ptr = (char *)bte_buffer_writer_ptr_max(&writer, &size);
+    ASSERT_TRUE(ptr != nullptr);
+    ASSERT_EQ(size, 10);
+
+    /* Pretend that we did write something */
+    bte_buffer_writer_advance(&writer, size);
+
+    ptr = (char *)bte_buffer_writer_ptr_max(&writer, &size);
+    ASSERT_TRUE(ptr != nullptr);
+    ASSERT_EQ(size, 10);
+
+    /* Pretend that we did write 6 bytes only */
+    bte_buffer_writer_advance(&writer, 6);
+
+    /* Remainder should be 4 */
+    ptr = (char *)bte_buffer_writer_ptr_max(&writer, &size);
+    ASSERT_TRUE(ptr != nullptr);
+    ASSERT_EQ(size, 4);
+    bte_buffer_writer_advance(&writer, size);
+
+    ptr = (char *)bte_buffer_writer_ptr_max(&writer, &size);
+    ASSERT_TRUE(ptr != nullptr);
+    ASSERT_EQ(size, 10);
+    bte_buffer_writer_advance(&writer, size);
+
+    /* No space left */
+    ptr = (char *)bte_buffer_writer_ptr_max(&writer, &size);
+    ASSERT_TRUE(ptr == nullptr);
+    ASSERT_EQ(size, 0);
+
+    bte_buffer_unref(buffer);
+}
+
+TEST(Buffer, testWriterZeroCopyFixed)
+{
+    BteBuffer *buffer = bte_buffer_alloc(30, 10);
+    ASSERT_TRUE(buffer != nullptr);
+
+    BteBufferWriter writer;
+    bte_buffer_writer_init(&writer, buffer);
+
+    /* Ask for too much */
+    char *ptr = (char *)bte_buffer_writer_ptr_n(&writer, 11);
+    ASSERT_TRUE(ptr == nullptr);
+
+    /* Ask for the whole buffer */
+    ptr = (char *)bte_buffer_writer_ptr_n(&writer, 10);
+    ASSERT_TRUE(ptr != nullptr);
+
+    /* Ask for a single byte */
+    ptr = (char *)bte_buffer_writer_ptr_n(&writer, 1);
+    ASSERT_TRUE(ptr != nullptr);
+
+    /* Then for 10 more (should fail, only 9 remain) */
+    ptr = (char *)bte_buffer_writer_ptr_n(&writer, 10);
+    ASSERT_TRUE(ptr == nullptr);
+
+    ptr = (char *)bte_buffer_writer_ptr_n(&writer, 9);
+    ASSERT_TRUE(ptr != nullptr);
+
+    /* Finish the writing, check the total size */
+    bte_buffer_writer_end(&writer);
+    ASSERT_EQ(buffer->total_size, 20);
+
+    bte_buffer_unref(buffer);
+}
+
 TEST(Buffer, testReaderSegmented)
 {
     BteBuffer *buffer = bte_buffer_alloc(30, 10);
@@ -63,6 +138,88 @@ TEST(Buffer, testReaderSegmented)
     uint16_t read = bte_buffer_reader_read(&reader, dest, sizeof(dest));
     ASSERT_EQ(read, text.size());
     ASSERT_EQ(std::string(dest), text);
+
+    bte_buffer_unref(buffer);
+}
+
+TEST(Buffer, testReaderZeroCopySegmented)
+{
+    BteBuffer *buffer = bte_buffer_alloc(30, 10);
+    ASSERT_TRUE(buffer != nullptr);
+
+    const std::string text = "A string between 20 and 30"; /* 26 */
+    buffer->total_size = text.size();
+    memcpy(buffer->data, text.c_str(), 10);
+    memcpy(buffer->next->data, text.c_str() + 10, 10);
+    memcpy(buffer->next->next->data, text.c_str() + 20, 6);
+    buffer->next->next->size = 6;
+
+    BteBufferReader reader;
+    bte_buffer_reader_init(&reader, buffer);
+    uint16_t size = 0;
+    const char *ptr = (const char *)bte_buffer_reader_read_max(&reader, &size);
+    ASSERT_TRUE(ptr != nullptr);
+    ASSERT_EQ(size, 10);
+    ASSERT_EQ(std::string(ptr, 10), (text.substr(0, 10)));
+
+    ptr = (const char *)bte_buffer_reader_read_max(&reader, &size);
+    ASSERT_TRUE(ptr != nullptr);
+    ASSERT_EQ(size, 10);
+    ASSERT_EQ(std::string(ptr, 10), (text.substr(10, 10)));
+
+    ptr = (const char *)bte_buffer_reader_read_max(&reader, &size);
+    ASSERT_TRUE(ptr != nullptr);
+    ASSERT_EQ(size, 6);
+    ASSERT_EQ(std::string(ptr, 6), (text.substr(20, 6)));
+
+    ptr = (const char *)bte_buffer_reader_read_max(&reader, &size);
+    ASSERT_TRUE(ptr == nullptr);
+    ASSERT_EQ(size, 0);
+
+    bte_buffer_unref(buffer);
+}
+
+TEST(Buffer, testReaderZeroCopyRequired)
+{
+    BteBuffer *buffer = bte_buffer_alloc(30, 10);
+    ASSERT_TRUE(buffer != nullptr);
+
+    const std::string text = "A string between 20 and 30"; /* 26 */
+    buffer->total_size = text.size();
+    memcpy(buffer->data, text.c_str(), 10);
+    memcpy(buffer->next->data, text.c_str() + 10, 10);
+    memcpy(buffer->next->next->data, text.c_str() + 20, 6);
+    buffer->next->next->size = 6;
+
+    BteBufferReader reader;
+    bte_buffer_reader_init(&reader, buffer);
+    const char *ptr = (const char *)bte_buffer_reader_read_n(&reader, 8);
+    ASSERT_TRUE(ptr != nullptr);
+    ASSERT_EQ(std::string(ptr, 8), std::string("A string"));
+
+    /* We have only two bytes left; this should fail */
+    ptr = (const char *)bte_buffer_reader_read_n(&reader, 3);
+    ASSERT_TRUE(ptr == nullptr);
+
+    ptr = (const char *)bte_buffer_reader_read_n(&reader, 2);
+    ASSERT_TRUE(ptr != nullptr);
+    ASSERT_EQ(std::string(ptr, 2), std::string(" b"));
+
+    ptr = (const char *)bte_buffer_reader_read_n(&reader, 10);
+    ASSERT_TRUE(ptr != nullptr);
+    ASSERT_EQ(std::string(ptr, 10), std::string("etween 20 "));
+
+    ptr = (const char *)bte_buffer_reader_read_n(&reader, 4);
+    ASSERT_TRUE(ptr != nullptr);
+    ASSERT_EQ(std::string(ptr, 4), std::string("and "));
+
+    ptr = (const char *)bte_buffer_reader_read_n(&reader, 2);
+    ASSERT_TRUE(ptr != nullptr);
+    ASSERT_EQ(std::string(ptr, 2), std::string("30"));
+
+    /* There's no more data */
+    ptr = (const char *)bte_buffer_reader_read_n(&reader, 1);
+    ASSERT_TRUE(ptr == nullptr);
 
     bte_buffer_unref(buffer);
 }
