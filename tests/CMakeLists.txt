@@ -19,6 +19,7 @@ add_executable(test_commands
     ${BTE_SOURCES}
     dummy_driver.c
     mock_backend.cpp
+    test_buffer.cpp
     test_commands.cpp
     test_cpp_api.cpp
     test_data_matcher.cpp

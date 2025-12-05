@@ -42,6 +42,8 @@ static inline void *bte_malloc(uint16_t size)
 #endif
 }
 
+static void bte_buffer_unref(BteBuffer *buffer);
+
 /* Used for small packets (TODO: clarify) */
 static inline BteBuffer *bte_buffer_alloc_contiguous(uint16_t size)
 {
@@ -53,13 +55,27 @@ static inline BteBuffer *bte_buffer_alloc_contiguous(uint16_t size)
     return b;
 }
 
-static inline BteBuffer *bte_buffer_alloc(uint16_t size)
+static inline BteBuffer *bte_buffer_alloc(uint16_t size, uint16_t block_size)
 {
-    /* TODO: Let the platform define constants telling how the buffer should be
-     * setup: whether as a big single area, as a list of equally-sized buffers.
-     * Depending on this information, here we should allocate the buffer
-     * accordingly. */
-    return bte_buffer_alloc_contiguous(size);
+    uint16_t remaining = size;
+    BteBuffer *head = NULL, *tail = NULL;
+    while (remaining > 0) {
+        uint16_t buffer_size = remaining > block_size ? block_size : remaining;
+        BteBuffer *buffer = bte_buffer_alloc_contiguous(buffer_size);
+        if (!buffer) {
+            bte_buffer_unref(head);
+            return NULL;
+        }
+        buffer->total_size = size;
+        if (!tail) {
+            head = tail = buffer;
+        } else {
+            tail->next = buffer;
+            tail = buffer;
+        }
+        remaining -= buffer_size;
+    }
+    return head;
 }
 
 static inline void bte_buffer_shrink(BteBuffer *buffer, uint16_t size)
@@ -81,7 +97,12 @@ static inline BteBuffer *bte_buffer_ref(BteBuffer *buffer)
 static inline void bte_buffer_unref(BteBuffer *buffer)
 {
     if (atomic_fetch_sub(&buffer->ref_count, 1) == 1 && buffer->free_func) {
-        buffer->free_func(buffer);
+        BteBuffer *next;
+        while (buffer) {
+            next = buffer->next;
+            buffer->free_func(buffer);
+            buffer = next;
+        }
     }
 }
 
@@ -110,7 +131,7 @@ static inline void bte_buffer_writer_init(BteBufferWriter *writer,
 static inline bool bte_buffer_writer_write(BteBufferWriter *writer,
                                            const void *data, uint16_t size)
 {
-    if (size > writer->pos + writer->buffer->total_size) return false;
+    if (size > writer->buffer->total_size - writer->pos) return false;
 
     const uint8_t *ptr = (const uint8_t *)data;
     while (size > 0) {
@@ -128,6 +149,11 @@ static inline bool bte_buffer_writer_write(BteBufferWriter *writer,
         }
     }
     return true;
+}
+
+static inline void bte_buffer_writer_end(BteBufferWriter *writer)
+{
+    writer->packet->size = writer->pos_in_packet;
 }
 
 typedef struct bte_buffer_reader_t {
@@ -162,8 +188,10 @@ static inline uint16_t bte_buffer_reader_read(BteBufferReader *reader,
         size -= read_len;
         if (size > 0) {
             /* prepare the next packet */
-            reader->packet = reader->packet->next;
-            reader->pos_in_packet = 0;
+            if (reader->packet->next) {
+                reader->packet = reader->packet->next;
+                reader->pos_in_packet = 0;
+            } else break;
         }
     }
     return total_read;
