@@ -153,6 +153,15 @@ static inline bool bte_buffer_writer_write(BteBufferWriter *writer,
 static inline void bte_buffer_writer_end(BteBufferWriter *writer)
 {
     writer->packet->size = writer->pos_in_packet;
+    /* Recompute the total size */
+    uint16_t total_size = 0;
+    BteBuffer *buffer = writer->buffer;
+    while (buffer) {
+        total_size += buffer->size;
+        if (buffer == writer->packet) break;
+        buffer = buffer->next;
+    }
+    writer->buffer->total_size = total_size;
 }
 
 typedef struct bte_buffer_reader_t {
