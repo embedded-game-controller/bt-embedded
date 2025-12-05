@@ -115,7 +115,6 @@ static inline uint8_t *bte_buffer_contiguous_data(BteBuffer *buffer,
 typedef struct bte_buffer_writer_t {
     BteBuffer *buffer;
     BteBuffer *packet;
-    uint16_t pos;
     uint16_t pos_in_packet;
 } BteBufferWriter;
 
@@ -124,28 +123,28 @@ static inline void bte_buffer_writer_init(BteBufferWriter *writer,
 {
     writer->buffer = buffer;
     writer->packet = buffer;
-    writer->pos = 0;
     writer->pos_in_packet = 0;
 }
 
 static inline bool bte_buffer_writer_write(BteBufferWriter *writer,
                                            const void *data, uint16_t size)
 {
-    if (size > writer->buffer->total_size - writer->pos) return false;
-
     const uint8_t *ptr = (const uint8_t *)data;
     while (size > 0) {
         int write_len = (writer->pos_in_packet + size <= writer->packet->size) ?
             size : (writer->packet->size - writer->pos_in_packet);
         memcpy(writer->packet->data + writer->pos_in_packet, ptr, write_len);
         writer->pos_in_packet += write_len;
-        writer->pos += write_len;
         ptr += write_len;
         size -= write_len;
         if (size > 0) {
             /* prepare the next packet */
-            writer->packet = writer->packet->next;
-            writer->pos_in_packet = 0;
+            if (writer->packet->next) {
+                writer->packet = writer->packet->next;
+                writer->pos_in_packet = 0;
+            } else {
+                return false;
+            }
         }
     }
     return true;
@@ -159,7 +158,6 @@ static inline void bte_buffer_writer_end(BteBufferWriter *writer)
 typedef struct bte_buffer_reader_t {
     BteBuffer *buffer;
     BteBuffer *packet;
-    uint16_t pos;
     uint16_t pos_in_packet;
 } BteBufferReader;
 
@@ -168,7 +166,6 @@ static inline void bte_buffer_reader_init(BteBufferReader *reader,
 {
     reader->buffer = buffer;
     reader->packet = buffer;
-    reader->pos = 0;
     reader->pos_in_packet = 0;
 }
 
@@ -182,7 +179,6 @@ static inline uint16_t bte_buffer_reader_read(BteBufferReader *reader,
             size : (reader->packet->size - reader->pos_in_packet);
         memcpy(ptr, reader->packet->data + reader->pos_in_packet, read_len);
         reader->pos_in_packet += read_len;
-        reader->pos += read_len;
         ptr += read_len;
         total_read += read_len;
         size -= read_len;
