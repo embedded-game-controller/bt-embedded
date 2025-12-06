@@ -141,6 +141,7 @@ struct bte_client_t {
         BteInitializedCb initialized_cb;
 
         BteHciInquiryCb inquiry_cb;
+        BteHciDisconnectionCompleteCb disconnection_complete_cb;
         BteHciConnectionRequestCb connection_request_cb;
         BteHciLinkKeyRequestCb link_key_request_cb;
         BteHciPinCodeRequestCb pin_code_request_cb;

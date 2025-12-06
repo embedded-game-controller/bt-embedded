@@ -188,6 +188,14 @@ public:
                                       &Hci::Callbacks::createConnection);
         }
 
+        using DisconnectionCompleteCb =
+            std::function<bool(const BteHciDisconnectionCompleteData &data)>;
+        void onDisconnectionComplete(const DisconnectionCompleteCb &cb) {
+            m_disconnectionCompleteCb = cb;
+            bte_hci_on_disconnection_complete(
+                m_hci, &Hci::Callbacks::disconnectionComplete);
+        }
+
         void createConnectionCancel(const BteBdAddr &address,
                                     const DoneCb &cb) {
             bte_hci_create_connection_cancel(m_hci, &address, wrap<TAG>(cb));
@@ -614,6 +622,11 @@ public:
                 _this(cb_data)->m_createConnectionCallbacks[reply->address](
                     *reply);
             }
+            static bool disconnectionComplete(
+                BteHci *hci, const BteHciDisconnectionCompleteData *data,
+                void *cb_data) {
+                return _this(cb_data)->m_disconnectionCompleteCb(*data);
+            }
             static bool connectionRequest(BteHci *hci,
                                           const BteBdAddr *address,
                                           const BteClassOfDevice *cod,
@@ -688,6 +701,7 @@ public:
             m_readRemoteVersionInfoCallbacks;
         std::unordered_map<BteConnHandle, ReadClockOffsetCb>
             m_readClockOffsetCallbacks;
+        DisconnectionCompleteCb m_disconnectionCompleteCb;
         ConnectionRequestCb m_connectionRequestCb;
         LinkKeyRequestCb m_linkKeyRequestCb;
         PinCodeRequestCb m_pinCodeRequestCb;

@@ -93,6 +93,17 @@ void bte_hci_disconnect(BteHci *hci, BteConnHandle handle, uint8_t reason,
 void bte_hci_create_connection_cancel(BteHci *hci, const BteBdAddr *address,
                                       BteHciDoneCb callback);
 
+typedef struct {
+    uint8_t status;
+    uint8_t reason;
+    BteConnHandle conn_handle;
+} BteHciDisconnectionCompleteData;
+
+/* Return true if this client will handle the event */
+typedef bool (*BteHciDisconnectionCompleteCb)(
+    BteHci *hci, const BteHciDisconnectionCompleteData *data, void *userdata);
+void bte_hci_on_disconnection_complete(
+    BteHci *hci, BteHciDisconnectionCompleteCb callback);
 
 #define BTE_HCI_ROLE_MASTER (uint8_t)0
 #define BTE_HCI_ROLE_SLAVE  (uint8_t)1

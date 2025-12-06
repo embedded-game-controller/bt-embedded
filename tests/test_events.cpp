@@ -4,6 +4,46 @@
 
 #include <gtest/gtest.h>
 
+TEST(Events, testDisconnectionCompleteed)
+{
+    MockBackend backend;
+    Bte::Client client0, client1, client2;
+    auto &hci0 = client0.hci();
+    auto &hci1 = client1.hci();
+    auto &hci2 = client2.hci();
+
+    /* The first int is the index of the hci instance */
+    using Call = std::tuple<int, BteHciDisconnectionCompleteData>;
+    std::vector<Call> calls;
+    hci0.onDisconnectionComplete([&](const BteHciDisconnectionCompleteData &data) {
+        calls.push_back({0, data});
+        return false;
+    });
+    hci1.onDisconnectionComplete([&](const BteHciDisconnectionCompleteData &data) {
+        calls.push_back({1, data});
+        return true;
+    });
+    hci2.onDisconnectionComplete([&](const BteHciDisconnectionCompleteData &data) {
+        calls.push_back({2, data});
+        return false;
+    });
+
+    /* Emit the DisconnectionComplete event */
+    BteConnHandle conn_handle = 0x1122;
+    uint8_t status = 0;
+    uint8_t reason = 5;
+    backend.sendEvent(Buffer{ HCI_DISCONNECTION_COMPLETE, 1 + 2 + 1,
+                      status, 0x22, 0x11, reason });
+    bte_handle_events();
+
+    /* The second handler returned true, so the third should not be invoked */
+    std::vector<Call> expectedCalls = {
+        {0, {status, reason, conn_handle}},
+        {1, {status, reason, conn_handle}},
+    };
+    ASSERT_EQ(calls, expectedCalls);
+}
+
 TEST(Events, testConnectionRequested)
 {
     MockBackend backend;

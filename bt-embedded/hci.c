@@ -416,6 +416,31 @@ void bte_hci_disconnect(BteHci *hci, BteConnHandle handle, uint8_t reason,
     _bte_hci_send_command(b);
 }
 
+static bool client_handle_disconnection_complete(BteHci *hci, void *cb_data)
+{
+    const BteHciDisconnectionCompleteData *event = cb_data;
+    return hci->disconnection_complete_cb &&
+        hci->disconnection_complete_cb(hci, event, hci_userdata(hci));
+}
+
+static void disconnection_complete_event_cb(BteBuffer *buffer, void *cb_data)
+{
+    uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
+    BteHciDisconnectionCompleteData event;
+    event.status = data[0];
+    event.conn_handle = read_le16(data + 1);
+    event.reason = data[3];
+    _bte_hci_dev_foreach_hci_client(client_handle_disconnection_complete, &event);
+}
+
+void bte_hci_on_disconnection_complete(
+    BteHci *hci, BteHciDisconnectionCompleteCb callback)
+{
+    hci->disconnection_complete_cb = callback;
+    _bte_hci_dev_install_event_handler(HCI_DISCONNECTION_COMPLETE,
+                                       disconnection_complete_event_cb, NULL);
+}
+
 void bte_hci_create_connection_cancel(BteHci *hci, const BteBdAddr *address,
                                       BteHciDoneCb callback)
 {
