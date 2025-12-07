@@ -223,3 +223,101 @@ TEST(Buffer, testReaderZeroCopyRequired)
 
     bte_buffer_unref(buffer);
 }
+
+TEST(Buffer, testWriterHeaderSize)
+{
+    BteBuffer *buffer = bte_buffer_alloc(30, 10);
+    ASSERT_TRUE(buffer != nullptr);
+
+    //                        12345678901234567890
+    const std::string text = "A string to be split"; // 20
+
+    BteBufferWriter writer;
+    bte_buffer_writer_init(&writer, buffer);
+    /* Write the headers */
+    bte_buffer_writer_set_header_size(&writer, 2);
+    memcpy(buffer->data, "01", 2);
+    memcpy(buffer->next->data, "02", 2);
+    memcpy(buffer->next->next->data, "03", 2);
+
+    uint16_t size = 0;
+    uint8_t *ptr = (uint8_t *)bte_buffer_writer_ptr_max(&writer, &size);
+    ASSERT_EQ(ptr, buffer->data + 2);
+    ASSERT_EQ(size, 8);
+
+    bool ok = bte_buffer_writer_write(&writer, text.c_str(), text.size());
+    ASSERT_TRUE(ok);
+    bte_buffer_writer_end(&writer);
+
+    std::string first((char*)buffer->data, 10);
+    ASSERT_EQ(first, std::string("01A string"));
+
+    std::string second((char*)buffer->next->data, 10);
+    ASSERT_EQ(second, std::string("02 to be s"));
+
+    std::string third((char*)buffer->next->next->data, 6);
+    ASSERT_EQ(third, std::string("03plit"));
+
+    ASSERT_EQ(buffer->total_size, 26);
+    ASSERT_EQ(buffer->size, 10);
+    ASSERT_EQ(buffer->next->size, 10);
+    ASSERT_EQ(buffer->next->next->size, 6);
+    bte_buffer_unref(buffer);
+}
+
+TEST(Buffer, testReaderHeaderSize)
+{
+    BteBuffer *buffer = bte_buffer_alloc(30, 10);
+    ASSERT_TRUE(buffer != nullptr);
+
+    //                        12345678901234567890123456
+    const std::string text = "01A string02 to be s03plit"; // 26
+
+    BteBufferWriter writer;
+    bte_buffer_writer_init(&writer, buffer);
+    bool ok = bte_buffer_writer_write(&writer, text.c_str(), text.size());
+    ASSERT_TRUE(ok);
+    bte_buffer_writer_end(&writer);
+
+    BteBufferReader reader;
+    bte_buffer_reader_init(&reader, buffer);
+    bte_buffer_reader_set_header_size(&reader, 2);
+
+    char dest[50];
+    memset(dest, 0, sizeof(dest));
+    uint16_t read = bte_buffer_reader_read(&reader, dest, sizeof(dest));
+    ASSERT_EQ(read, 20);
+
+    std::string received(dest, read);
+    ASSERT_EQ(received, std::string("A string to be split"));
+
+    /* Test the zerocopy API */
+    bte_buffer_reader_init(&reader, buffer);
+    bte_buffer_reader_set_header_size(&reader, 2);
+
+    uint16_t size = 0;
+    const uint8_t *ptr =
+        (const uint8_t *)bte_buffer_reader_read_max(&reader, &size);
+    ASSERT_EQ(ptr, buffer->data + 2);
+    ASSERT_EQ(size, 8);
+
+    /* One byte too many */
+    ptr = (const uint8_t *)bte_buffer_reader_read_n(&reader, 9);
+    ASSERT_TRUE(ptr == nullptr);
+
+    /* Read full buffer */
+    ptr = (const uint8_t *)bte_buffer_reader_read_n(&reader, 8);
+    ASSERT_EQ(ptr, buffer->next->data + 2);
+
+    /* Read some more */
+    ptr = (const uint8_t *)bte_buffer_reader_read_n(&reader, 2);
+    ASSERT_EQ(ptr, buffer->next->next->data + 2);
+
+    /* One byte too many again */
+    ptr = (const uint8_t *)bte_buffer_reader_read_n(&reader, 3);
+    ASSERT_TRUE(ptr == nullptr);
+
+    ptr = (const uint8_t *)bte_buffer_reader_read_n(&reader, 2);
+    ASSERT_EQ(ptr, buffer->next->next->data + 4);
+    bte_buffer_unref(buffer);
+}

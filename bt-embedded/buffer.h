@@ -116,6 +116,7 @@ typedef struct bte_buffer_writer_t {
     BteBuffer *buffer;
     BteBuffer *packet;
     uint16_t pos_in_packet;
+    uint8_t header_size;
 } BteBufferWriter;
 
 static inline void bte_buffer_writer_init(BteBufferWriter *writer,
@@ -124,6 +125,14 @@ static inline void bte_buffer_writer_init(BteBufferWriter *writer,
     writer->buffer = buffer;
     writer->packet = buffer;
     writer->pos_in_packet = 0;
+    writer->header_size = 0;
+}
+
+static inline void bte_buffer_writer_set_header_size(BteBufferWriter *writer,
+                                                     uint8_t size)
+{
+    writer->header_size = size;
+    writer->pos_in_packet = size;
 }
 
 static inline bool bte_buffer_writer_write(BteBufferWriter *writer,
@@ -141,7 +150,7 @@ static inline bool bte_buffer_writer_write(BteBufferWriter *writer,
             /* prepare the next packet */
             if (writer->packet->next) {
                 writer->packet = writer->packet->next;
-                writer->pos_in_packet = 0;
+                writer->pos_in_packet = writer->header_size;
             } else {
                 return false;
             }
@@ -161,7 +170,7 @@ static inline void *bte_buffer_writer_ptr_max(BteBufferWriter *writer,
         /* move to next packet */
         if (writer->packet->next) {
             writer->packet = writer->packet->next;
-            writer->pos_in_packet = 0;
+            writer->pos_in_packet = writer->header_size;
         } else {
             if (size) *size = 0;
             return NULL;
@@ -191,7 +200,7 @@ static inline void *bte_buffer_writer_ptr_n(BteBufferWriter *writer,
         /* move to next packet */
         if (writer->packet->next) {
             writer->packet = writer->packet->next;
-            writer->pos_in_packet = 0;
+            writer->pos_in_packet = writer->header_size;
         } else {
             return NULL;
         }
@@ -221,6 +230,7 @@ typedef struct bte_buffer_reader_t {
     BteBuffer *buffer;
     BteBuffer *packet;
     uint16_t pos_in_packet;
+    uint8_t header_size;
 } BteBufferReader;
 
 static inline void bte_buffer_reader_init(BteBufferReader *reader,
@@ -229,6 +239,14 @@ static inline void bte_buffer_reader_init(BteBufferReader *reader,
     reader->buffer = buffer;
     reader->packet = buffer;
     reader->pos_in_packet = 0;
+    reader->header_size = 0;
+}
+
+static inline void bte_buffer_reader_set_header_size(BteBufferReader *reader,
+                                                     uint8_t size)
+{
+    reader->header_size = size;
+    reader->pos_in_packet = size;
 }
 
 static inline uint16_t bte_buffer_reader_read(BteBufferReader *reader,
@@ -248,7 +266,7 @@ static inline uint16_t bte_buffer_reader_read(BteBufferReader *reader,
             /* prepare the next packet */
             if (reader->packet->next) {
                 reader->packet = reader->packet->next;
-                reader->pos_in_packet = 0;
+                reader->pos_in_packet = reader->header_size;
             } else break;
         }
     }
@@ -263,7 +281,7 @@ static inline void *bte_buffer_reader_read_max(BteBufferReader *reader,
         /* move to next packet */
         if (reader->packet->next) {
             reader->packet = reader->packet->next;
-            reader->pos_in_packet = 0;
+            reader->pos_in_packet = reader->header_size;
         } else {
             if (size) *size = 0;
             return NULL;
@@ -287,7 +305,7 @@ static inline void *bte_buffer_reader_read_n(BteBufferReader *reader,
         /* move to next packet */
         if (reader->packet->next) {
             reader->packet = reader->packet->next;
-            reader->pos_in_packet = 0;
+            reader->pos_in_packet = reader->header_size;
         } else {
             return NULL;
         }
