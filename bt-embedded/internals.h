@@ -22,6 +22,9 @@ extern "C" {
  * must be 2 at the very least. */
 #define BTE_HCI_MAX_CLIENTS 4
 
+/* A max of 7 devices can be connected at the same time */
+#define BTE_HCI_MAX_ACL 7
+
 /* This is the last (in the sense of its numerical value) event that we
  * support. It could be decreased is we are sure that our clients don't need
  * support a certain event, and then we could free up some bytes in the event
@@ -41,6 +44,8 @@ typedef enum {
     BTE_HCI_INFO_GOT_FEATURES = 1 << 0,
     BTE_HCI_INFO_GOT_BUFFER_SIZE = 1 << 1,
 } BteHciInfo;
+
+typedef struct bte_acl_t BteAcl;
 
 typedef struct bte_hci_pending_command_t BteHciPendingCommand;
 typedef union bte_hci_command_cb_u BteHciCommandCbUnion;
@@ -106,6 +111,7 @@ typedef struct bte_hci_dev_t {
     } pending_commands[BTE_HCI_MAX_PENDING_COMMANDS];
 
     BteClient *clients[BTE_HCI_MAX_CLIENTS];
+    BteAcl *acls[BTE_HCI_MAX_ACL];
 
     BteBdAddr address;
     BteHciSupportedFeatures supported_features;
