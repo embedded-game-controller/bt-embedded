@@ -46,6 +46,13 @@ inline bool operator==(const BteHciCreateConnectionReply &a,
         a.encryption_mode == b.encryption_mode;
 }
 
+inline bool operator==(const BteHciNrOfCompletedPacketsData &a,
+                       const BteHciNrOfCompletedPacketsData &b)
+{
+    return a.conn_handle == b.conn_handle &&
+        a.completed_packets == b.completed_packets;
+}
+
 inline bool operator==(const BteHciDisconnectionCompleteData &a,
                        const BteHciDisconnectionCompleteData &b)
 {

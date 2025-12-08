@@ -94,6 +94,16 @@ void bte_hci_create_connection_cancel(BteHci *hci, const BteBdAddr *address,
                                       BteHciDoneCb callback);
 
 typedef struct {
+    BteConnHandle conn_handle;
+    uint16_t completed_packets;
+} BteHciNrOfCompletedPacketsData;
+
+typedef bool (*BteHciNrOfCompletedPacketsCb)(
+    BteHci *hci, const BteHciNrOfCompletedPacketsData *data, void *userdata);
+void bte_hci_on_nr_of_completed_packets(
+    BteHci *hci, BteHciNrOfCompletedPacketsCb callback);
+
+typedef struct {
     uint8_t status;
     uint8_t reason;
     BteConnHandle conn_handle;

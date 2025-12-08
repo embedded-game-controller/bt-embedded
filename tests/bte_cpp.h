@@ -188,6 +188,14 @@ public:
                                       &Hci::Callbacks::createConnection);
         }
 
+        using NrOfCompletedPacketsCb =
+            std::function<bool(const BteHciNrOfCompletedPacketsData &data)>;
+        void onNrOfCompletedPackets(const NrOfCompletedPacketsCb &cb) {
+            m_nrOfCompletedPacketsCb = cb;
+            bte_hci_on_nr_of_completed_packets(
+                m_hci, &Hci::Callbacks::nrOfCompletedPackets);
+        }
+
         using DisconnectionCompleteCb =
             std::function<bool(const BteHciDisconnectionCompleteData &data)>;
         void onDisconnectionComplete(const DisconnectionCompleteCb &cb) {
@@ -622,6 +630,11 @@ public:
                 _this(cb_data)->m_createConnectionCallbacks[reply->address](
                     *reply);
             }
+            static bool nrOfCompletedPackets(
+                BteHci *hci, const BteHciNrOfCompletedPacketsData *data,
+                void *cb_data) {
+                return _this(cb_data)->m_nrOfCompletedPacketsCb(*data);
+            }
             static bool disconnectionComplete(
                 BteHci *hci, const BteHciDisconnectionCompleteData *data,
                 void *cb_data) {
@@ -701,6 +714,7 @@ public:
             m_readRemoteVersionInfoCallbacks;
         std::unordered_map<BteConnHandle, ReadClockOffsetCb>
             m_readClockOffsetCallbacks;
+        NrOfCompletedPacketsCb m_nrOfCompletedPacketsCb;
         DisconnectionCompleteCb m_disconnectionCompleteCb;
         ConnectionRequestCb m_connectionRequestCb;
         LinkKeyRequestCb m_linkKeyRequestCb;

@@ -416,6 +416,35 @@ void bte_hci_disconnect(BteHci *hci, BteConnHandle handle, uint8_t reason,
     _bte_hci_send_command(b);
 }
 
+static bool client_handle_nr_of_completed_packets(BteHci *hci, void *cb_data)
+{
+    const BteHciNrOfCompletedPacketsData *event = cb_data;
+    return hci->nr_of_completed_packets_cb &&
+        hci->nr_of_completed_packets_cb(hci, event, hci_userdata(hci));
+}
+
+static void nr_of_completed_packets_event_cb(BteBuffer *buffer, void *cb_data)
+{
+    const uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
+    uint8_t num_records = data[0];
+    data++;
+    for (int i = 0; i < num_records; i++) {
+        BteHciNrOfCompletedPacketsData event;
+        event.conn_handle = read_le16(data + i * 2);
+        event.completed_packets = read_le16(data + num_records * 2 + i * 2);
+        _bte_hci_dev_foreach_hci_client(client_handle_nr_of_completed_packets,
+                                        &event);
+    }
+}
+
+void bte_hci_on_nr_of_completed_packets(
+    BteHci *hci, BteHciNrOfCompletedPacketsCb callback)
+{
+    hci->nr_of_completed_packets_cb = callback;
+    _bte_hci_dev_install_event_handler(HCI_NBR_OF_COMPLETED_PACKETS,
+                                       nr_of_completed_packets_event_cb, NULL);
+}
+
 static bool client_handle_disconnection_complete(BteHci *hci, void *cb_data)
 {
     const BteHciDisconnectionCompleteData *event = cb_data;

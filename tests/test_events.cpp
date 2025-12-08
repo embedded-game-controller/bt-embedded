@@ -4,6 +4,48 @@
 
 #include <gtest/gtest.h>
 
+TEST(Events, testNrOfCompletedPacketsed)
+{
+    MockBackend backend;
+    Bte::Client client0, client1, client2;
+    auto &hci0 = client0.hci();
+    auto &hci1 = client1.hci();
+    auto &hci2 = client2.hci();
+
+    /* The first int is the index of the hci instance */
+    using Call = std::tuple<int, BteHciNrOfCompletedPacketsData>;
+    std::vector<Call> calls;
+    hci0.onNrOfCompletedPackets([&](const BteHciNrOfCompletedPacketsData &data) {
+        calls.push_back({0, data});
+        return data.conn_handle == 0x1122;
+    });
+    hci1.onNrOfCompletedPackets([&](const BteHciNrOfCompletedPacketsData &data) {
+        calls.push_back({1, data});
+        return data.conn_handle == 0x3344;
+    });
+    hci2.onNrOfCompletedPackets([&](const BteHciNrOfCompletedPacketsData &data) {
+        calls.push_back({2, data});
+        return data.conn_handle == 0x5566;
+    });
+
+    /* Emit the NrOfCompletedPackets event */
+    backend.sendEvent(Buffer{ HCI_NBR_OF_COMPLETED_PACKETS, 1 + 4 * 3, 3,
+                              0x22, 0x11, 0x44, 0x33, 0x66, 0x55,
+                              0x12, 0x34, 0x23, 0x45, 0x34, 0x56,
+                      });
+    bte_handle_events();
+
+    std::vector<Call> expectedCalls = {
+        {0, {0x1122, 0x3412}},
+        {0, {0x3344, 0x4523}},
+        {1, {0x3344, 0x4523}},
+        {0, {0x5566, 0x5634}},
+        {1, {0x5566, 0x5634}},
+        {2, {0x5566, 0x5634}},
+    };
+    ASSERT_EQ(calls, expectedCalls);
+}
+
 TEST(Events, testDisconnectionCompleteed)
 {
     MockBackend backend;
