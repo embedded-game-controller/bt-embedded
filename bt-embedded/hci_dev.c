@@ -212,6 +212,8 @@ int _bte_hci_dev_handle_event(BteBuffer *buf)
 
 int _bte_hci_dev_handle_data(BteBuffer *buf)
 {
+    BteHciDev *dev = &_bte_hci_dev;
+
     int len = buf->size;
     if (len > 10) len = 10;
 
@@ -220,6 +222,9 @@ int _bte_hci_dev_handle_data(BteBuffer *buf)
         BTE_DEBUG(" %02x", buf->data[i]);
     }
     BTE_DEBUG("\n");
+
+    if (dev->data_handler_cb) dev->data_handler_cb(buf);
+
     return 0;
 }
 

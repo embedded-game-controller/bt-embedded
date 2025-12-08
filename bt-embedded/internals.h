@@ -52,6 +52,7 @@ typedef void (*BteHciCommandStatusCb)(BteHci *hci, uint8_t status,
 
 typedef struct bte_hci_event_handler_t BteHciEventHandler;
 typedef void (*BteHciEventHandlerCb)(BteBuffer *buffer, void *cb_data);
+typedef void (*BteHciDataHandlerCb)(BteBuffer *buffer);
 
 typedef struct bte_hci_dev_t {
     BteHciInitStatus init_status;
@@ -131,6 +132,8 @@ typedef struct bte_hci_dev_t {
         BteHciEventHandlerCb handler_cb;
         void *cb_data;
     } event_handlers[BTE_HCI_EVENT_LAST];
+
+    BteHciDataHandlerCb data_handler_cb;
 } BteHciDev;
 
 struct bte_client_t {
