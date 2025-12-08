@@ -150,6 +150,15 @@ int _bte_hci_send_command(BteBuffer *buffer)
     return rc;
 }
 
+int _bte_hci_send_data(BteBuffer *buffer)
+{
+    int rc = _bte_backend.hci_send_data(buffer);
+    /* The backend, if needed, will increase the reference count. But we
+     * ourselves don't need this buffer anymore */
+    bte_buffer_unref(buffer);
+    return rc;
+}
+
 int _bte_hci_dev_handle_event(BteBuffer *buf)
 {
     {

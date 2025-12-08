@@ -230,6 +230,7 @@ BteHciPendingCommand *_bte_hci_dev_find_pending_command_raw(
     const void *buffer, size_t len);
 void _bte_hci_dev_free_command(BteHciPendingCommand *cmd);
 int _bte_hci_send_command(BteBuffer *buffer);
+int _bte_hci_send_data(BteBuffer *buffer);
 
 void _bte_hci_dev_install_event_handler(uint8_t event_code,
                                         BteHciEventHandlerCb handler_cb,
