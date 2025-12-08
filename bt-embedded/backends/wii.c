@@ -304,22 +304,10 @@ static int wii_hci_send_data(BteBuffer *buf)
 {
     if (UNLIKELY(s_bt_fd < 0)) return -EBADF;
 
-    BteBuffer *sent_buf;
-
-    if (buf->total_size == buf->size) {
-        sent_buf = buf;
-        bte_buffer_ref(buf);
-    } else {
-        sent_buf = bte_buffer_alloc_contiguous(buf->total_size);
-        if (UNLIKELY(!sent_buf)) return -ENOMEM;
-
-        BteBufferReader reader;
-        bte_buffer_reader_init(&reader, buf);
-        bte_buffer_reader_read(&reader, sent_buf->data, buf->total_size);
-    }
+    bte_buffer_ref(buf);
     int rc = USB_WriteBlkMsgAsync(s_bt_fd, ENDPOINT_ACL_OUT,
-                                  sent_buf->size, sent_buf->data,
-                                  hci_send_data_cb, sent_buf);
+                                  buf->size, buf->data,
+                                  hci_send_data_cb, buf);
     if (UNLIKELY(rc != USB_OK)) {
         bte_buffer_unref(buf);
         rc = -EIO;
