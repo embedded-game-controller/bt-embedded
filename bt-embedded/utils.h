@@ -7,6 +7,7 @@
 #else
 #  include <sys/endian.h>
 #endif
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -60,6 +61,15 @@ static inline void ensure_array_size(void **ptr, size_t elem_size,
         int n = needed_blocks * elem_per_block;
         *ptr = realloc(*ptr, n * elem_size);
     }
+}
+
+static inline uint16_t _bte_compute_fragmented_size(
+    uint16_t data_size, uint16_t packet_size, uint8_t header_size)
+{
+    uint16_t packet_data_size = packet_size - header_size;
+    uint16_t num_packets =
+        (data_size + packet_data_size - 1) / packet_data_size;
+    return num_packets * packet_size;
 }
 
 #ifdef __cplusplus
