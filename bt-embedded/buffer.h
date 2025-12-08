@@ -96,13 +96,9 @@ static inline BteBuffer *bte_buffer_ref(BteBuffer *buffer)
 
 static inline void bte_buffer_unref(BteBuffer *buffer)
 {
-    if (atomic_fetch_sub(&buffer->ref_count, 1) == 1 && buffer->free_func) {
-        BteBuffer *next;
-        while (buffer) {
-            next = buffer->next;
-            buffer->free_func(buffer);
-            buffer = next;
-        }
+    if (atomic_fetch_sub(&buffer->ref_count, 1) == 1) {
+        if (buffer->next) bte_buffer_unref(buffer->next);
+        if (buffer->free_func) buffer->free_func(buffer);
     }
 }
 
@@ -110,6 +106,16 @@ static inline uint8_t *bte_buffer_contiguous_data(BteBuffer *buffer,
                                                   uint16_t size)
 {
     return buffer->size >= size ? buffer->data : NULL;
+}
+
+static inline BteBuffer *bte_buffer_append(BteBuffer *head, BteBuffer *buffer)
+{
+    if (!head) return buffer;
+    BteBuffer *tail = head;
+    while (tail->next) tail = tail->next;
+    tail->next = bte_buffer_ref(buffer);
+    head->total_size += buffer->size;
+    return head;
 }
 
 typedef struct bte_buffer_writer_t {
@@ -212,7 +218,7 @@ static inline void *bte_buffer_writer_ptr_n(BteBufferWriter *writer,
     return writer->packet->data + pos_in_packet;
 }
 
-static inline void bte_buffer_writer_end(BteBufferWriter *writer)
+static inline BteBuffer *bte_buffer_writer_end(BteBufferWriter *writer)
 {
     writer->packet->size = writer->pos_in_packet;
     /* Recompute the total size */
@@ -224,6 +230,7 @@ static inline void bte_buffer_writer_end(BteBufferWriter *writer)
         buffer = buffer->next;
     }
     writer->buffer->total_size = total_size;
+    return writer->buffer;
 }
 
 typedef struct bte_buffer_reader_t {

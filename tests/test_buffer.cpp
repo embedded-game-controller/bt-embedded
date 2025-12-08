@@ -321,3 +321,30 @@ TEST(Buffer, testReaderHeaderSize)
     ASSERT_EQ(ptr, buffer->next->next->data + 4);
     bte_buffer_unref(buffer);
 }
+
+TEST(Buffer, testAppend)
+{
+    BteBuffer *buffer0 = bte_buffer_alloc(30, 100);
+    ASSERT_TRUE(buffer0 != nullptr);
+
+    BteBuffer *buffer1 = bte_buffer_alloc(20, 100);
+    ASSERT_TRUE(buffer1 != nullptr);
+
+    BteBuffer *buffer2 = bte_buffer_alloc(15, 100);
+    ASSERT_TRUE(buffer2 != nullptr);
+
+    BteBuffer *head = bte_buffer_append(NULL, buffer0);
+    ASSERT_EQ(head, buffer0);
+
+    head = bte_buffer_append(head, buffer1);
+    bte_buffer_unref(buffer1);
+    ASSERT_EQ(head, buffer0);
+    ASSERT_EQ(head->total_size, 50);
+
+    head = bte_buffer_append(head, buffer2);
+    bte_buffer_unref(buffer2);
+    ASSERT_EQ(head, buffer0);
+    ASSERT_EQ(head->total_size, 65);
+
+    bte_buffer_unref(buffer0);
+}
