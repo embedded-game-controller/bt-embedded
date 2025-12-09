@@ -428,6 +428,15 @@ static void nr_of_completed_packets_event_cb(BteBuffer *buffer, void *cb_data)
     const uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
     uint8_t num_records = data[0];
     data++;
+
+    /* Before notifying all the clients holding ACL connections, update the
+     * counter of available packets and send queued packets. */
+    uint16_t completed_packets = 0;
+    for (int i = 0; i < num_records; i++) {
+        completed_packets += read_le16(data + num_records * 2 + i * 2);
+    }
+    _bte_hci_dev_on_completed_packets(completed_packets);
+
     for (int i = 0; i < num_records; i++) {
         BteHciNrOfCompletedPacketsData event;
         event.conn_handle = read_le16(data + i * 2);

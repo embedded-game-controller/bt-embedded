@@ -24,6 +24,7 @@ add_executable(test_commands
     test_cpp_api.cpp
     test_data_matcher.cpp
     test_events.cpp
+    test_hci_dev.cpp
 )
 target_link_libraries(test_commands
     bt-embedded

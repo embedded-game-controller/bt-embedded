@@ -7,6 +7,8 @@
 
 #include <errno.h>
 
+#define BTE_ACL_AVAILABLE_PACKETS_UNSET (uint16_t)0xffff
+
 BteHciDev _bte_hci_dev;
 
 BteHciEventHandler *_bte_hci_dev_handler_for_event(uint8_t event_code)
@@ -150,13 +152,51 @@ int _bte_hci_send_command(BteBuffer *buffer)
     return rc;
 }
 
-int _bte_hci_send_data(BteBuffer *buffer)
+int _bte_hci_send_queued_data()
 {
-    int rc = _bte_backend.hci_send_data(buffer);
-    /* The backend, if needed, will increase the reference count. But we
-     * ourselves don't need this buffer anymore */
-    bte_buffer_unref(buffer);
-    return rc;
+    BteHciDev *dev = &_bte_hci_dev;
+
+    int num_sent_packets = 0;
+    int num_errors = 0;
+    BteBuffer *next = dev->outgoing_acl_packets;
+    for (BteBuffer *b = next;
+         b != NULL && dev->acl_available_packets > 0;
+         b = next, dev->acl_available_packets--) {
+        next = b->next;
+        b->next = NULL;
+        int rc = _bte_backend.hci_send_data(b);
+        if (rc < 0) {
+            num_errors++;
+        } else {
+            num_sent_packets++;
+        }
+
+        /* The backend, if needed, will increase the reference count. But we
+         * ourselves don't need this buffer anymore */
+        bte_buffer_unref(b);
+    }
+    dev->outgoing_acl_packets = next;
+    return num_errors == 0 ? num_sent_packets : -num_errors;
+}
+
+void _bte_hci_dev_on_completed_packets(uint16_t num_packets)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+    dev->acl_available_packets += num_packets;
+    _bte_hci_send_queued_data();
+}
+
+void _bte_hci_dev_set_buffer_size(uint16_t acl_mtu, uint16_t acl_max_packets,
+                                  uint8_t sco_mtu, uint16_t sco_max_packets)
+{
+    BteHciDev *dev = &_bte_hci_dev;
+    dev->acl_mtu = acl_mtu;
+    dev->acl_max_packets = acl_max_packets;
+    dev->sco_mtu = sco_mtu;
+    dev->sco_max_packets = sco_max_packets;
+    if (dev->acl_available_packets == BTE_ACL_AVAILABLE_PACKETS_UNSET) {
+        dev->acl_available_packets = acl_max_packets;
+    }
 }
 
 int _bte_hci_dev_handle_event(BteBuffer *buf)
@@ -238,6 +278,7 @@ int _bte_hci_dev_init()
     }
 
     dev->init_status = BTE_HCI_INIT_STATUS_INITIALIZING;
+    dev->acl_available_packets = BTE_ACL_AVAILABLE_PACKETS_UNSET;
 
     int rc = _bte_backend.init();
     if (rc < 0) return rc;

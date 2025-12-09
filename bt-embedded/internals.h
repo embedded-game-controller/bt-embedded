@@ -6,7 +6,12 @@
 #include "types.h"
 #include "utils.h"
 
+#ifdef __cplusplus
+#include <atomic>
+using namespace std;
+#else
 #include <stdatomic.h>
+#endif
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -112,6 +117,7 @@ typedef struct bte_hci_dev_t {
 
     BteClient *clients[BTE_HCI_MAX_CLIENTS];
     BteAcl *acls[BTE_HCI_MAX_ACL];
+    BteBuffer *outgoing_acl_packets;
 
     BteBdAddr address;
     BteHciSupportedFeatures supported_features;
@@ -120,6 +126,7 @@ typedef struct bte_hci_dev_t {
     uint8_t sco_mtu;
     uint16_t acl_max_packets;
     uint16_t sco_max_packets;
+    uint16_t acl_available_packets;
 
     /* Ongoing inquiry data */
     struct bte_hci_inquiry_data_t {
@@ -240,7 +247,11 @@ BteHciPendingCommand *_bte_hci_dev_find_pending_command_raw(
     const void *buffer, size_t len);
 void _bte_hci_dev_free_command(BteHciPendingCommand *cmd);
 int _bte_hci_send_command(BteBuffer *buffer);
-int _bte_hci_send_data(BteBuffer *buffer);
+
+int _bte_hci_send_queued_data();
+void _bte_hci_dev_on_completed_packets(uint16_t num_packets);
+void _bte_hci_dev_set_buffer_size(uint16_t acl_mtu, uint16_t acl_max_packets,
+                                  uint8_t sco_mtu, uint16_t sco_max_packets);
 
 void _bte_hci_dev_install_event_handler(uint8_t event_code,
                                         BteHciEventHandlerCb handler_cb,
