@@ -43,7 +43,7 @@ public:
     }
 
     void sendData(const Buffer &buffer) {
-        m_queuedEvents.push_back(buffer);
+        m_queuedData.push_back(buffer);
     }
 
     static MockBackend *instance() { return s_instance; }
