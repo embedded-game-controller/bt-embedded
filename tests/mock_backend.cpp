@@ -10,7 +10,7 @@ MockBackend *MockBackend::s_instance = nullptr;
 
 Buffer::Buffer(BteBuffer *buffer)
 {
-    resize(buffer->total_size);
+    resize(buffer->size);
 
     BteBufferReader reader;
     bte_buffer_reader_init(&reader, buffer);
