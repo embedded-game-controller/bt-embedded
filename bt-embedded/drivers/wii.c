@@ -77,34 +77,34 @@ static void on_reset_patched_done(BteHci *hci, const BteHciReply *reply, void *)
     initialization_done(bte_hci_get_client(hci));
 }
 
-static void on_patch_end_done(BteHci *hci, BteBuffer *reply, void *)
+static void on_patch_end_done(BteHci *hci, BteBuffer *reply, void *userdata)
 {
     BTE_DEBUG("%s\n", __func__);
 
-    bte_hci_reset(hci, on_reset_patched_done);
+    bte_hci_reset(hci, on_reset_patched_done, userdata);
 }
 
-static void on_patch_cont_done(BteHci *hci, BteBuffer *reply, void *)
+static void on_patch_cont_done(BteHci *hci, BteBuffer *reply, void *userdata)
 {
     BTE_DEBUG("%s\n", __func__);
 
     bte_hci_vendor_command(hci, HCI_VENDOR_PATCH_END_OCF,
                            wii_patch_1, sizeof(wii_patch_1),
-                           on_patch_end_done);
+                           on_patch_end_done, userdata);
 }
 
-static void on_patch_start_done(BteHci *hci, BteBuffer *reply, void *)
+static void on_patch_start_done(BteHci *hci, BteBuffer *reply, void *userdata)
 {
     BTE_DEBUG("%s\n", __func__);
 
     bte_hci_vendor_command(hci, HCI_VENDOR_PATCH_CONT_OCF,
                            wii_patch_0, sizeof(wii_patch_0),
-                           on_patch_cont_done);
+                           on_patch_cont_done, userdata);
 }
 
 static void on_read_local_features(BteHci *hci,
                                    const BteHciReadLocalFeaturesReply *reply,
-                                   void *)
+                                   void *userdata)
 {
     BTE_DEBUG("%s\n", __func__);
     STOP_ON_FAILURE(hci, reply);
@@ -125,7 +125,7 @@ static void on_read_local_features(BteHci *hci,
     uint8_t kick = 0;
     bte_hci_vendor_command(hci, HCI_VENDOR_PATCH_START_OCF,
                            &kick, sizeof(kick),
-                           on_patch_start_done);
+                           on_patch_start_done, userdata);
 }
 
 static void on_bd_addr_done(BteHci *hci, const BteHciReadBdAddrReply *reply,
@@ -137,7 +137,7 @@ static void on_bd_addr_done(BteHci *hci, const BteHciReadBdAddrReply *reply,
     STOP_ON_FAILURE(hci, reply);
 
     dev->address = reply->address;
-    bte_hci_read_local_features(hci, on_read_local_features);
+    bte_hci_read_local_features(hci, on_read_local_features, userdata);
 }
 
 static void on_read_local_version_done(
@@ -146,7 +146,7 @@ static void on_read_local_version_done(
     BTE_DEBUG("%s\n", __func__);
     STOP_ON_FAILURE(hci, reply);
 
-    bte_hci_read_bd_addr(hci, on_bd_addr_done);
+    bte_hci_read_bd_addr(hci, on_bd_addr_done, userdata);
 }
 
 static void on_buffer_size_done(BteHci *hci,
@@ -170,15 +170,16 @@ static void on_buffer_size_done(BteHci *hci,
      * - read_host_buffer_size
      * - read_local_version
      */
-    bte_hci_read_local_version(hci, on_read_local_version_done);
+    bte_hci_read_local_version(hci, on_read_local_version_done, userdata);
 }
 
-static void on_reset_done(BteHci *hci, const BteHciReply *reply, void *)
+static void on_reset_done(BteHci *hci, const BteHciReply *reply,
+                          void *userdata)
 {
     BTE_DEBUG("%s\n", __func__);
     STOP_ON_FAILURE(hci, reply);
 
-    bte_hci_read_buffer_size(hci, on_buffer_size_done);
+    bte_hci_read_buffer_size(hci, on_buffer_size_done, userdata);
 }
 
 static int wii_init(BteHciDev *dev)
@@ -187,7 +188,7 @@ static int wii_init(BteHciDev *dev)
     bte_client_set_userdata(client, dev);
     BteHci *hci = bte_hci_get(client);
 
-    bte_hci_reset(hci, on_reset_done);
+    bte_hci_reset(hci, on_reset_done, dev);
     return 0;
 }
 

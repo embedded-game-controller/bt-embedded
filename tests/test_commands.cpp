@@ -27,7 +27,8 @@ Buffer createInquiryResult(const BteBdAddr &address)
 
 struct CommandNoReplyRow {
     std::string name;
-    std::function<void(BteHci *hci, BteHciDoneCb callback)> invoker;
+    std::function<void(BteHci *hci, BteHciDoneCb callback, void *userdata)>
+        invoker;
     std::vector<uint8_t> expectedCommand;
 };
 
@@ -56,7 +57,7 @@ TEST_P(TestSyncCommandsNoReply, testSuccessfulCommand) {
         }
     };
 
-    params.invoker(hci, &Callbacks::statusCb);
+    params.invoker(hci, &Callbacks::statusCb, expectedUserdata);
 
     /* Verify that the expected command was sent */
     Buffer expectedCommand{params.expectedCommand};
@@ -84,135 +85,135 @@ TEST_P(TestSyncCommandsNoReply, testSuccessfulCommand) {
 static const std::vector<CommandNoReplyRow> s_commandsWithNoReply {
     {
         "nop",
-        [](BteHci *hci, BteHciDoneCb cb) { bte_hci_nop(hci, cb); },
+        [](BteHci *hci, BteHciDoneCb cb, void *u) { bte_hci_nop(hci, cb, u); },
         {0x0, 0x0, 0}
     },
     {
         "inquiry_cancel",
-        [](BteHci *hci, BteHciDoneCb cb) { bte_hci_inquiry_cancel(hci, cb); },
+        [](BteHci *hci, BteHciDoneCb cb, void *u) { bte_hci_inquiry_cancel(hci, cb, u); },
         {0x2, 0x4, 0}
     },
     {
         "exit_periodic_inquiry",
-        [](BteHci *hci, BteHciDoneCb cb) {
-            bte_hci_exit_periodic_inquiry(hci, cb);
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
+            bte_hci_exit_periodic_inquiry(hci, cb, u);
         },
         {0x4, 0x4, 0}
     },
     {
         "disconnect",
-        [](BteHci *hci, BteHciDoneCb cb) {
-            bte_hci_disconnect(hci, 0x4321, 5, cb);
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
+            bte_hci_disconnect(hci, 0x4321, 5, cb, u);
         },
         {0x6, 0x4, 3, 0x21, 0x43, 5}
     },
     {
         "create_connection_cancel",
-        [](BteHci *hci, BteHciDoneCb cb) {
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
             BteBdAddr address = { 1, 2, 3, 4, 5, 6 };
-            bte_hci_create_connection_cancel(hci, &address, cb);
+            bte_hci_create_connection_cancel(hci, &address, cb, u);
         },
         {0x8, 0x4, 6, 1, 2, 3, 4, 5, 6}
     },
     {
         "write_link_policy_settings",
-        [](BteHci *hci, BteHciDoneCb cb) {
-            bte_hci_write_link_policy_settings(hci, 0x0123, 0x4567, cb); },
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
+            bte_hci_write_link_policy_settings(hci, 0x0123, 0x4567, cb, u); },
         {0xd, 0x8, 4, 0x23, 0x01, 0x67, 0x45}
     },
     {
         "set_event_mask",
-        [](BteHci *hci, BteHciDoneCb cb) {
-            bte_hci_set_event_mask(hci, 0x1122334455667788, cb);
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
+            bte_hci_set_event_mask(hci, 0x1122334455667788, cb, u);
         },
         {0x1, 0xc, 8, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11}
     },
     {
         "reset",
-        [](BteHci *hci, BteHciDoneCb cb) { bte_hci_reset(hci, cb); },
+        [](BteHci *hci, BteHciDoneCb cb, void *u) { bte_hci_reset(hci, cb, u); },
         {0x3, 0xc, 0}
     },
     {
         "set_event_filter_clear",
-        [](BteHci *hci, BteHciDoneCb cb) {
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
             bte_hci_set_event_filter(hci, BTE_HCI_EVENT_FILTER_TYPE_CLEAR,
-                                     0, NULL, cb);
+                                     0, NULL, cb, u);
         },
         {0x5, 0xc, 1, 0}
     },
     {
         "set_event_filter_inquiry_all",
-        [](BteHci *hci, BteHciDoneCb cb) {
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
             bte_hci_set_event_filter(
                 hci, BTE_HCI_EVENT_FILTER_TYPE_INQUIRY_RESULT,
-                BTE_HCI_COND_TYPE_INQUIRY_ALL, NULL, cb);
+                BTE_HCI_COND_TYPE_INQUIRY_ALL, NULL, cb, u);
         },
         {0x5, 0xc, 2, 1, 0}
     },
     {
         "set_event_filter_inquiry_cod",
-        [](BteHci *hci, BteHciDoneCb cb) {
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
             bte_hci_set_event_filter(
                 hci, BTE_HCI_EVENT_FILTER_TYPE_INQUIRY_RESULT,
-                BTE_HCI_COND_TYPE_INQUIRY_COD, "\0\1\2\xf1\xf2\xf3", cb);
+                BTE_HCI_COND_TYPE_INQUIRY_COD, "\0\1\2\xf1\xf2\xf3", cb, u);
         },
         {0x5, 0xc, 8, 1, 1, 0, 1, 2, 0xf1, 0xf2, 0xf3}
     },
     {
         "set_event_filter_inquiry_address",
-        [](BteHci *hci, BteHciDoneCb cb) {
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
             bte_hci_set_event_filter(
                 hci, BTE_HCI_EVENT_FILTER_TYPE_INQUIRY_RESULT,
-                BTE_HCI_COND_TYPE_INQUIRY_ADDRESS, "\0\1\2\3\4\5", cb);
+                BTE_HCI_COND_TYPE_INQUIRY_ADDRESS, "\0\1\2\3\4\5", cb, u);
         },
         {0x5, 0xc, 8, 1, 2, 0, 1, 2, 3, 4, 5}
     },
     {
         "set_event_filter_conn_setup_all_switch_on",
-        [](BteHci *hci, BteHciDoneCb cb) {
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
             uint8_t accept = BTE_HCI_COND_VALUE_CONN_SETUP_SWITCH_ON;
             bte_hci_set_event_filter(
                 hci, BTE_HCI_EVENT_FILTER_TYPE_CONNECTION_SETUP,
-                BTE_HCI_COND_TYPE_CONN_SETUP_ALL, &accept, cb);
+                BTE_HCI_COND_TYPE_CONN_SETUP_ALL, &accept, cb, u);
         },
         {0x5, 0xc, 3, 2, 0, 3}
     },
     {
         "set_event_filter_conn_setup_cod_auto_off",
-        [](BteHci *hci, BteHciDoneCb cb) {
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
             uint8_t params[] = {
                 0, 1, 2, 0xf1, 0xf2, 0xf3, /* COD and mask */
                 BTE_HCI_COND_VALUE_CONN_SETUP_AUTO_OFF
             };
             bte_hci_set_event_filter(
                 hci, BTE_HCI_EVENT_FILTER_TYPE_CONNECTION_SETUP,
-                BTE_HCI_COND_TYPE_CONN_SETUP_COD, params, cb);
+                BTE_HCI_COND_TYPE_CONN_SETUP_COD, params, cb, u);
         },
         {0x5, 0xc, 9, 2, 1, 0, 1, 2, 0xf1, 0xf2, 0xf3, 1}
     },
     {
         "set_event_filter_conn_setup_address_switch_off",
-        [](BteHci *hci, BteHciDoneCb cb) {
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
             uint8_t params[] = {
                 0, 1, 2, 3, 4, 5, /* BT address */
                 BTE_HCI_COND_VALUE_CONN_SETUP_SWITCH_OFF
             };
             bte_hci_set_event_filter(
                 hci, BTE_HCI_EVENT_FILTER_TYPE_CONNECTION_SETUP,
-                BTE_HCI_COND_TYPE_CONN_SETUP_ADDRESS, params, cb);
+                BTE_HCI_COND_TYPE_CONN_SETUP_ADDRESS, params, cb, u);
         },
         {0x5, 0xc, 9, 2, 2, 0, 1, 2, 3, 4, 5, 2}
     },
     {
         "write_pin_type",
-        [](BteHci *hci, BteHciDoneCb cb) {
-            bte_hci_write_pin_type(hci, BTE_HCI_PIN_TYPE_FIXED, cb); },
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
+            bte_hci_write_pin_type(hci, BTE_HCI_PIN_TYPE_FIXED, cb, u); },
         {0xa, 0xc, 1, BTE_HCI_PIN_TYPE_FIXED}
     },
     {
         "write_local_name",
-        [](BteHci *hci, BteHciDoneCb cb) {
-            bte_hci_write_local_name(hci, "A test", cb); },
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
+            bte_hci_write_local_name(hci, "A test", cb, u); },
         []() {
             std::vector<uint8_t> ret{0x13, 0xc, 248, 'A', ' ', 't', 'e', 's', 't'};
             for (int i = ret.size(); i < 248 + 3; i++)
@@ -222,92 +223,92 @@ static const std::vector<CommandNoReplyRow> s_commandsWithNoReply {
     },
     {
         "write_page_timeout",
-        [](BteHci *hci, BteHciDoneCb cb) {
-            bte_hci_write_page_timeout(hci, 0xaabb, cb); },
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
+            bte_hci_write_page_timeout(hci, 0xaabb, cb, u); },
         {0x18, 0xc, 2, 0xbb, 0xaa}
     },
     {
         "write_scan_enable",
-        [](BteHci *hci, BteHciDoneCb cb) {
-            bte_hci_write_scan_enable(hci, BTE_HCI_SCAN_ENABLE_PAGE, cb); },
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
+            bte_hci_write_scan_enable(hci, BTE_HCI_SCAN_ENABLE_PAGE, cb, u); },
         {0x1a, 0xc, 1, BTE_HCI_SCAN_ENABLE_PAGE}
     },
     {
         "write_auth_enable",
-        [](BteHci *hci, BteHciDoneCb cb) {
-            bte_hci_write_auth_enable(hci, BTE_HCI_AUTH_ENABLE_ON, cb); },
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
+            bte_hci_write_auth_enable(hci, BTE_HCI_AUTH_ENABLE_ON, cb, u); },
         {0x20, 0xc, 1, BTE_HCI_AUTH_ENABLE_ON}
     },
     {
         "write_class_of_device",
-        [](BteHci *hci, BteHciDoneCb cb) {
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
             BteClassOfDevice cod{0x11, 0x22, 0x33};
-            bte_hci_write_class_of_device(hci, &cod, cb); },
+            bte_hci_write_class_of_device(hci, &cod, cb, u); },
         {0x24, 0xc, 3, 0x11, 0x22, 0x33}
     },
     {
         "write_auto_flush_timeout",
-        [](BteHci *hci, BteHciDoneCb cb) {
-            bte_hci_write_auto_flush_timeout(hci, 0x0123, 0x4567, cb); },
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
+            bte_hci_write_auto_flush_timeout(hci, 0x0123, 0x4567, cb, u); },
         {0x28, 0xc, 4, 0x23, 0x01, 0x67, 0x45}
     },
     {
         "set_ctrl_to_host_flow_control",
-        [](BteHci *hci, BteHciDoneCb cb) {
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
             bte_hci_set_ctrl_to_host_flow_control(
-                hci, BTE_HCI_CTRL_TO_HOST_FLOW_CONTROL_SYNC, cb); },
+                hci, BTE_HCI_CTRL_TO_HOST_FLOW_CONTROL_SYNC, cb, u); },
         {0x31, 0xc, 1, BTE_HCI_CTRL_TO_HOST_FLOW_CONTROL_SYNC}
     },
     {
         "set_host_buffer_size",
-        [](BteHci *hci, BteHciDoneCb cb) {
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
             bte_hci_set_host_buffer_size(
-                hci, 0x1234, 0x5678, 0x90, 0x4321, cb); },
+                hci, 0x1234, 0x5678, 0x90, 0x4321, cb, u); },
         {0x33, 0xc, 7, 0x34, 0x12, 0x90, 0x78, 0x56, 0x21, 0x43}
     },
     {
         "host_num_comp_packets",
-        [](BteHci *hci, BteHciDoneCb cb) {
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
             bte_hci_host_num_comp_packets(hci, 0x1234, 0x5678);
             /* There's no callback here, so invoke cb manually to make the test
              * happy */
             BteHciReply reply = {0};
-            cb(hci, &reply, bte_client_get_userdata(bte_hci_get_client(hci)));
+            cb(hci, &reply, u);
         },
         {0x35, 0xc, 5, 1, 0x34, 0x12, 0x78, 0x56}
     },
     {
         "write_link_sv_timeout",
-        [](BteHci *hci, BteHciDoneCb cb) {
-            bte_hci_write_link_sv_timeout(hci, 0x0123, 0x4567, cb); },
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
+            bte_hci_write_link_sv_timeout(hci, 0x0123, 0x4567, cb, u); },
         {0x37, 0xc, 4, 0x23, 0x01, 0x67, 0x45}
     },
     {
         "write_current_iac_lap",
-        [](BteHci *hci, BteHciDoneCb cb) {
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
             BteLap laps[] = { 0x112233, 0x334455, 0x667788 };
-            bte_hci_write_current_iac_lap(hci, 3, laps, cb); },
+            bte_hci_write_current_iac_lap(hci, 3, laps, cb, u); },
         {0x3a, 0xc, 10, 3,
             0x33, 0x22, 0x11, 0x55, 0x44, 0x33, 0x88, 0x77, 0x66}
     },
     {
         "write_inquiry_scan_type",
-        [](BteHci *hci, BteHciDoneCb cb) {
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
             bte_hci_write_inquiry_scan_type(
-                hci, BTE_HCI_INQUIRY_SCAN_TYPE_STANDARD, cb); },
+                hci, BTE_HCI_INQUIRY_SCAN_TYPE_STANDARD, cb, u); },
         {0x43, 0xc, 1, BTE_HCI_INQUIRY_SCAN_TYPE_STANDARD}
     },
     {
         "write_inquiry_mode",
-        [](BteHci *hci, BteHciDoneCb cb) {
-            bte_hci_write_inquiry_mode(hci, BTE_HCI_INQUIRY_MODE_RSSI, cb); },
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
+            bte_hci_write_inquiry_mode(hci, BTE_HCI_INQUIRY_MODE_RSSI, cb, u); },
         {0x45, 0xc, 1, BTE_HCI_INQUIRY_MODE_RSSI}
     },
     {
         "write_page_scan_type",
-        [](BteHci *hci, BteHciDoneCb cb) {
+        [](BteHci *hci, BteHciDoneCb cb, void *u) {
             bte_hci_write_page_scan_type(
-                hci, BTE_HCI_PAGE_SCAN_TYPE_INTERLACED, cb); },
+                hci, BTE_HCI_PAGE_SCAN_TYPE_INTERLACED, cb, u); },
         {0x47, 0xc, 1, BTE_HCI_PAGE_SCAN_TYPE_INTERLACED}
     },
 };
@@ -327,9 +328,10 @@ TEST(Commands, Inquiry) {
     uint8_t status = 0;
 
     AsyncCommandInvoker<StoredInquiryReply, BteHciInquiryReply> invoker(
-        [&](BteHci *hci, BteHciDoneCb statusCb, BteHciInquiryCb replyCb) {
+        [&](BteHci *hci, BteHciDoneCb statusCb,
+            BteHciInquiryCb replyCb, void *u) {
             bte_hci_inquiry(hci, requestedLap, requestedLen, requestedMaxResp,
-                            statusCb, replyCb);
+                            statusCb, replyCb, u);
         },
         {HCI_COMMAND_STATUS, 4, status, 1, 0x1, 0x4});
 
@@ -373,9 +375,10 @@ TEST(Commands, InquiryFailed) {
     uint8_t status = HCI_HW_FAILURE;
 
     AsyncCommandInvoker<StoredInquiryReply, BteHciInquiryReply> invoker(
-        [&](BteHci *hci, BteHciDoneCb statusCb, BteHciInquiryCb replyCb) {
+        [&](BteHci *hci, BteHciDoneCb statusCb,
+            BteHciInquiryCb replyCb, void *u) {
             bte_hci_inquiry(hci, requestedLap, requestedLen, requestedMaxResp,
-                            statusCb, replyCb);
+                            statusCb, replyCb, u);
         },
         {HCI_COMMAND_STATUS, 4, status, 1, 0x1, 0x4});
 
@@ -394,11 +397,12 @@ TEST(Commands, PeriodicInquiry) {
     uint8_t status = 0;
 
     AsyncCommandInvoker<StoredInquiryReply, BteHciInquiryReply> invoker(
-        [&](BteHci *hci, BteHciDoneCb statusCb, BteHciInquiryCb replyCb) {
+        [&](BteHci *hci, BteHciDoneCb statusCb,
+            BteHciInquiryCb replyCb, void *u) {
             bte_hci_periodic_inquiry(
                 hci, min_period, max_period,
                 requestedLap, requestedLen, requestedMaxResp,
-                statusCb, replyCb);
+                statusCb, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 4, 1, 0x3, 0x4, status});
 
@@ -500,13 +504,12 @@ TEST(Commands, testCreateConnection) {
             callbacks->statusReplies.push_back({1, reply->status});
         }
     } callbacks;
-    bte_client_set_userdata(client, &callbacks);
 
     /* Issue the first command */
     bte_hci_create_connection(hci, &address0, packet_type0,
                               page_scan_rep_mode0, clock_offset0,
                               allow_role_switch0,
-                              &Callbacks::st0, &Callbacks::cb0);
+                              &Callbacks::st0, &Callbacks::cb0, &callbacks);
     const uint8_t cmdSize = 6 + 2 + 1 + 1 + 2 + 1; /* one reserved byte */
     Buffer expectedCommand{0x5, 0x4, cmdSize};
     expectedCommand += address0;
@@ -523,7 +526,7 @@ TEST(Commands, testCreateConnection) {
     bte_hci_create_connection(hci, &address1, packet_type1,
                               page_scan_rep_mode1, clock_offset1,
                               allow_role_switch1,
-                              &Callbacks::st1, &Callbacks::cb1);
+                              &Callbacks::st1, &Callbacks::cb1, &callbacks);
     expectedCommand = {0x5, 0x4, cmdSize};
     expectedCommand += address1;
     expectedCommand += Buffer{
@@ -570,13 +573,13 @@ TEST(Commands, testCreateConnection) {
     bte_hci_create_connection(hci, &address0, packet_type0,
                               page_scan_rep_mode0, clock_offset0,
                               allow_role_switch0,
-                              &Callbacks::st0, &Callbacks::cb0);
+                              &Callbacks::st0, &Callbacks::cb0, &callbacks);
     backend.sendEvent({HCI_COMMAND_STATUS, 4, status0, 1, 0x5, 0x4});
     bte_handle_events();
     bte_hci_create_connection(hci, &address1, packet_type1,
                               page_scan_rep_mode1, clock_offset1,
                               allow_role_switch1,
-                              &Callbacks::st1, &Callbacks::cb1);
+                              &Callbacks::st1, &Callbacks::cb1, &callbacks);
     backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x5, 0x4});
     backend.sendEvent(
         Buffer{HCI_CONNECTION_COMPLETE, eventSize, status, 0x77, 0x88} +
@@ -636,11 +639,10 @@ TEST(Commands, testAcceptConnection) {
             callbacks->statusReplies.push_back({1, reply->status});
         }
     } callbacks;
-    bte_client_set_userdata(client, &callbacks);
 
     /* Issue the first command */
     bte_hci_accept_connection(hci, &address0, role0,
-                              &Callbacks::st0, &Callbacks::cb0);
+                              &Callbacks::st0, &Callbacks::cb0, &callbacks);
     const uint8_t cmdSize = 6 + 1;
     Buffer expectedCommand{0x9, 0x4, cmdSize};
     expectedCommand += address0;
@@ -654,7 +656,7 @@ TEST(Commands, testAcceptConnection) {
 
     /* Issue a second command, before the completion event for the first */
     bte_hci_accept_connection(hci, &address1, role1,
-                              &Callbacks::st1, &Callbacks::cb1);
+                              &Callbacks::st1, &Callbacks::cb1, &callbacks);
     expectedCommand = Buffer{0x9, 0x4, cmdSize} + address1 + role1;
     ASSERT_EQ(backend.lastCommand(), expectedCommand);
 
@@ -698,8 +700,9 @@ TEST(Commands, testRejectConnection) {
     uint8_t status = 0;
     AsyncCommandInvoker<BteHciRejectConnectionReply> invoker(
         [&](BteHci *hci,
-            BteHciDoneCb statusCb, BteHciRejectConnectionCb replyCb) {
-            bte_hci_reject_connection(hci, &address, reason, statusCb, replyCb);
+            BteHciDoneCb statusCb, BteHciRejectConnectionCb replyCb, void *u) {
+            bte_hci_reject_connection(hci, &address, reason,
+                                      statusCb, replyCb, u);
         },
         {HCI_COMMAND_STATUS, 4, status, 1, 0xa, 0x4});
 
@@ -1051,9 +1054,9 @@ TEST(Commands, testReadClockOffset) {
 
 TEST(Commands, testSetSniffMode) {
     GetterInvoker<BteHciReply> invoker(
-        [&](BteHci *hci, BteHciDoneCb replyCb) {
+        [&](BteHci *hci, BteHciDoneCb replyCb, void *u) {
             bte_hci_set_sniff_mode(
-                hci, 0x0123, 0x4567, 0x8901, 0x2345, 0x6789, replyCb);
+                hci, 0x0123, 0x4567, 0x8901, 0x2345, 0x6789, replyCb, u);
         },
         {HCI_COMMAND_STATUS, 4, 1, 0x3, 0x8, 0});
 
@@ -1068,8 +1071,8 @@ TEST(Commands, testSetSniffMode) {
 TEST(Commands, testReadLinkPolicySettings) {
     BteConnHandle conn = 0x0123;
     GetterInvoker<BteHciReadLinkPolicySettingsReply> invoker(
-        [&](BteHci *hci, BteHciReadLinkPolicySettingsCb replyCb) {
-            bte_hci_read_link_policy_settings(hci, conn, replyCb);
+        [&](BteHci *hci, BteHciReadLinkPolicySettingsCb replyCb, void *u) {
+            bte_hci_read_link_policy_settings(hci, conn, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 5, 1, 0xc, 0x8, 0, 0x23, 0x01, 0x78, 0x56 });
 
@@ -1082,8 +1085,8 @@ TEST(Commands, testReadLinkPolicySettings) {
 
 TEST(Commands, testReadPinType) {
     GetterInvoker<BteHciReadPinTypeReply> invoker(
-        [](BteHci *hci, BteHciReadPinTypeCb replyCb) {
-            bte_hci_read_pin_type(hci, replyCb);
+        [](BteHci *hci, BteHciReadPinTypeCb replyCb, void *u) {
+            bte_hci_read_pin_type(hci, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 4, 1, 0x9, 0xc, 0, 1 });
 
@@ -1292,8 +1295,8 @@ TEST(Commands, testDeleteStoredLinkKeyAll) {
 
 TEST(Commands, testReadLocalName) {
     GetterInvoker<BteHciReadLocalNameReply> invoker(
-        [](BteHci *hci, BteHciReadLocalNameCb replyCb) {
-            bte_hci_read_local_name(hci, replyCb);
+        [](BteHci *hci, BteHciReadLocalNameCb replyCb, void *u) {
+            bte_hci_read_local_name(hci, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 4 + 6, 1, 0x14, 0xc, 0,
         'A', ' ', 't', 'e', 's', 't', '\0'});
@@ -1307,8 +1310,8 @@ TEST(Commands, testReadLocalName) {
 
 TEST(Commands, testReadPageTimeout) {
     GetterInvoker<BteHciReadPageTimeoutReply> invoker(
-        [](BteHci *hci, BteHciReadPageTimeoutCb replyCb) {
-            bte_hci_read_page_timeout(hci, replyCb);
+        [](BteHci *hci, BteHciReadPageTimeoutCb replyCb, void *u) {
+            bte_hci_read_page_timeout(hci, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 6, 1, 0x17, 0xc, 0, 0xaa, 0xbb });
 
@@ -1321,8 +1324,8 @@ TEST(Commands, testReadPageTimeout) {
 
 TEST(Commands, testReadScanEnable) {
     GetterInvoker<BteHciReadScanEnableReply> invoker(
-        [](BteHci *hci, BteHciReadScanEnableCb replyCb) {
-            bte_hci_read_scan_enable(hci, replyCb);
+        [](BteHci *hci, BteHciReadScanEnableCb replyCb, void *u) {
+            bte_hci_read_scan_enable(hci, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 4, 1, 0x19, 0xc, 0, 3 });
 
@@ -1337,8 +1340,8 @@ TEST(Commands, testReadScanEnable) {
 
 TEST(Commands, testReadAuthEnable) {
     GetterInvoker<BteHciReadAuthEnableReply> invoker(
-        [](BteHci *hci, BteHciReadAuthEnableCb replyCb) {
-            bte_hci_read_auth_enable(hci, replyCb);
+        [](BteHci *hci, BteHciReadAuthEnableCb replyCb, void *u) {
+            bte_hci_read_auth_enable(hci, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 4, 1, 0x1f, 0xc, 0, 1 });
 
@@ -1351,8 +1354,8 @@ TEST(Commands, testReadAuthEnable) {
 
 TEST(Commands, testReadClassOfDevice) {
     GetterInvoker<BteHciReadClassOfDeviceReply> invoker(
-        [](BteHci *hci, BteHciReadClassOfDeviceCb replyCb) {
-            bte_hci_read_class_of_device(hci, replyCb);
+        [](BteHci *hci, BteHciReadClassOfDeviceCb replyCb, void *u) {
+            bte_hci_read_class_of_device(hci, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 7, 1, 0x23, 0xc, 0, 0xaa, 0xbb, 0xcc });
 
@@ -1366,8 +1369,8 @@ TEST(Commands, testReadClassOfDevice) {
 TEST(Commands, testReadAutoFlushTimeout) {
     BteConnHandle conn = 0x0123;
     GetterInvoker<BteHciReadAutoFlushTimeoutReply> invoker(
-        [&](BteHci *hci, BteHciReadAutoFlushTimeoutCb replyCb) {
-            bte_hci_read_auto_flush_timeout(hci, conn, replyCb);
+        [&](BteHci *hci, BteHciReadAutoFlushTimeoutCb replyCb, void *u) {
+            bte_hci_read_auto_flush_timeout(hci, conn, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 5, 1, 0x27, 0xc, 0, 0x23, 0x01, 0x78, 0x56 });
 
@@ -1381,8 +1384,8 @@ TEST(Commands, testReadAutoFlushTimeout) {
 TEST(Commands, testReadLinkSvTimeout) {
     BteConnHandle conn = 0x0123;
     GetterInvoker<BteHciReadLinkSvTimeoutReply> invoker(
-        [&](BteHci *hci, BteHciReadLinkSvTimeoutCb replyCb) {
-            bte_hci_read_link_sv_timeout(hci, conn, replyCb);
+        [&](BteHci *hci, BteHciReadLinkSvTimeoutCb replyCb, void *u) {
+            bte_hci_read_link_sv_timeout(hci, conn, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 5, 1, 0x36, 0xc, 0, 0x23, 0x01, 0x78, 0x56 });
 
@@ -1396,8 +1399,8 @@ TEST(Commands, testReadLinkSvTimeout) {
 TEST(Commands, testReadCurrentIacLap) {
     GetterInvoker<StoredTypes::ReadCurrentIacLapReply,
                   BteHciReadCurrentIacLapReply> invoker(
-        [](BteHci *hci, BteHciReadCurrentIacLapCb replyCb) {
-            bte_hci_read_current_iac_lap(hci, replyCb);
+        [](BteHci *hci, BteHciReadCurrentIacLapCb replyCb, void *u) {
+            bte_hci_read_current_iac_lap(hci, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 5 + 3 * 2, 1, 0x39, 0xc, 0, 2,
         0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
@@ -1413,8 +1416,8 @@ TEST(Commands, testReadCurrentIacLap) {
 
 TEST(Commands, testReadInquiryScanType) {
     GetterInvoker<BteHciReadInquiryScanTypeReply> invoker(
-        [](BteHci *hci, BteHciReadInquiryScanTypeCb replyCb) {
-            bte_hci_read_inquiry_scan_type(hci, replyCb);
+        [](BteHci *hci, BteHciReadInquiryScanTypeCb replyCb, void *u) {
+            bte_hci_read_inquiry_scan_type(hci, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 4, 1, 0x42, 0xc, 0, 1 });
 
@@ -1428,8 +1431,8 @@ TEST(Commands, testReadInquiryScanType) {
 
 TEST(Commands, testReadInquiryMode) {
     GetterInvoker<BteHciReadInquiryModeReply> invoker(
-        [](BteHci *hci, BteHciReadInquiryModeCb replyCb) {
-            bte_hci_read_inquiry_mode(hci, replyCb);
+        [](BteHci *hci, BteHciReadInquiryModeCb replyCb, void *u) {
+            bte_hci_read_inquiry_mode(hci, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 4, 1, 0x44, 0xc, 0, 0 });
 
@@ -1443,8 +1446,8 @@ TEST(Commands, testReadInquiryMode) {
 
 TEST(Commands, testReadPageScanType) {
     GetterInvoker<BteHciReadPageScanTypeReply> invoker(
-        [](BteHci *hci, BteHciReadPageScanTypeCb replyCb) {
-            bte_hci_read_page_scan_type(hci, replyCb);
+        [](BteHci *hci, BteHciReadPageScanTypeCb replyCb, void *u) {
+            bte_hci_read_page_scan_type(hci, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 4, 1, 0x46, 0xc, 0, 0 });
 
@@ -1458,8 +1461,8 @@ TEST(Commands, testReadPageScanType) {
 
 TEST(Commands, testReadLocalVersion) {
     GetterInvoker<BteHciReadLocalVersionReply> invoker(
-        [](BteHci *hci, BteHciReadLocalVersionCb replyCb) {
-            bte_hci_read_local_version(hci, replyCb);
+        [](BteHci *hci, BteHciReadLocalVersionCb replyCb, void *u) {
+            bte_hci_read_local_version(hci, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 4 + 8, 1, 0x1, 0x10, 0,
         1, 2, 3, 4, 5, 6, 7, 8});
@@ -1474,8 +1477,8 @@ TEST(Commands, testReadLocalVersion) {
 
 TEST(Commands, testReadLocalFeatures) {
     GetterInvoker<BteHciReadLocalFeaturesReply> invoker(
-        [](BteHci *hci, BteHciReadLocalFeaturesCb replyCb) {
-            bte_hci_read_local_features(hci, replyCb);
+        [](BteHci *hci, BteHciReadLocalFeaturesCb replyCb, void *u) {
+            bte_hci_read_local_features(hci, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 4 + 8, 1, 0x3, 0x10, 0,
         1, 2, 3, 4, 5, 6, 7, 8});
@@ -1489,8 +1492,8 @@ TEST(Commands, testReadLocalFeatures) {
 
 TEST(Commands, testReadBufferSize) {
     GetterInvoker<BteHciReadBufferSizeReply> invoker(
-        [](BteHci *hci, BteHciReadBufferSizeCb replyCb) {
-            bte_hci_read_buffer_size(hci, replyCb);
+        [](BteHci *hci, BteHciReadBufferSizeCb replyCb, void *u) {
+            bte_hci_read_buffer_size(hci, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 4 + 7, 1, 0x5, 0x10, 0, 1, 2, 3, 4, 5, 6, 7});
 
@@ -1503,8 +1506,8 @@ TEST(Commands, testReadBufferSize) {
 
 TEST(Commands, testReadBdAddr) {
     GetterInvoker<BteHciReadBdAddrReply> invoker(
-        [](BteHci *hci, BteHciReadBdAddrCb replyCb) {
-            bte_hci_read_bd_addr(hci, replyCb);
+        [](BteHci *hci, BteHciReadBdAddrCb replyCb, void *u) {
+            bte_hci_read_bd_addr(hci, replyCb, u);
         },
         {HCI_COMMAND_COMPLETE, 4 + 6, 1, 0x9, 0x10, 0, 1, 2, 3, 4, 5, 6});
 

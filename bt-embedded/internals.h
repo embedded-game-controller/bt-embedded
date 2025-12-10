@@ -56,7 +56,7 @@ typedef struct bte_hci_pending_command_t BteHciPendingCommand;
 typedef union bte_hci_command_cb_u BteHciCommandCbUnion;
 
 typedef void (*BteHciCommandCb)(BteHci *hci, BteBuffer *buffer,
-                                void *client_cb);
+                                void *client_cb, void *userdata);
 typedef void (*BteHciCommandStatusCb)(BteHci *hci, uint8_t status,
                                       BteHciPendingCommand *pc);
 
@@ -74,6 +74,7 @@ typedef struct bte_hci_dev_t {
          * other data) to deliver the reply to the correct client */
         BteDataMatcher matcher;
         BteHci *hci;
+        void *userdata;
         union bte_hci_command_cb_u {
             struct bte_hci_cmd_complete_t {
                 /* This callback is used in sync commands to parse the buffer
@@ -91,6 +92,9 @@ typedef struct bte_hci_dev_t {
             struct bte_hci_event_common_read_connection_t {
                 void *client_cb;
             } event_common_read_connection;
+            struct bte_hci_event_inquiry_t {
+                BteHciInquiryCb client_cb;
+            } event_inquiry;
             struct bte_hci_event_conn_complete_t {
                 BteHciCreateConnectionCb client_cb;
             } event_conn_complete;
@@ -154,9 +158,8 @@ struct bte_client_t {
     void *userdata;
 
     struct bte_hci_t {
-        BteInitializedCb initialized_cb;
-
-        BteHciInquiryCb inquiry_cb;
+        BteHciInquiryCb periodic_inquiry_cb;
+        void *periodic_inquiry_userdata;
         BteHciNrOfCompletedPacketsCb nr_of_completed_packets_cb;
         BteHciDisconnectionCompleteCb disconnection_complete_cb;
         BteHciConnectionRequestCb connection_request_cb;
@@ -168,12 +171,19 @@ struct bte_client_t {
          * command till the time that its corresponding command status event
          * has been received. */
         union _bte_hci_last_async_cmd_data_u {
+            struct _bte_hci_tmpdata_initialization_t {
+                BteInitializedCb client_cb;
+                void *userdata;
+            } initialization;
             struct _bte_hci_tmpdata_common_read_connection_t {
                 void *client_cb;
                 BteConnHandle conn_handle;
                 uint8_t event_code;
                 BteHciEventHandlerCb handler_cb;
             } common_read_connection;
+            struct _bte_hci_tmpdata_inquiry_t {
+                BteHciInquiryCb client_cb;
+            } inquiry;
             struct _bte_hci_tmpdata_create_connection_t {
                 BteHciCreateConnectionCb client_cb;
                 BteBdAddr address;
@@ -229,17 +239,18 @@ BteBuffer *_bte_hci_dev_add_command_no_reply(uint16_t ocf, uint8_t ogf,
 BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
                                     uint8_t ogf, uint8_t len,
                                     uint8_t reply_event,
-                                    const BteHciCommandCbUnion *command_cb);
+                                    const BteHciCommandCbUnion *command_cb,
+                                    void *userdata);
 BteBuffer *
 _bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
                                  uint8_t ogf, uint8_t len,
                                  BteHciCommandCb command_cb,
-                                 void *client_cb);
+                                 void *client_cb, void *userdata);
 BteBuffer *
 _bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
                                        uint8_t ogf, uint8_t len,
                                        BteHciCommandStatusCb command_cb,
-                                       void *client_cb);
+                                       void *client_cb, void *userdata);
 
 BteHciPendingCommand *_bte_hci_dev_find_pending_command(
     const BteBuffer *buffer);

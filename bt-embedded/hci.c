@@ -4,13 +4,14 @@
 #include "internals.h"
 #include "logging.h"
 
-static void command_complete_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+static void command_complete_cb(BteHci *hci, BteBuffer *buffer,
+                                void *client_cb, void *userdata)
 {
     if (!client_cb) return;
     BteHciReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
     BteHciDoneCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
 static void write_clock_offset(uint16_t clock_offset, uint8_t *data)
@@ -42,6 +43,7 @@ static void common_read_connection_status_cb(BteHci *hci, uint8_t status,
 
     ev->hci = hci;
     ev->command_cb.event_common_read_connection.client_cb = tmpdata->client_cb;
+    ev->userdata = pc->userdata;
     _bte_hci_dev_install_event_handler(
         tmpdata->event_code, tmpdata->handler_cb, NULL);
 
@@ -55,12 +57,12 @@ static void common_read_connection(BteHci *hci,
                                    uint8_t event_code,
                                    BteHciEventHandlerCb event_handler_cb,
                                    BteHciDoneCb status_cb,
-                                   void *client_cb)
+                                   void *client_cb, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_async_command(
         hci, ocf, ogf,
         HCI_CMD_HDR_LEN + 2, /* 2 for the connection handle */
-        common_read_connection_status_cb, status_cb);
+        common_read_connection_status_cb, status_cb, userdata);
     if (UNLIKELY(!b)) return;
 
     /* In the status callback we read this and setup the event matcher */
@@ -86,14 +88,18 @@ BteClient *bte_hci_get_client(BteHci *hci)
     return hci_client(hci);
 }
 
-void bte_hci_on_initialized(BteHci *hci, BteInitializedCb callback)
+void bte_hci_on_initialized(
+    BteHci *hci, BteInitializedCb callback, void *userdata)
 {
     BteHciDev *dev = &_bte_hci_dev;
-    hci->initialized_cb = callback;
+    struct _bte_hci_tmpdata_initialization_t *tmpdata =
+        &hci->last_async_cmd_data.initialization;
+    tmpdata->client_cb = callback;
+    tmpdata->userdata = userdata;
     if (dev->init_status == BTE_HCI_INIT_STATUS_INITIALIZED ||
         dev->init_status == BTE_HCI_INIT_STATUS_FAILED) {
         callback(hci, dev->init_status == BTE_HCI_INIT_STATUS_INITIALIZED,
-                 hci_userdata(hci));
+                 userdata);
     }
 }
 
@@ -122,15 +128,15 @@ uint16_t bte_hci_get_sco_max_packets(BteHci *hci)
     return _bte_hci_dev.sco_max_packets;
 }
 
-void bte_hci_nop(BteHci *hci, BteHciDoneCb callback)
+void bte_hci_nop(BteHci *hci, BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, 0, 0, 3,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
-static void inquiry_result_cb(BteBuffer *buffer, void *cb_data)
+static void inquiry_result_cb(BteBuffer *buffer, void *)
 {
     BteHciDev *dev = &_bte_hci_dev;
 
@@ -173,49 +179,66 @@ static void inquiry_result_cb(BteBuffer *buffer, void *cb_data)
     dev->inquiry.num_responses = i_tail;
 }
 
-static void inquiry_event_cb(BteBuffer *buffer, void *cb_data)
+static void inquiry_event_cb(BteBuffer *buffer, void *)
 {
     BteHciDev *dev = &_bte_hci_dev;
-    BteHci *hci = cb_data;
-    BteHciInquiryReply reply;
+    BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);
+    if (UNLIKELY(!pc)) return;
 
+    BteHciInquiryReply reply;
     uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_HDR_LEN;
     reply.status = data[0];
     reply.num_responses = dev->inquiry.num_responses;
     reply.responses = dev->inquiry.responses;
 
-    BteHciInquiryCb inquiry_cb = hci->inquiry_cb;
-    _bte_hci_dev_install_event_handler(HCI_INQUIRY_COMPLETE, NULL, NULL);
-    _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT, NULL, NULL);
-    hci->inquiry_cb = NULL;
+    BteHciInquiryCb inquiry_cb = pc->command_cb.event_inquiry.client_cb;
+    BteHci *hci = pc->hci;
+    void *userdata = pc->userdata;
+    _bte_hci_dev_free_command(pc);
 
-    inquiry_cb(hci, &reply, hci_userdata(hci));
+    inquiry_cb(hci, &reply, userdata);
+
     _bte_hci_dev_inquiry_cleanup();
 }
 
 static void inquiry_status_cb(BteHci *hci, uint8_t status,
                               BteHciPendingCommand *pc)
 {
-    if (status == 0) {
-        _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT,
-                                           inquiry_result_cb, hci);
-        _bte_hci_dev_install_event_handler(HCI_INQUIRY_COMPLETE,
-                                           inquiry_event_cb, hci);
-    } else {
-        hci->inquiry_cb = NULL;
-    }
+    if (status != 0) goto error;
+
+    struct _bte_hci_tmpdata_inquiry_t *tmpdata =
+        &hci->last_async_cmd_data.inquiry;
+    BteDataMatcher matcher;
+    bte_data_matcher_init(&matcher);
+    uint8_t event_type = HCI_INQUIRY_COMPLETE;
+    bte_data_matcher_add_rule(&matcher, &event_type, 1, 0);
+    BteHciPendingCommand *ev = _bte_hci_dev_alloc_command(&matcher);
+    if (UNLIKELY(!ev)) goto error;
+
+    ev->hci = hci;
+    ev->command_cb.event_inquiry.client_cb = tmpdata->client_cb;
+    ev->userdata = pc->userdata;
+    _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT,
+                                       inquiry_result_cb, NULL);
+    _bte_hci_dev_install_event_handler(HCI_INQUIRY_COMPLETE,
+                                       inquiry_event_cb, NULL);
+error:
     _bte_hci_dev_free_command(pc);
 }
 
 void bte_hci_inquiry(BteHci *hci, BteLap lap, uint8_t len, uint8_t max_resp,
-                     BteHciDoneCb status_cb, BteHciInquiryCb callback)
+                     BteHciDoneCb status_cb, BteHciInquiryCb callback,
+                     void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_async_command(
         hci, HCI_INQUIRY_OCF, HCI_LINK_CTRL_OGF, HCI_INQUIRY_PLEN,
-        inquiry_status_cb, status_cb);
+        inquiry_status_cb, status_cb, userdata);
     if (UNLIKELY(!b)) return;
 
-    hci->inquiry_cb = callback;
+    struct _bte_hci_tmpdata_inquiry_t *tmpdata =
+        &hci->last_async_cmd_data.inquiry;
+    tmpdata->client_cb = callback;
+
     uint8_t *data = b->data + HCI_CMD_HDR_LEN;
     data[0] = lap & 0xff;
     data[1] = (lap >> 8) & 0xff;
@@ -225,19 +248,27 @@ void bte_hci_inquiry(BteHci *hci, BteLap lap, uint8_t len, uint8_t max_resp,
     _bte_hci_send_command(b);
 }
 
-void bte_hci_inquiry_cancel(BteHci *hci, BteHciDoneCb callback)
+void bte_hci_inquiry_cancel(BteHci *hci, BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci,
         HCI_INQUIRY_CANCEL_OCF, HCI_LINK_CTRL_OGF, HCI_INQUIRY_CANCEL_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
-static void periodic_inquiry_event_cb(BteBuffer *buffer, void *cb_data)
+static bool periodic_inquiry_cb(BteHci *hci, void *cb_data)
+{
+    const BteHciInquiryReply *reply = cb_data;
+    if (hci->periodic_inquiry_cb) {
+        hci->periodic_inquiry_cb(hci, reply, hci->periodic_inquiry_userdata);
+    }
+    return false;
+}
+
+static void periodic_inquiry_event_cb(BteBuffer *buffer, void *)
 {
     BteHciDev *dev = &_bte_hci_dev;
-    BteHci *hci = cb_data;
 
     uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_HDR_LEN;
     BteHciInquiryReply reply;
@@ -245,29 +276,30 @@ static void periodic_inquiry_event_cb(BteBuffer *buffer, void *cb_data)
     reply.num_responses = dev->inquiry.num_responses;
     reply.responses = dev->inquiry.responses;
 
-    hci->inquiry_cb(hci, &reply, hci_userdata(hci));
+    _bte_hci_dev_foreach_hci_client(periodic_inquiry_cb, &reply);
     _bte_hci_dev_inquiry_cleanup();
 }
 
 static void periodic_inquiry_complete_cb(BteHci *hci, BteBuffer *buffer,
-                                         void *client_cb)
+                                         void *client_cb, void *userdata)
 {
     uint8_t status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
     if (status == 0) {
         _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT,
-                                           inquiry_result_cb, hci);
+                                           inquiry_result_cb, NULL);
         _bte_hci_dev_install_event_handler(HCI_INQUIRY_COMPLETE,
-                                           periodic_inquiry_event_cb, hci);
+                                           periodic_inquiry_event_cb, NULL);
     } else {
-        hci->inquiry_cb = NULL;
+        hci->periodic_inquiry_cb = NULL;
     }
-    command_complete_cb(hci, buffer, client_cb);
+    command_complete_cb(hci, buffer, client_cb, userdata);
 }
 
 void bte_hci_periodic_inquiry(BteHci *hci,
                               uint16_t min_period, uint16_t max_period,
                               BteLap lap, uint8_t len, uint8_t max_resp,
-                              BteHciDoneCb status_cb, BteHciInquiryCb callback)
+                              BteHciDoneCb status_cb, BteHciInquiryCb callback,
+                              void *userdata)
 {
     /* The periodic inquiry command does not sent a command status (like the
      * inquiry command), but a command complete. So we treat it like an
@@ -275,11 +307,13 @@ void bte_hci_periodic_inquiry(BteHci *hci,
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci,
         HCI_PERIODIC_INQUIRY_OCF, HCI_LINK_CTRL_OGF, HCI_PERIODIC_INQUIRY_PLEN,
-        periodic_inquiry_complete_cb, status_cb);
+        periodic_inquiry_complete_cb, status_cb, userdata);
     if (UNLIKELY(!b)) return;
 
+    hci->periodic_inquiry_cb = callback;
+    hci->periodic_inquiry_userdata = userdata;
+
     _bte_hci_dev_inquiry_cleanup();
-    hci->inquiry_cb = callback;
     uint8_t *data = b->data + HCI_CMD_HDR_LEN;
     *(uint16_t *)&data[0] = htole16(max_period);
     *(uint16_t *)&data[2] = htole16(min_period);
@@ -292,22 +326,21 @@ void bte_hci_periodic_inquiry(BteHci *hci,
 }
 
 static void exit_periodic_inquiry_cb(BteHci *hci, BteBuffer *buffer,
-                                     void *client_cb)
+                                     void *client_cb, void *userdata)
 {
     _bte_hci_dev_inquiry_cleanup();
-    _bte_hci_dev_install_event_handler(HCI_INQUIRY_COMPLETE, NULL, NULL);
-    _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT, NULL, NULL);
-    hci->inquiry_cb = NULL;
-    command_complete_cb(hci, buffer, client_cb);
+    hci->periodic_inquiry_cb = NULL;
+    command_complete_cb(hci, buffer, client_cb, userdata);
 }
 
-void bte_hci_exit_periodic_inquiry(BteHci *hci, BteHciDoneCb callback)
+void bte_hci_exit_periodic_inquiry(
+    BteHci *hci, BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci,
         HCI_EXIT_PERIODIC_INQUIRY_OCF, HCI_LINK_CTRL_OGF,
         HCI_EXIT_PERIODIC_INQUIRY_PLEN,
-        exit_periodic_inquiry_cb, callback);
+        exit_periodic_inquiry_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
@@ -330,13 +363,14 @@ static void conn_complete_event_cb(BteBuffer *buffer, void *)
 
     BteHciCreateConnectionCb create_connection_cb =
         pc->command_cb.event_conn_complete.client_cb;
+    void *userdata = pc->userdata;
     _bte_hci_dev_free_command(pc);
 
-    create_connection_cb(hci, &reply, hci_userdata(hci));
+    create_connection_cb(hci, &reply, userdata);
 }
 
-static void create_connection_status_cb(BteHci *hci, uint8_t status,
-                                        BteHciPendingCommand *pc)
+static void create_connection_status_cb(
+    BteHci *hci, uint8_t status, BteHciPendingCommand *pc)
 {
     if (status != 0) goto error;
 
@@ -355,6 +389,7 @@ static void create_connection_status_cb(BteHci *hci, uint8_t status,
 
     ev->hci = hci;
     ev->command_cb.event_conn_complete.client_cb = tmpdata->client_cb;
+    ev->userdata = pc->userdata;
     _bte_hci_dev_install_event_handler(HCI_CONNECTION_COMPLETE,
                                        conn_complete_event_cb, NULL);
 
@@ -369,11 +404,12 @@ void bte_hci_create_connection(BteHci *hci,
                                uint16_t clock_offset,
                                bool allow_role_switch,
                                BteHciDoneCb status_cb,
-                               BteHciCreateConnectionCb callback)
+                               BteHciCreateConnectionCb callback,
+                               void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_async_command(
         hci, HCI_CREATE_CONN_OCF, HCI_LINK_CTRL_OGF, HCI_CREATE_CONN_PLEN,
-        create_connection_status_cb, status_cb);
+        create_connection_status_cb, status_cb, userdata);
     if (UNLIKELY(!b)) return;
 
     /* In the status callback we read this and setup the event matcher */
@@ -397,18 +433,19 @@ void bte_hci_create_connection(BteHci *hci,
     _bte_hci_send_command(b);
 }
 
-static void disconnect_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+static void disconnect_cb(
+    BteHci *hci, BteBuffer *buffer, void *client_cb, void *userdata)
 {
     /* TODO: will need to propagate this to the higher layers */
-    command_complete_cb(hci, buffer, client_cb);
+    command_complete_cb(hci, buffer, client_cb, userdata);
 }
 
 void bte_hci_disconnect(BteHci *hci, BteConnHandle handle, uint8_t reason,
-                        BteHciDoneCb callback)
+                        BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_DISCONN_OCF, HCI_LINK_CTRL_OGF, HCI_DISCONN_PLEN,
-        disconnect_cb, callback);
+        disconnect_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     uint8_t *data = b->data + HCI_CMD_HDR_LEN;
     write_le16(handle, data);
@@ -480,12 +517,12 @@ void bte_hci_on_disconnection_complete(
 }
 
 void bte_hci_create_connection_cancel(BteHci *hci, const BteBdAddr *address,
-                                      BteHciDoneCb callback)
+                                      BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_CREATE_CONN_CANCEL_OCF, HCI_LINK_CTRL_OGF,
         HCI_CREATE_CONN_CANCEL_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     memcpy(b->data + HCI_CMD_HDR_LEN, address, sizeof(*address));
     _bte_hci_send_command(b);
@@ -494,13 +531,14 @@ void bte_hci_create_connection_cancel(BteHci *hci, const BteBdAddr *address,
 void bte_hci_accept_connection(BteHci *hci,
                                const BteBdAddr *address, uint8_t role,
                                BteHciDoneCb status_cb,
-                               BteHciAcceptConnectionCb callback)
+                               BteHciAcceptConnectionCb callback,
+                               void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_async_command(
         hci, HCI_ACCEPT_CONN_REQ_OCF, HCI_LINK_CTRL_OGF,
         HCI_ACCEPT_CONN_REQ_PLEN,
         /* The status CB for the create connection fits us as well */
-        create_connection_status_cb, status_cb);
+        create_connection_status_cb, status_cb, userdata);
     if (UNLIKELY(!b)) return;
 
     /* In the status callback we read this and setup the event matcher */
@@ -519,13 +557,14 @@ void bte_hci_accept_connection(BteHci *hci,
 void bte_hci_reject_connection(BteHci *hci,
                                const BteBdAddr *address, uint8_t reason,
                                BteHciDoneCb status_cb,
-                               BteHciRejectConnectionCb callback)
+                               BteHciRejectConnectionCb callback,
+                               void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_async_command(
         hci, HCI_REJECT_CONN_REQ_OCF, HCI_LINK_CTRL_OGF,
         HCI_REJECT_CONN_REQ_PLEN,
         /* The status CB for the create connection fits us as well */
-        create_connection_status_cb, status_cb);
+        create_connection_status_cb, status_cb, userdata);
     if (UNLIKELY(!b)) return;
 
     /* In the status callback we read this and setup the event matcher */
@@ -586,7 +625,7 @@ void bte_hci_on_link_key_request(BteHci *hci, BteHciLinkKeyRequestCb callback)
 }
 
 static void link_key_req_reply_cb(BteHci *hci, BteBuffer *buffer,
-                                  void *client_cb)
+                                  void *client_cb, void *userdata)
 {
     if (!client_cb) return;
     BteHciLinkKeyReqReply reply;
@@ -594,17 +633,18 @@ static void link_key_req_reply_cb(BteHci *hci, BteBuffer *buffer,
     memcpy(&reply.address, buffer->data + HCI_CMD_REPLY_POS_DATA,
            sizeof(reply.address));
     BteHciLinkKeyReqReplyCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
 void bte_hci_link_key_req_reply(BteHci *hci, const BteBdAddr *address,
                                 const BteLinkKey *key,
-                                BteHciLinkKeyReqReplyCb callback)
+                                BteHciLinkKeyReqReplyCb callback,
+                                void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_LINK_KEY_REQ_REP_OCF, HCI_LINK_CTRL_OGF,
         HCI_LINK_KEY_REQ_REP_PLEN,
-        link_key_req_reply_cb, callback);
+        link_key_req_reply_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     memcpy(b->data + HCI_CMD_HDR_LEN, address, sizeof(*address));
     memcpy(b->data + HCI_CMD_HDR_LEN + sizeof(*address), key, sizeof(*key));
@@ -612,12 +652,13 @@ void bte_hci_link_key_req_reply(BteHci *hci, const BteBdAddr *address,
 }
 
 void bte_hci_link_key_req_neg_reply(BteHci *hci, const BteBdAddr *address,
-                                    BteHciLinkKeyReqReplyCb callback)
+                                    BteHciLinkKeyReqReplyCb callback,
+                                    void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_LINK_KEY_REQ_NEG_REP_OCF, HCI_LINK_CTRL_OGF,
         HCI_LINK_KEY_REQ_NEG_REP_PLEN,
-        link_key_req_reply_cb, callback);
+        link_key_req_reply_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     memcpy(b->data + HCI_CMD_HDR_LEN, address, sizeof(*address));
     _bte_hci_send_command(b);
@@ -645,13 +686,14 @@ void bte_hci_on_pin_code_request(BteHci *hci, BteHciPinCodeRequestCb callback)
 
 void bte_hci_pin_code_req_reply(BteHci *hci, const BteBdAddr *address,
                                 const uint8_t *pin, uint8_t len,
-                                BteHciPinCodeReqReplyCb callback)
+                                BteHciPinCodeReqReplyCb callback,
+                                void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_PIN_CODE_REQ_REP_OCF, HCI_LINK_CTRL_OGF,
         HCI_PIN_CODE_REQ_REP_PLEN,
         /* Reuse the callback for the link key, since the code is the same */
-        link_key_req_reply_cb, callback);
+        link_key_req_reply_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     uint8_t *data = b->data + HCI_CMD_HDR_LEN;
     memcpy(data, address, sizeof(*address));
@@ -663,12 +705,13 @@ void bte_hci_pin_code_req_reply(BteHci *hci, const BteBdAddr *address,
 }
 
 void bte_hci_pin_code_req_neg_reply(BteHci *hci, const BteBdAddr *address,
-                                    BteHciPinCodeReqReplyCb callback)
+                                    BteHciPinCodeReqReplyCb callback,
+                                    void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_PIN_CODE_REQ_NEG_REP_OCF, HCI_LINK_CTRL_OGF,
         HCI_PIN_CODE_REQ_NEG_REP_PLEN,
-        link_key_req_reply_cb, callback);
+        link_key_req_reply_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     memcpy(b->data + HCI_CMD_HDR_LEN, address, sizeof(*address));
     _bte_hci_send_command(b);
@@ -687,20 +730,21 @@ static void auth_complete_event_cb(BteBuffer *buffer, void *)
 
     BteHciAuthRequestedCb auth_requested_cb =
         pc->command_cb.event_auth_complete.client_cb;
+    void *userdata = pc->userdata;
     _bte_hci_dev_free_command(pc);
 
-    auth_requested_cb(hci, &reply, hci_userdata(hci));
+    auth_requested_cb(hci, &reply, userdata);
 }
 
 void bte_hci_auth_requested(BteHci *hci,
                             BteConnHandle conn_handle,
                             BteHciDoneCb status_cb,
-                            BteHciAuthRequestedCb callback)
+                            BteHciAuthRequestedCb callback, void *userdata)
 {
     common_read_connection(hci, HCI_AUTH_REQUESTED_OCF, HCI_LINK_CTRL_OGF,
                            conn_handle,
                            HCI_AUTH_COMPLETE, auth_complete_event_cb,
-                           status_cb, callback);
+                           status_cb, callback, userdata);
 }
 
 static void remote_name_req_complete_event_cb(BteBuffer *buffer, void *)
@@ -718,9 +762,10 @@ static void remote_name_req_complete_event_cb(BteBuffer *buffer, void *)
 
     BteHciReadRemoteNameCb read_remote_name_cb =
         pc->command_cb.event_remote_name_req_complete.client_cb;
+    void *userdata = pc->userdata;
     _bte_hci_dev_free_command(pc);
 
-    read_remote_name_cb(hci, &reply, hci_userdata(hci));
+    read_remote_name_cb(hci, &reply, userdata);
 }
 
 static void read_remote_name_status_cb(BteHci *hci, uint8_t status,
@@ -743,6 +788,7 @@ static void read_remote_name_status_cb(BteHci *hci, uint8_t status,
     ev->hci = hci;
     ev->command_cb.event_remote_name_req_complete.client_cb =
         tmpdata->client_cb;
+    ev->userdata = pc->userdata;
     _bte_hci_dev_install_event_handler(
         HCI_REMOTE_NAME_REQ_COMPLETE, remote_name_req_complete_event_cb, NULL);
 
@@ -755,12 +801,12 @@ void bte_hci_read_remote_name(BteHci *hci,
                               uint8_t page_scan_rep_mode,
                               uint16_t clock_offset,
                               BteHciDoneCb status_cb,
-                              BteHciReadRemoteNameCb callback)
+                              BteHciReadRemoteNameCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_async_command(
         hci, HCI_R_REMOTE_NAME_OCF, HCI_LINK_CTRL_OGF,
         HCI_R_REMOTE_NAME_PLEN,
-        read_remote_name_status_cb, status_cb);
+        read_remote_name_status_cb, status_cb, userdata);
     if (UNLIKELY(!b)) return;
 
     /* In the status callback we read this and setup the event matcher */
@@ -794,20 +840,21 @@ static void read_remote_features_complete_event_cb(BteBuffer *buffer, void *)
 
     BteHciReadRemoteFeaturesCb read_remote_features_cb =
         pc->command_cb.event_read_remote_features_complete.client_cb;
+    void *userdata = pc->userdata;
     _bte_hci_dev_free_command(pc);
 
-    read_remote_features_cb(hci, &reply, hci_userdata(hci));
+    read_remote_features_cb(hci, &reply, userdata);
 }
 
-void bte_hci_read_remote_features(BteHci *hci, BteConnHandle conn_handle,
-                                  BteHciDoneCb status_cb,
-                                  BteHciReadRemoteFeaturesCb callback)
+void bte_hci_read_remote_features(
+    BteHci *hci, BteConnHandle conn_handle, BteHciDoneCb status_cb,
+    BteHciReadRemoteFeaturesCb callback, void *userdata)
 {
     common_read_connection(
         hci, HCI_R_REMOTE_FEATURES_OCF, HCI_LINK_CTRL_OGF, conn_handle,
         HCI_READ_REMOTE_FEATURES_COMPLETE,
         read_remote_features_complete_event_cb,
-        status_cb, callback);
+        status_cb, callback, userdata);
 }
 
 static void read_remote_version_info_complete_event_cb(BteBuffer *buffer, void *)
@@ -830,21 +877,21 @@ static void read_remote_version_info_complete_event_cb(BteBuffer *buffer, void *
 
     BteHciReadRemoteVersionInfoCb read_remote_version_info_cb =
         pc->command_cb.event_read_remote_version_info_complete.client_cb;
+    void *userdata = pc->userdata;
     _bte_hci_dev_free_command(pc);
 
-    read_remote_version_info_cb(hci, &reply, hci_userdata(hci));
+    read_remote_version_info_cb(hci, &reply, userdata);
 }
 
-void bte_hci_read_remote_version_info(BteHci *hci,
-                                      BteConnHandle conn_handle,
-                                      BteHciDoneCb status_cb,
-                                      BteHciReadRemoteVersionInfoCb callback)
+void bte_hci_read_remote_version_info(
+    BteHci *hci, BteConnHandle conn_handle, BteHciDoneCb status_cb,
+    BteHciReadRemoteVersionInfoCb callback, void *userdata)
 {
     common_read_connection(
         hci, HCI_R_REMOTE_VERSION_INFO_OCF, HCI_LINK_CTRL_OGF, conn_handle,
         HCI_READ_REMOTE_VERSION_COMPLETE,
         read_remote_version_info_complete_event_cb,
-        status_cb, callback);
+        status_cb, callback, userdata);
 }
 
 static void read_clock_offset_complete_event_cb(BteBuffer *buffer, void *)
@@ -861,30 +908,30 @@ static void read_clock_offset_complete_event_cb(BteBuffer *buffer, void *)
 
     BteHciReadClockOffsetCb read_clock_offset_cb =
         pc->command_cb.event_read_clock_offset_complete.client_cb;
+    void *userdata = pc->userdata;
     _bte_hci_dev_free_command(pc);
 
-    read_clock_offset_cb(hci, &reply, hci_userdata(hci));
+    read_clock_offset_cb(hci, &reply, userdata);
 }
 
-void bte_hci_read_clock_offset(BteHci *hci,
-                               BteConnHandle conn_handle,
-                               BteHciDoneCb status_cb,
-                               BteHciReadClockOffsetCb callback)
+void bte_hci_read_clock_offset(
+    BteHci *hci, BteConnHandle conn_handle,
+    BteHciDoneCb status_cb, BteHciReadClockOffsetCb callback, void *userdata)
 {
     common_read_connection(
         hci, HCI_R_CLOCK_OFFSET_OCF, HCI_LINK_CTRL_OGF, conn_handle,
         HCI_READ_CLOCK_OFFSET_COMPLETE, read_clock_offset_complete_event_cb,
-        status_cb, callback);
+        status_cb, callback, userdata);
 }
 
 void bte_hci_set_sniff_mode(BteHci *hci, BteConnHandle conn_handle,
                             uint16_t min_interval, uint16_t max_interval,
                             uint16_t attempt_slots, uint16_t timeout,
-                            BteHciDoneCb status_cb)
+                            BteHciDoneCb status_cb, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_async_command(
         hci, HCI_SNIFF_MODE_OCF, HCI_LINK_POLICY_OGF, HCI_SNIFF_MODE_PLEN,
-        NULL, status_cb);
+        NULL, status_cb, userdata);
     if (UNLIKELY(!b)) return;
     uint8_t *data = b->data + HCI_CMD_HDR_LEN;
     write_le16(conn_handle, data);
@@ -949,7 +996,7 @@ void bte_hci_on_mode_change(BteHci *hci, BteConnHandle conn_handle,
 }
 
 static void read_link_policy_settings_cb(BteHci *hci, BteBuffer *buffer,
-                                         void *client_cb)
+                                         void *client_cb, void *userdata)
 {
     BteHciReadLinkPolicySettingsReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
@@ -957,16 +1004,16 @@ static void read_link_policy_settings_cb(BteHci *hci, BteBuffer *buffer,
     reply.conn_handle = read_le16(data);
     reply.settings = read_le16(data + 2);
     BteHciReadLinkPolicySettingsCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_link_policy_settings(BteHci *hci,
-                                       BteConnHandle conn_handle,
-                                       BteHciReadLinkPolicySettingsCb callback)
+void bte_hci_read_link_policy_settings(
+    BteHci *hci, BteConnHandle conn_handle,
+    BteHciReadLinkPolicySettingsCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_LINK_POLICY_OCF, HCI_LINK_POLICY_OGF, HCI_R_LINK_POLICY_PLEN,
-        read_link_policy_settings_cb, callback);
+        read_link_policy_settings_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     write_le16(conn_handle, b->data + HCI_CMD_HDR_LEN);
     _bte_hci_send_command(b);
@@ -975,12 +1022,12 @@ void bte_hci_read_link_policy_settings(BteHci *hci,
 void bte_hci_write_link_policy_settings(BteHci *hci,
                                         BteConnHandle conn_handle,
                                         BteHciLinkPolicySettings settings,
-                                        BteHciDoneCb callback)
+                                        BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_LINK_POLICY_OCF, HCI_LINK_POLICY_OGF,
         HCI_W_LINK_POLICY_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     write_le16(conn_handle, b->data + HCI_CMD_HDR_LEN);
     write_le16(settings, b->data + HCI_CMD_HDR_LEN + 2);
@@ -988,28 +1035,28 @@ void bte_hci_write_link_policy_settings(BteHci *hci,
 }
 
 void bte_hci_set_event_mask(BteHci *hci, BteHciEventMask mask,
-                            BteHciDoneCb callback)
+                            BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_SET_EV_MASK_OCF, HCI_HC_BB_OGF, HCI_SET_EV_MASK_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     uint64_t le_mask = htole64(mask);
     memcpy(b->data + HCI_CMD_HDR_LEN, &le_mask, sizeof(le_mask));
     _bte_hci_send_command(b);
 }
 
-void bte_hci_reset(BteHci *hci, BteHciDoneCb callback)
+void bte_hci_reset(BteHci *hci, BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_RESET_OCF, HCI_HC_BB_OGF, HCI_RESET_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
 void bte_hci_set_event_filter(BteHci *hci, uint8_t filter_type,
                               uint8_t cond_type, const void *filter_data,
-                              BteHciDoneCb callback)
+                              BteHciDoneCb callback, void *userdata)
 {
     uint8_t cond_len = 0;
     switch (filter_type) {
@@ -1035,7 +1082,7 @@ void bte_hci_set_event_filter(BteHci *hci, uint8_t filter_type,
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_SET_EV_FILTER_OCF, HCI_HC_BB_OGF,
         HCI_SET_EV_FILTER_PLEN + filter_len,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     uint8_t *data = b->data + HCI_CMD_HDR_LEN;
     data[0] = filter_type;
@@ -1048,29 +1095,31 @@ void bte_hci_set_event_filter(BteHci *hci, uint8_t filter_type,
     _bte_hci_send_command(b);
 }
 
-static void read_pin_type_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+static void read_pin_type_cb(
+    BteHci *hci, BteBuffer *buffer, void *client_cb, void *userdata)
 {
     BteHciReadPinTypeReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
     reply.pin_type = buffer->data[HCI_CMD_REPLY_POS_DATA];
     BteHciReadPinTypeCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_pin_type(BteHci *hci, BteHciReadPinTypeCb callback)
+void bte_hci_read_pin_type(
+    BteHci *hci, BteHciReadPinTypeCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_PIN_TYPE_OCF, HCI_HC_BB_OGF, HCI_R_PIN_TYPE_PLEN,
-        read_pin_type_cb, callback);
+        read_pin_type_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
 void bte_hci_write_pin_type(BteHci *hci, uint8_t pin_type,
-                            BteHciDoneCb callback)
+                            BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_PIN_TYPE_OCF, HCI_HC_BB_OGF, HCI_W_PIN_TYPE_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     b->data[HCI_CMD_HDR_LEN] = pin_type;
     _bte_hci_send_command(b);
@@ -1101,7 +1150,8 @@ static void return_link_keys_cb(BteBuffer *buffer, void *cb_data)
     dev->stored_keys.num_responses += num_responses;
 }
 
-static void read_stored_link_key_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+static void read_stored_link_key_cb(
+    BteHci *hci, BteBuffer *buffer, void *client_cb, void *userdata)
 {
     BteHciDev *dev = &_bte_hci_dev;
 
@@ -1116,19 +1166,21 @@ static void read_stored_link_key_cb(BteHci *hci, BteBuffer *buffer, void *client
         reply.num_keys = dev->stored_keys.num_responses;
         reply.stored_keys = dev->stored_keys.responses;
         BteHciReadStoredLinkKeyCb callback = client_cb;
-        callback(hci, &reply, hci_userdata(hci));
+        callback(hci, &reply, userdata);
     }
 
     _bte_hci_dev_install_event_handler(HCI_RETURN_LINK_KEYS, NULL, NULL);
     _bte_hci_dev_stored_keys_cleanup();
 }
 
-void bte_hci_read_stored_link_key(BteHci *hci, const BteBdAddr *address,
-                                  BteHciReadStoredLinkKeyCb callback)
+void bte_hci_read_stored_link_key(
+    BteHci *hci, const BteBdAddr *address,
+    BteHciReadStoredLinkKeyCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_STORED_LINK_KEY_OCF, HCI_HC_BB_OGF,
-        HCI_R_STORED_LINK_KEY_PLEN, read_stored_link_key_cb, callback);
+        HCI_R_STORED_LINK_KEY_PLEN,
+        read_stored_link_key_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
 
     _bte_hci_dev_stored_keys_cleanup();
@@ -1143,7 +1195,7 @@ void bte_hci_read_stored_link_key(BteHci *hci, const BteBdAddr *address,
 }
 
 static void write_stored_link_key_cb(BteHci *hci, BteBuffer *buffer,
-                                     void *client_cb)
+                                     void *client_cb, void *userdata)
 {
     if (!client_cb) return;
     BteHciWriteStoredLinkKeyReply reply;
@@ -1151,18 +1203,18 @@ static void write_stored_link_key_cb(BteHci *hci, BteBuffer *buffer,
     uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
     reply.num_keys = data[0];
     BteHciWriteStoredLinkKeyCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_write_stored_link_key(BteHci *hci, int num_keys,
-                                   const BteHciStoredLinkKey *keys,
-                                   BteHciWriteStoredLinkKeyCb callback)
+void bte_hci_write_stored_link_key(
+    BteHci *hci, int num_keys, const BteHciStoredLinkKey *keys,
+    BteHciWriteStoredLinkKeyCb callback, void *userdata)
 {
     const uint8_t elem_size = sizeof(BteBdAddr) + sizeof(BteLinkKey);
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_STORED_LINK_KEY_OCF, HCI_HC_BB_OGF,
         HCI_CMD_HDR_LEN + num_keys * elem_size, write_stored_link_key_cb,
-        callback);
+        callback, userdata);
     if (UNLIKELY(!b)) return;
 
     uint8_t *ptr_addr = b->data + HCI_CMD_HDR_LEN;
@@ -1177,7 +1229,7 @@ void bte_hci_write_stored_link_key(BteHci *hci, int num_keys,
 }
 
 static void delete_stored_link_key_cb(BteHci *hci, BteBuffer *buffer,
-                                      void *client_cb)
+                                      void *client_cb, void *userdata)
 {
     if (!client_cb) return;
     BteHciDeleteStoredLinkKeyReply reply;
@@ -1185,15 +1237,17 @@ static void delete_stored_link_key_cb(BteHci *hci, BteBuffer *buffer,
     uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
     reply.num_keys = read_le16(data);
     BteHciDeleteStoredLinkKeyCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_delete_stored_link_key(BteHci *hci, const BteBdAddr *address,
-                                    BteHciDeleteStoredLinkKeyCb callback)
+void bte_hci_delete_stored_link_key(
+    BteHci *hci, const BteBdAddr *address,
+    BteHciDeleteStoredLinkKeyCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_D_STORED_LINK_KEY_OCF, HCI_HC_BB_OGF,
-        HCI_D_STORED_LINK_KEY_PLEN, delete_stored_link_key_cb, callback);
+        HCI_D_STORED_LINK_KEY_PLEN,
+        delete_stored_link_key_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
 
     uint8_t *data = b->data + HCI_CMD_HDR_LEN;
@@ -1205,17 +1259,18 @@ void bte_hci_delete_stored_link_key(BteHci *hci, const BteBdAddr *address,
 }
 
 void bte_hci_write_local_name(BteHci *hci, const char *name,
-                              BteHciDoneCb callback)
+                              BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_LOCAL_NAME_OCF, HCI_HC_BB_OGF, HCI_W_LOCAL_NAME_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     strncpy((char *)b->data + HCI_CMD_HDR_LEN, name, HCI_MAX_NAME_LEN);
     _bte_hci_send_command(b);
 }
 
-static void read_local_name_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+static void read_local_name_cb(
+    BteHci *hci, BteBuffer *buffer, void *client_cb, void *userdata)
 {
     uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
 
@@ -1224,135 +1279,142 @@ static void read_local_name_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
     strncpy(reply.name, (const char *)data, sizeof(reply.name) - 1);
     reply.name[sizeof(reply.name) - 1] = '\0';
     BteHciReadLocalNameCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_local_name(BteHci *hci, BteHciReadLocalNameCb callback)
+void bte_hci_read_local_name(
+    BteHci *hci, BteHciReadLocalNameCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_LOCAL_NAME_OCF, HCI_HC_BB_OGF, HCI_R_LOCAL_NAME_PLEN,
-        read_local_name_cb, callback);
+        read_local_name_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
-static void read_page_timeout_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+static void read_page_timeout_cb(
+    BteHci *hci, BteBuffer *buffer, void *client_cb, void *userdata)
 {
     const uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
     BteHciReadPageTimeoutReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
     reply.page_timeout = read_le16(data);
     BteHciReadPageTimeoutCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_page_timeout(BteHci *hci, BteHciReadPageTimeoutCb callback)
+void bte_hci_read_page_timeout(
+    BteHci *hci, BteHciReadPageTimeoutCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_PAGE_TIMEOUT_OCF, HCI_HC_BB_OGF, HCI_R_PAGE_TIMEOUT_PLEN,
-        read_page_timeout_cb, callback);
+        read_page_timeout_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
 void bte_hci_write_page_timeout(BteHci *hci, uint16_t page_timeout,
-                                BteHciDoneCb callback)
+                                BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_PAGE_TIMEOUT_OCF, HCI_HC_BB_OGF, HCI_W_PAGE_TIMEOUT_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     write_le16(page_timeout, b->data + HCI_CMD_HDR_LEN);
     _bte_hci_send_command(b);
 }
 
-static void read_scan_enable_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+static void read_scan_enable_cb(
+    BteHci *hci, BteBuffer *buffer, void *client_cb, void *userdata)
 {
     BteHciReadScanEnableReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
     reply.scan_enable = buffer->data[HCI_CMD_REPLY_POS_DATA];
     BteHciReadScanEnableCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_scan_enable(BteHci *hci, BteHciReadScanEnableCb callback)
+void bte_hci_read_scan_enable(BteHci *hci, BteHciReadScanEnableCb callback,
+                              void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_SCAN_EN_OCF, HCI_HC_BB_OGF, HCI_R_SCAN_EN_PLEN,
-        read_scan_enable_cb, callback);
+        read_scan_enable_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
 void bte_hci_write_scan_enable(BteHci *hci, uint8_t scan_enable,
-                                BteHciDoneCb callback)
+                                BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_SCAN_EN_OCF, HCI_HC_BB_OGF, HCI_W_SCAN_EN_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     b->data[HCI_CMD_HDR_LEN] = scan_enable;
     _bte_hci_send_command(b);
 }
 
-static void read_auth_enable_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+static void read_auth_enable_cb(
+    BteHci *hci, BteBuffer *buffer, void *client_cb, void *userdata)
 {
     BteHciReadAuthEnableReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
     reply.auth_enable = buffer->data[HCI_CMD_REPLY_POS_DATA];
     BteHciReadAuthEnableCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_auth_enable(BteHci *hci, BteHciReadAuthEnableCb callback)
+void bte_hci_read_auth_enable(
+    BteHci *hci, BteHciReadAuthEnableCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_AUTH_ENABLE_OCF, HCI_HC_BB_OGF, HCI_R_AUTH_ENABLE_PLEN,
-        read_auth_enable_cb, callback);
+        read_auth_enable_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
 void bte_hci_write_auth_enable(BteHci *hci, uint8_t auth_enable,
-                               BteHciDoneCb callback)
+                               BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_AUTH_ENABLE_OCF, HCI_HC_BB_OGF, HCI_W_AUTH_ENABLE_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     b->data[HCI_CMD_HDR_LEN] = auth_enable;
     _bte_hci_send_command(b);
 }
 
 static void read_class_of_device_cb(BteHci *hci, BteBuffer *buffer,
-                                    void *client_cb)
+                                    void *client_cb, void *userdata)
 {
     BteHciReadClassOfDeviceReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
     memcpy(&reply.cod, buffer->data + HCI_CMD_REPLY_POS_DATA,
            sizeof(reply.cod));
     BteHciReadClassOfDeviceCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_class_of_device(BteHci *hci,
-                                  BteHciReadClassOfDeviceCb callback)
+void bte_hci_read_class_of_device(
+    BteHci *hci, BteHciReadClassOfDeviceCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_COD_OCF, HCI_HC_BB_OGF, HCI_R_COD_PLEN,
-        read_class_of_device_cb, callback);
+        read_class_of_device_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
 void bte_hci_write_class_of_device(BteHci *hci, const BteClassOfDevice *cod,
-                                   BteHciDoneCb callback)
+                                   BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_COD_OCF, HCI_HC_BB_OGF, HCI_W_COD_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     memcpy(b->data + HCI_CMD_HDR_LEN, cod, sizeof(*cod));
     _bte_hci_send_command(b);
 }
 
 static void read_auto_flush_timeout_cb(BteHci *hci, BteBuffer *buffer,
-                                       void *client_cb)
+                                       void *client_cb, void *userdata)
 {
     BteHciReadAutoFlushTimeoutReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
@@ -1360,16 +1422,16 @@ static void read_auto_flush_timeout_cb(BteHci *hci, BteBuffer *buffer,
     reply.conn_handle = read_le16(data);
     reply.flush_timeout = read_le16(data + 2);
     BteHciReadAutoFlushTimeoutCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_auto_flush_timeout(BteHci *hci,
-                                     BteConnHandle conn_handle,
-                                     BteHciReadAutoFlushTimeoutCb callback)
+void bte_hci_read_auto_flush_timeout(
+    BteHci *hci, BteConnHandle conn_handle,
+    BteHciReadAutoFlushTimeoutCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_FLUSHTO_OCF, HCI_HC_BB_OGF, HCI_R_FLUSHTO_PLEN,
-        read_auto_flush_timeout_cb, callback);
+        read_auto_flush_timeout_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     write_le16(conn_handle, b->data + HCI_CMD_HDR_LEN);
     _bte_hci_send_command(b);
@@ -1378,23 +1440,23 @@ void bte_hci_read_auto_flush_timeout(BteHci *hci,
 void bte_hci_write_auto_flush_timeout(BteHci *hci,
                                       BteConnHandle conn_handle,
                                       uint16_t timeout,
-                                      BteHciDoneCb callback)
+                                      BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_FLUSHTO_OCF, HCI_HC_BB_OGF, HCI_W_FLUSHTO_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     write_le16(conn_handle, b->data + HCI_CMD_HDR_LEN);
     write_le16(timeout, b->data + HCI_CMD_HDR_LEN + 2);
     _bte_hci_send_command(b);
 }
 
-void bte_hci_set_ctrl_to_host_flow_control(BteHci *hci, uint8_t enable,
-                                           BteHciDoneCb callback)
+void bte_hci_set_ctrl_to_host_flow_control(
+    BteHci *hci, uint8_t enable, BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_SET_HC_TO_H_FC_OCF, HCI_HC_BB_OGF, HCI_SET_HC_TO_H_FC_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     b->data[HCI_CMD_HDR_LEN] = enable;
     _bte_hci_send_command(b);
@@ -1405,11 +1467,11 @@ void bte_hci_set_host_buffer_size(BteHci *hci,
                                   uint16_t acl_packets,
                                   uint8_t sync_packet_len,
                                   uint16_t sync_packets,
-                                  BteHciDoneCb callback)
+                                  BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_HOST_BUF_SIZE_OCF, HCI_HC_BB_OGF, HCI_HOST_BUF_SIZE_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     uint8_t *data = b->data + HCI_CMD_HDR_LEN;
     write_le16(acl_packet_len, data);
@@ -1420,7 +1482,7 @@ void bte_hci_set_host_buffer_size(BteHci *hci,
 }
 
 static void read_current_iac_lap_cb(BteHci *hci, BteBuffer *buffer,
-                                    void *client_cb)
+                                    void *client_cb, void *userdata)
 {
     BteHciReadCurrentIacLapReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
@@ -1437,27 +1499,27 @@ static void read_current_iac_lap_cb(BteHci *hci, BteBuffer *buffer,
     }
     reply.laps = laps;
     BteHciReadCurrentIacLapCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
     free(laps);
 }
 
-void bte_hci_read_current_iac_lap(BteHci *hci,
-                                  BteHciReadCurrentIacLapCb callback)
+void bte_hci_read_current_iac_lap(
+    BteHci *hci, BteHciReadCurrentIacLapCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_CUR_IACLAP_OCF, HCI_HC_BB_OGF, HCI_R_CUR_IACLAP_PLEN,
-        read_current_iac_lap_cb, callback);
+        read_current_iac_lap_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
 void bte_hci_write_current_iac_lap(BteHci *hci,
                                    uint8_t num_laps, const BteLap *laps,
-                                   BteHciDoneCb callback)
+                                   BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_CUR_IACLAP_OCF, HCI_HC_BB_OGF,
         HCI_W_CUR_IACLAP_PLEN + 3 * num_laps,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     uint8_t *data = b->data + HCI_CMD_HDR_LEN;
     data[0] = num_laps; data++;
@@ -1488,7 +1550,7 @@ void bte_hci_host_num_comp_packets(BteHci *hci,
 }
 
 static void read_link_sv_timeout_cb(BteHci *hci, BteBuffer *buffer,
-                                       void *client_cb)
+                                    void *client_cb, void *userdata)
 {
     BteHciReadLinkSvTimeoutReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
@@ -1496,17 +1558,17 @@ static void read_link_sv_timeout_cb(BteHci *hci, BteBuffer *buffer,
     reply.conn_handle = read_le16(data);
     reply.sv_timeout = read_le16(data + 2);
     BteHciReadLinkSvTimeoutCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_link_sv_timeout(BteHci *hci,
-                                     BteConnHandle conn_handle,
-                                     BteHciReadLinkSvTimeoutCb callback)
+void bte_hci_read_link_sv_timeout(
+    BteHci *hci, BteConnHandle conn_handle,
+    BteHciReadLinkSvTimeoutCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_LINK_SV_TIMEOUT_OCF, HCI_HC_BB_OGF,
         HCI_R_LINK_SV_TIMEOUT_PLEN,
-        read_link_sv_timeout_cb, callback);
+        read_link_sv_timeout_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     write_le16(conn_handle, b->data + HCI_CMD_HDR_LEN);
     _bte_hci_send_command(b);
@@ -1515,12 +1577,12 @@ void bte_hci_read_link_sv_timeout(BteHci *hci,
 void bte_hci_write_link_sv_timeout(BteHci *hci,
                                    BteConnHandle conn_handle,
                                    uint16_t timeout,
-                                   BteHciDoneCb callback)
+                                   BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_LINK_SV_TIMEOUT_OCF, HCI_HC_BB_OGF,
         HCI_W_LINK_SV_TIMEOUT_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     write_le16(conn_handle, b->data + HCI_CMD_HDR_LEN);
     write_le16(timeout, b->data + HCI_CMD_HDR_LEN + 2);
@@ -1528,98 +1590,99 @@ void bte_hci_write_link_sv_timeout(BteHci *hci,
 }
 
 static void read_inquiry_scan_type_cb(BteHci *hci, BteBuffer *buffer,
-                                      void *client_cb)
+                                      void *client_cb, void *userdata)
 {
     BteHciReadInquiryScanTypeReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
     reply.inquiry_scan_type = buffer->data[HCI_CMD_REPLY_POS_DATA];
     BteHciReadInquiryScanTypeCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_inquiry_scan_type(BteHci *hci,
-                                    BteHciReadInquiryScanTypeCb callback)
+void bte_hci_read_inquiry_scan_type(
+    BteHci *hci, BteHciReadInquiryScanTypeCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_INQUIRY_SCAN_TYPE_OCF, HCI_HC_BB_OGF, HCI_CMD_HDR_LEN,
-        read_inquiry_scan_type_cb, callback);
+        read_inquiry_scan_type_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
 void bte_hci_write_inquiry_scan_type(BteHci *hci, uint8_t inquiry_scan_type,
-                                     BteHciDoneCb callback)
+                                     BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_INQUIRY_SCAN_TYPE_OCF, HCI_HC_BB_OGF,
         HCI_W_INQUIRY_SCAN_TYPE_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     b->data[HCI_CMD_HDR_LEN] = inquiry_scan_type;
     _bte_hci_send_command(b);
 }
 
 static void read_inquiry_mode_cb(BteHci *hci, BteBuffer *buffer,
-                                 void *client_cb)
+                                 void *client_cb, void *userdata)
 {
     BteHciReadInquiryModeReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
     reply.inquiry_mode = buffer->data[HCI_CMD_REPLY_POS_DATA];
     BteHciReadInquiryModeCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_inquiry_mode(BteHci *hci, BteHciReadInquiryModeCb callback)
+void bte_hci_read_inquiry_mode(
+    BteHci *hci, BteHciReadInquiryModeCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_INQUIRY_MODE_OCF, HCI_HC_BB_OGF, HCI_CMD_HDR_LEN,
-        read_inquiry_mode_cb, callback);
+        read_inquiry_mode_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
 void bte_hci_write_inquiry_mode(BteHci *hci, uint8_t inquiry_mode,
-                                BteHciDoneCb callback)
+                                BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_INQUIRY_MODE_OCF, HCI_HC_BB_OGF, HCI_W_INQUIRY_MODE_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     b->data[HCI_CMD_HDR_LEN] = inquiry_mode;
     _bte_hci_send_command(b);
 }
 
 static void read_page_scan_type_cb(BteHci *hci, BteBuffer *buffer,
-                                   void *client_cb)
+                                   void *client_cb, void *userdata)
 {
     BteHciReadPageScanTypeReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
     reply.page_scan_type = buffer->data[HCI_CMD_REPLY_POS_DATA];
     BteHciReadPageScanTypeCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_page_scan_type(BteHci *hci,
-                                 BteHciReadPageScanTypeCb callback)
+void bte_hci_read_page_scan_type(
+    BteHci *hci, BteHciReadPageScanTypeCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_PAGE_SCAN_TYPE_OCF, HCI_HC_BB_OGF, HCI_CMD_HDR_LEN,
-        read_page_scan_type_cb, callback);
+        read_page_scan_type_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
 void bte_hci_write_page_scan_type(BteHci *hci, uint8_t page_scan_type,
-                                  BteHciDoneCb callback)
+                                  BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_W_PAGE_SCAN_TYPE_OCF, HCI_HC_BB_OGF,
         HCI_W_PAGE_SCAN_TYPE_PLEN,
-        command_complete_cb, callback);
+        command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     b->data[HCI_CMD_HDR_LEN] = page_scan_type;
     _bte_hci_send_command(b);
 }
 
 static void read_local_version_cb(BteHci *hci, BteBuffer *buffer,
-                                  void *client_cb)
+                                  void *client_cb, void *userdata)
 {
     uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
 
@@ -1631,20 +1694,20 @@ static void read_local_version_cb(BteHci *hci, BteBuffer *buffer,
     reply.manufacturer = read_le16(data + 4);
     reply.lmp_subversion = read_le16(data + 6);
     BteHciReadLocalVersionCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_local_version(BteHci *hci,
-                                BteHciReadLocalVersionCb callback)
+void bte_hci_read_local_version(
+    BteHci *hci, BteHciReadLocalVersionCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(hci,
         HCI_R_LOC_VERS_INFO_OCF, HCI_INFO_PARAM_OGF, HCI_R_LOC_VERS_INFO_PLEN,
-        read_local_version_cb, callback);
+        read_local_version_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
 static void read_local_features_cb(BteHci *hci, BteBuffer *buffer,
-                                   void *client_cb)
+                                   void *client_cb, void *userdata)
 {
     uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
 
@@ -1652,19 +1715,20 @@ static void read_local_features_cb(BteHci *hci, BteBuffer *buffer,
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
     reply.features = read_le64(data);
     BteHciReadLocalFeaturesCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_local_features(BteHci *hci,
-                                 BteHciReadLocalFeaturesCb callback)
+void bte_hci_read_local_features(
+    BteHci *hci, BteHciReadLocalFeaturesCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_LOC_FEAT_OCF, HCI_INFO_PARAM_OGF, HCI_R_LOC_FEAT_PLEN,
-        read_local_features_cb, callback);
+        read_local_features_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
-static void read_buffer_size_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+static void read_buffer_size_cb(
+    BteHci *hci, BteBuffer *buffer, void *client_cb, void *userdata)
 {
     uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
 
@@ -1675,18 +1739,20 @@ static void read_buffer_size_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
     reply.acl_max_packets = read_le16(data + 3);
     reply.sco_max_packets = read_le16(data + 5);
     BteHciReadBufferSizeCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_buffer_size(BteHci *hci, BteHciReadBufferSizeCb callback)
+void bte_hci_read_buffer_size(
+    BteHci *hci, BteHciReadBufferSizeCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_BUF_SIZE_OCF, HCI_INFO_PARAM_OGF, HCI_R_BUF_SIZE_PLEN,
-        read_buffer_size_cb, callback);
+        read_buffer_size_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
-static void read_bd_addr_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+static void read_bd_addr_cb(
+    BteHci *hci, BteBuffer *buffer, void *client_cb, void *userdata)
 {
     uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
 
@@ -1694,30 +1760,32 @@ static void read_bd_addr_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
     memcpy(&reply.address, data, sizeof(reply.address));
     BteHciReadBdAddrCb callback = client_cb;
-    callback(hci, &reply, hci_userdata(hci));
+    callback(hci, &reply, userdata);
 }
 
-void bte_hci_read_bd_addr(BteHci *hci, BteHciReadBdAddrCb callback)
+void bte_hci_read_bd_addr(
+    BteHci *hci, BteHciReadBdAddrCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, HCI_R_BD_ADDR_OCF, HCI_INFO_PARAM_OGF, HCI_R_BD_ADDR_PLEN,
-        read_bd_addr_cb, callback);
+        read_bd_addr_cb, callback, userdata);
     _bte_hci_send_command(b);
 }
 
-static void vendor_command_cb(BteHci *hci, BteBuffer *buffer, void *client_cb)
+static void vendor_command_cb(
+    BteHci *hci, BteBuffer *buffer, void *client_cb, void *userdata)
 {
     BteHciVendorCommandCb callback = client_cb;
-    callback(hci, buffer, hci_userdata(hci));
+    callback(hci, buffer, userdata);
 }
 
 void bte_hci_vendor_command(BteHci *hci, uint16_t ocf,
                             const void *data, uint8_t len,
-                            BteHciVendorCommandCb callback)
+                            BteHciVendorCommandCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(
         hci, ocf, HCI_VENDOR_OGF, HCI_CMD_HDR_LEN + len,
-        vendor_command_cb, callback);
+        vendor_command_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
     memcpy(b->data + HCI_CMD_HDR_LEN, data, len);
     _bte_hci_send_command(b);

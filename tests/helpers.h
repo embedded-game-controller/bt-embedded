@@ -16,7 +16,7 @@ public:
     typedef void (*ReplyCb)(BteHci *hci,
                             const CReplyType *reply,
                             void *userdata);
-    using InvokerCb = std::function<void(BteHci *, ReplyCb replyCb)>;
+    using InvokerCb = std::function<void(BteHci *, ReplyCb replyCb, void *u)>;
     using ReplyParams = std::tuple<BteHci *, ReplyType, void*>;
     GetterInvoker(const InvokerCb &invoker,
                   const Buffer &eventData) {
@@ -24,9 +24,7 @@ public:
         m_hci = bte_hci_get(client);
 
         void *expectedUserdata = (void*)this;
-        bte_client_set_userdata(client, expectedUserdata);
-
-        invoker(m_hci, &GetterInvoker::replyCb);
+        invoker(m_hci, &GetterInvoker::replyCb, expectedUserdata);
 
         m_backend.sendEvent(eventData);
         bte_handle_events();
@@ -66,7 +64,8 @@ public:
     typedef void (*ReplyCb)(BteHci *hci, const BteType *reply, void *userdata);
     using InvokerCb = std::function<void(BteHci *,
                                          BteHciDoneCb statusCb,
-                                         ReplyCb replyCb)>;
+                                         ReplyCb replyCb,
+                                         void *userdata)>;
     using ReplyParams = std::tuple<BteHci *, ReplyType, void*>;
     using StatusParams = std::tuple<BteHci *, BteHciReply, void*>;
     AsyncCommandInvoker(const InvokerCb &invoker,
@@ -75,11 +74,10 @@ public:
         m_hci = bte_hci_get(client);
 
         void *expectedUserdata = (void*)this;
-        bte_client_set_userdata(client, expectedUserdata);
-
         invoker(m_hci,
                 &AsyncCommandInvoker::statusCb,
-                &AsyncCommandInvoker::replyCb);
+                &AsyncCommandInvoker::replyCb,
+                expectedUserdata);
 
         m_backend.sendEvent(eventData);
         bte_handle_events();

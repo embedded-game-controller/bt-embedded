@@ -93,6 +93,7 @@ static void deliver_status_to_client(BteBuffer *buffer)
         BteHciCommandStatusCb command_status_cb =
             pc->command_cb.cmd_status.status;
         BteHciDoneCb client_cb = pc->command_cb.cmd_status.client_cb;
+        void *userdata = pc->userdata;
 
         uint8_t status = buffer->data[HCI_CMD_STATUS_POS_STATUS];
         if (command_status_cb) {
@@ -103,7 +104,7 @@ static void deliver_status_to_client(BteBuffer *buffer)
 
         BteHciReply reply;
         reply.status = status;
-        client_cb(hci, &reply, hci_userdata(hci));
+        client_cb(hci, &reply, userdata);
     }
 }
 
@@ -111,11 +112,13 @@ static void deliver_reply_to_client(BteBuffer *buffer)
 {
     BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);
     if (LIKELY(pc)) {
+        BteHci *hci = pc->hci;
         BteHciCommandCb command_cb = pc->command_cb.cmd_complete.complete;
         void *client_cb = pc->command_cb.cmd_complete.client_cb;
+        void *userdata = pc->userdata;
         _bte_hci_dev_free_command(pc);
 
-        command_cb(pc->hci, buffer, client_cb);
+        command_cb(hci, buffer, client_cb, userdata);
     }
 }
 
@@ -323,10 +326,11 @@ void _bte_hci_dev_set_status(BteHciInitStatus status)
         bool success = status == BTE_HCI_INIT_STATUS_INITIALIZED;
         for (int i = 0; i < BTE_HCI_MAX_CLIENTS; i++) {
             BteClient *client = dev->clients[i];
-            if (client && client->hci.initialized_cb) {
-                client->hci.initialized_cb(&client->hci, success,
-                                           client->userdata);
-                break;
+            if (!client) continue;
+            struct _bte_hci_tmpdata_initialization_t *tmpdata =
+                &client->hci.last_async_cmd_data.initialization;
+            if (tmpdata->client_cb) {
+                tmpdata->client_cb(&client->hci, success, tmpdata->userdata);
             }
         }
     }
@@ -390,7 +394,8 @@ BteBuffer *_bte_hci_dev_add_command_no_reply(uint16_t ocf, uint8_t ogf,
 BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
                                     uint8_t ogf, uint8_t len,
                                     uint8_t reply_event,
-                                    const BteHciCommandCbUnion *command_cb)
+                                    const BteHciCommandCbUnion *command_cb,
+                                    void *userdata)
 {
     /* We could also take cmd_complete.client_cb, it makes no difference */
     BteHciDoneCb base_cb = command_cb->cmd_status.client_cb;
@@ -414,6 +419,7 @@ BteBuffer *_bte_hci_dev_add_command(BteHci *hci, uint16_t ocf,
 
     pending_command->command_cb = *command_cb;
     pending_command->hci = hci;
+    pending_command->userdata = userdata;
     return buffer;
 
 error_command:
@@ -421,7 +427,7 @@ error_command:
 error_buffer:
     if (base_cb) {
         BteHciReply reply = { HCI_MEMORY_FULL };
-        base_cb(hci, &reply, hci_userdata(hci));
+        base_cb(hci, &reply, userdata);
     }
     return NULL;
 }
@@ -437,26 +443,26 @@ BteBuffer *
 _bte_hci_dev_add_pending_command(BteHci *hci, uint16_t ocf,
                                  uint8_t ogf, uint8_t len,
                                  BteHciCommandCb command_cb,
-                                 void *client_cb)
+                                 void *client_cb, void *userdata)
 {
     BteHciCommandCbUnion cmd = {
         .cmd_complete = { command_cb, client_cb }
     };
     return _bte_hci_dev_add_command(hci, ocf, ogf, len,
-                                    HCI_COMMAND_COMPLETE, &cmd);
+                                    HCI_COMMAND_COMPLETE, &cmd, userdata);
 }
 
 BteBuffer *
 _bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
                                        uint8_t ogf, uint8_t len,
                                        BteHciCommandStatusCb command_cb,
-                                       void *client_cb)
+                                       void *client_cb, void *userdata)
 {
     BteHciCommandCbUnion cmd = {
         .cmd_status = { command_cb, client_cb }
     };
     return _bte_hci_dev_add_command(hci, ocf, ogf, len,
-                                    HCI_COMMAND_STATUS, &cmd);
+                                    HCI_COMMAND_STATUS, &cmd, userdata);
 }
 
 void _bte_hci_dev_install_event_handler(uint8_t event_code,

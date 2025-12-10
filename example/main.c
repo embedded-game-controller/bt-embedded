@@ -82,7 +82,7 @@ static void query_next_name(BteHci *hci)
                              r->page_scan_rep_mode,
                              r->clock_offset,
                              read_remote_name_status_cb,
-                             read_remote_name_cb);
+                             read_remote_name_cb, NULL);
 }
 
 static void inquiry_cb(BteHci *hci, const BteHciInquiryReply *reply, void *)
@@ -111,7 +111,7 @@ static void inquiry_cb(BteHci *hci, const BteHciInquiryReply *reply, void *)
     }
     static int count = 0;
     if (count++ > 5) {
-        bte_hci_exit_periodic_inquiry(hci, NULL);
+        bte_hci_exit_periodic_inquiry(hci, NULL, NULL);
     }
 
     query_next_name(hci);
@@ -148,10 +148,10 @@ static void initialized_cb(BteHci *hci, bool success, void *)
     printf("ACL MTU=%d, max packets=%d\n",
            bte_hci_get_acl_mtu(hci),
            bte_hci_get_acl_max_packets(hci));
-    // bte_hci_read_bd_addr(hci, read_bd_addr_cb);
+    // bte_hci_read_bd_addr(hci, read_bd_addr_cb, NULL);
     bte_hci_periodic_inquiry(hci, 4, 5, BTE_LAP_GIAC, 3, 0,
-                             inquiry_status_cb, inquiry_cb);
-    //bte_hci_read_stored_link_key(hci, NULL, read_stored_link_key_cb);
+                             inquiry_status_cb, inquiry_cb, NULL);
+    //bte_hci_read_stored_link_key(hci, NULL, read_stored_link_key_cb, NULL);
 }
 
 int main(int argc, char **argv)
@@ -166,7 +166,7 @@ int main(int argc, char **argv)
     BteClient *client = bte_client_new();
     BteHci *hci = bte_hci_get(client);
     printf("client: %p, hci = %p\n", client, hci);
-    bte_hci_on_initialized(hci, initialized_cb);
+    bte_hci_on_initialized(hci, initialized_cb, NULL);
 
     while (!quit_requested) {
         bte_wait_events(1000000);
