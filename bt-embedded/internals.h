@@ -61,7 +61,7 @@ typedef void (*BteHciCommandStatusCb)(BteHci *hci, uint8_t status,
                                       BteHciPendingCommand *pc);
 
 typedef struct bte_hci_event_handler_t BteHciEventHandler;
-typedef void (*BteHciEventHandlerCb)(BteBuffer *buffer, void *cb_data);
+typedef void (*BteHciEventHandlerCb)(BteBuffer *buffer);
 typedef void (*BteHciDataHandlerCb)(BteBuffer *buffer);
 
 typedef struct bte_hci_dev_t {
@@ -147,7 +147,6 @@ typedef struct bte_hci_dev_t {
     /* We use the 0-index element for vendor-specific events */
     struct bte_hci_event_handler_t {
         BteHciEventHandlerCb handler_cb;
-        void *cb_data;
     } event_handlers[BTE_HCI_EVENT_LAST];
 
     BteHciDataHandlerCb data_handler_cb;
@@ -265,8 +264,7 @@ void _bte_hci_dev_set_buffer_size(uint16_t acl_mtu, uint16_t acl_max_packets,
                                   uint8_t sco_mtu, uint16_t sco_max_packets);
 
 void _bte_hci_dev_install_event_handler(uint8_t event_code,
-                                        BteHciEventHandlerCb handler_cb,
-                                        void *cb_data);
+                                        BteHciEventHandlerCb handler_cb);
 BteHciEventHandler *_bte_hci_dev_handler_for_event(uint8_t event_code);
 
 void _bte_hci_dev_inquiry_cleanup(void);

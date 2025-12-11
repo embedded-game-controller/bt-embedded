@@ -246,7 +246,7 @@ int _bte_hci_dev_handle_event(BteBuffer *buf)
 
     BteHciEventHandler *handler = _bte_hci_dev_handler_for_event(code);
     if (handler && handler->handler_cb) {
-        handler->handler_cb(buf, handler->cb_data);
+        handler->handler_cb(buf);
     }
 
     /* The event buffer is unreferenced by the platform backend */
@@ -466,17 +466,15 @@ _bte_hci_dev_add_pending_async_command(BteHci *hci, uint16_t ocf,
 }
 
 void _bte_hci_dev_install_event_handler(uint8_t event_code,
-                                        BteHciEventHandlerCb handler_cb,
-                                        void *cb_data)
+                                        BteHciEventHandlerCb handler_cb)
 {
     BteHciEventHandler *h = _bte_hci_dev_handler_for_event(event_code);
     if (UNLIKELY(!h)) return;
 
-    if (UNLIKELY(handler_cb && h->handler_cb)) {
+    if (UNLIKELY(handler_cb && h->handler_cb && handler_cb != h->handler_cb)) {
         BTE_WARN("Handler already installed for event %02x!", event_code);
     }
     h->handler_cb = handler_cb;
-    h->cb_data = cb_data;
 }
 
 void _bte_hci_dev_inquiry_cleanup(void)
