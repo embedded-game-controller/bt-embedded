@@ -388,10 +388,7 @@ error:
 
 void bte_hci_create_connection(BteHci *hci,
                                const BteBdAddr *address,
-                               BtePacketType packet_type,
-                               uint8_t page_scan_rep_mode,
-                               uint16_t clock_offset,
-                               bool allow_role_switch,
+                               const BteHciConnectParams *params,
                                BteHciDoneCb status_cb,
                                BteHciCreateConnectionCb callback,
                                void *userdata)
@@ -410,15 +407,15 @@ void bte_hci_create_connection(BteHci *hci,
     uint8_t *data = b->data + HCI_CMD_HDR_LEN;
     memcpy(data, address, sizeof(*address));
     data += sizeof(*address);
-    write_le16(packet_type, data);
+    write_le16(params->packet_type, data);
     data += 2;
-    data[0] = page_scan_rep_mode;
+    data[0] = params->page_scan_rep_mode;
     data++;
     data[0] = 0; /* reserved */
     data++;
-    write_clock_offset(clock_offset, data);
+    write_clock_offset(params->clock_offset, data);
     data += 2;
-    data[0] = allow_role_switch;
+    data[0] = params->allow_role_switch;
     _bte_hci_send_command(b);
 }
 

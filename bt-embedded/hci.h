@@ -73,6 +73,13 @@ void bte_hci_exit_periodic_inquiry(BteHci *hci,
 #define BTE_HCI_CLOCK_OFFSET_INVALID (uint16_t)0xffff
 
 typedef struct {
+    BtePacketType packet_type;
+    uint16_t clock_offset;
+    uint8_t page_scan_rep_mode;
+    bool allow_role_switch;
+} BteHciConnectParams;
+
+typedef struct {
     uint8_t status;
     uint8_t link_type;
     BteConnHandle conn_handle;
@@ -84,10 +91,7 @@ typedef void (*BteHciCreateConnectionCb)(
     BteHci *hci, const BteHciCreateConnectionReply *reply, void *userdata);
 void bte_hci_create_connection(BteHci *hci,
                                const BteBdAddr *address,
-                               BtePacketType packet_type,
-                               uint8_t page_scan_rep_mode,
-                               uint16_t clock_offset,
-                               bool allow_role_switch,
+                               const BteHciConnectParams *params,
                                BteHciDoneCb status_cb,
                                BteHciCreateConnectionCb callback,
                                void *userdata);

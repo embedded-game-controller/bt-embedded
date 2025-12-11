@@ -478,6 +478,12 @@ TEST(Commands, testCreateConnection) {
     uint16_t clock_offset1 = 0x1122;
     bool allow_role_switch0 = true;
     bool allow_role_switch1 = false;
+    BteHciConnectParams params0 = {
+        packet_type0, clock_offset0, page_scan_rep_mode0, allow_role_switch0
+    };
+    BteHciConnectParams params1 = {
+        packet_type1, clock_offset1, page_scan_rep_mode1, allow_role_switch1
+    };
 
     using StoredReply = std::tuple<int,BteHciCreateConnectionReply>;
     using StoredStatusReply = std::tuple<int,uint8_t>;
@@ -506,9 +512,7 @@ TEST(Commands, testCreateConnection) {
     } callbacks;
 
     /* Issue the first command */
-    bte_hci_create_connection(hci, &address0, packet_type0,
-                              page_scan_rep_mode0, clock_offset0,
-                              allow_role_switch0,
+    bte_hci_create_connection(hci, &address0, &params0,
                               &Callbacks::st0, &Callbacks::cb0, &callbacks);
     const uint8_t cmdSize = 6 + 2 + 1 + 1 + 2 + 1; /* one reserved byte */
     Buffer expectedCommand{0x5, 0x4, cmdSize};
@@ -523,9 +527,7 @@ TEST(Commands, testCreateConnection) {
     bte_handle_events();
 
     /* Issue a second command, becure the completion event for the first */
-    bte_hci_create_connection(hci, &address1, packet_type1,
-                              page_scan_rep_mode1, clock_offset1,
-                              allow_role_switch1,
+    bte_hci_create_connection(hci, &address1, &params1,
                               &Callbacks::st1, &Callbacks::cb1, &callbacks);
     expectedCommand = {0x5, 0x4, cmdSize};
     expectedCommand += address1;
@@ -570,15 +572,11 @@ TEST(Commands, testCreateConnection) {
     callbacks.replies.clear();
     callbacks.statusReplies.clear();
     uint8_t status0 = HCI_NO_CONNECTION;
-    bte_hci_create_connection(hci, &address0, packet_type0,
-                              page_scan_rep_mode0, clock_offset0,
-                              allow_role_switch0,
+    bte_hci_create_connection(hci, &address0, &params0,
                               &Callbacks::st0, &Callbacks::cb0, &callbacks);
     backend.sendEvent({HCI_COMMAND_STATUS, 4, status0, 1, 0x5, 0x4});
     bte_handle_events();
-    bte_hci_create_connection(hci, &address1, packet_type1,
-                              page_scan_rep_mode1, clock_offset1,
-                              allow_role_switch1,
+    bte_hci_create_connection(hci, &address1, &params1,
                               &Callbacks::st1, &Callbacks::cb1, &callbacks);
     backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x5, 0x4});
     backend.sendEvent(

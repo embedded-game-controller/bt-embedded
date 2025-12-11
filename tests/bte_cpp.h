@@ -174,16 +174,11 @@ public:
         using CreateConnectionCb =
             std::function<void(const BteHciCreateConnectionReply &)>;
         void createConnection(const BteBdAddr &address,
-                              BtePacketType packet_type,
-                              uint8_t page_scan_rep_mode,
-                              uint16_t clock_offset,
-                              bool allow_role_switch,
+                              const BteHciConnectParams &params,
                               const DoneCb &statusCb,
                               const CreateConnectionCb &cb) {
             m_createConnectionCallbacks[address] = cb;
-            bte_hci_create_connection(m_hci, &address, packet_type,
-                                      page_scan_rep_mode, clock_offset,
-                                      allow_role_switch,
+            bte_hci_create_connection(m_hci, &address, &params,
                                       wrap<TAG>(statusCb),
                                       &Hci::Callbacks::createConnection, this);
         }
