@@ -128,6 +128,17 @@ uint16_t bte_hci_get_sco_max_packets(BteHci *hci)
     return _bte_hci_dev.sco_max_packets;
 }
 
+BtePacketType bte_hci_packet_types_from_features(
+    BteHciSupportedFeatures features)
+{
+    BtePacketType type = BTE_PACKET_TYPE_DM1 | BTE_PACKET_TYPE_DH1;
+    if (features & HCI_FEAT_3_SLOT_PACKETS)
+        type |= (BTE_PACKET_TYPE_DM3 | BTE_PACKET_TYPE_DH3);
+    if (features & HCI_FEAT_5_SLOT_PACKETS)
+        type |= (BTE_PACKET_TYPE_DM5 | BTE_PACKET_TYPE_DH5);
+    return type;
+}
+
 void bte_hci_nop(BteHci *hci, BteHciDoneCb callback, void *userdata)
 {
     BteBuffer *b = _bte_hci_dev_add_pending_command(

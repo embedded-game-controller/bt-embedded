@@ -27,6 +27,9 @@ uint8_t bte_hci_get_sco_mtu(BteHci *hci);
 uint16_t bte_hci_get_acl_max_packets(BteHci *hci);
 uint16_t bte_hci_get_sco_max_packets(BteHci *hci);
 
+BtePacketType bte_hci_packet_types_from_features(
+    BteHciSupportedFeatures features);
+
 /* All command replies start with this struct */
 typedef struct {
     uint8_t status;
