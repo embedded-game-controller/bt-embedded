@@ -124,7 +124,7 @@ typedef struct bte_hci_dev_t {
     BteBuffer *outgoing_acl_packets;
 
     BteBdAddr address;
-    BteHciSupportedFeatures supported_features;
+    BteHciFeatures supported_features;
     atomic_int num_packets;
     uint16_t acl_mtu;
     uint8_t sco_mtu;

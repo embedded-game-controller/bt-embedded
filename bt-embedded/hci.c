@@ -103,7 +103,7 @@ void bte_hci_on_initialized(
     }
 }
 
-BteHciSupportedFeatures bte_hci_get_supported_features(BteHci *)
+BteHciFeatures bte_hci_get_supported_features(BteHci *)
 {
     return _bte_hci_dev.supported_features;
 }
@@ -129,7 +129,7 @@ uint16_t bte_hci_get_sco_max_packets(BteHci *hci)
 }
 
 BtePacketType bte_hci_packet_types_from_features(
-    BteHciSupportedFeatures features)
+    BteHciFeatures features)
 {
     BtePacketType type = BTE_PACKET_TYPE_DM1 | BTE_PACKET_TYPE_DH1;
     if (features & HCI_FEAT_3_SLOT_PACKETS)

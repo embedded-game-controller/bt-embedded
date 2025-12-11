@@ -19,8 +19,8 @@ typedef void (*BteInitializedCb)(BteHci *hci, bool success, void *userdata);
 void bte_hci_on_initialized(BteHci *hci, BteInitializedCb callback,
                             void *userdata);
 
-typedef uint64_t BteHciSupportedFeatures;
-BteHciSupportedFeatures bte_hci_get_supported_features(BteHci *hci);
+typedef uint64_t BteHciFeatures;
+BteHciFeatures bte_hci_get_supported_features(BteHci *hci);
 
 uint16_t bte_hci_get_acl_mtu(BteHci *hci);
 uint8_t bte_hci_get_sco_mtu(BteHci *hci);
@@ -28,7 +28,7 @@ uint16_t bte_hci_get_acl_max_packets(BteHci *hci);
 uint16_t bte_hci_get_sco_max_packets(BteHci *hci);
 
 BtePacketType bte_hci_packet_types_from_features(
-    BteHciSupportedFeatures features);
+    BteHciFeatures features);
 
 /* All command replies start with this struct */
 typedef struct {
@@ -230,7 +230,7 @@ void bte_hci_read_remote_name(BteHci *hci,
 typedef struct {
     uint8_t status;
     BteConnHandle conn_handle;
-    BteHciSupportedFeatures features;
+    BteHciFeatures features;
 } BteHciReadRemoteFeaturesReply;
 
 typedef void (*BteHciReadRemoteFeaturesCb)(
@@ -604,7 +604,7 @@ void bte_hci_read_local_version(
 
 typedef struct {
     uint8_t status;
-    BteHciSupportedFeatures features;
+    BteHciFeatures features;
 } BteHciReadLocalFeaturesReply;
 
 typedef void (*BteHciReadLocalFeaturesCb)(
