@@ -179,11 +179,18 @@ static void inquiry_result_cb(BteBuffer *buffer, void *)
     dev->inquiry.num_responses = i_tail;
 }
 
-static void inquiry_event_cb(BteBuffer *buffer, void *)
+static bool periodic_inquiry_cb(BteHci *hci, void *cb_data)
+{
+    const BteHciInquiryReply *reply = cb_data;
+    if (hci->periodic_inquiry_cb) {
+        hci->periodic_inquiry_cb(hci, reply, hci->periodic_inquiry_userdata);
+    }
+    return false;
+}
+
+static void inquiry_complete_event_cb(BteBuffer *buffer, void *)
 {
     BteHciDev *dev = &_bte_hci_dev;
-    BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);
-    if (UNLIKELY(!pc)) return;
 
     BteHciInquiryReply reply;
     uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_HDR_LEN;
@@ -191,12 +198,17 @@ static void inquiry_event_cb(BteBuffer *buffer, void *)
     reply.num_responses = dev->inquiry.num_responses;
     reply.responses = dev->inquiry.responses;
 
-    BteHciInquiryCb inquiry_cb = pc->command_cb.event_inquiry.client_cb;
-    BteHci *hci = pc->hci;
-    void *userdata = pc->userdata;
-    _bte_hci_dev_free_command(pc);
+    BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);
+    if (pc) {
+        BteHciInquiryCb inquiry_cb = pc->command_cb.event_inquiry.client_cb;
+        BteHci *hci = pc->hci;
+        void *userdata = pc->userdata;
+        _bte_hci_dev_free_command(pc);
 
-    inquiry_cb(hci, &reply, userdata);
+        inquiry_cb(hci, &reply, userdata);
+    } else {
+        _bte_hci_dev_foreach_hci_client(periodic_inquiry_cb, &reply);
+    }
 
     _bte_hci_dev_inquiry_cleanup();
 }
@@ -221,7 +233,7 @@ static void inquiry_status_cb(BteHci *hci, uint8_t status,
     _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT,
                                        inquiry_result_cb, NULL);
     _bte_hci_dev_install_event_handler(HCI_INQUIRY_COMPLETE,
-                                       inquiry_event_cb, NULL);
+                                       inquiry_complete_event_cb, NULL);
 error:
     _bte_hci_dev_free_command(pc);
 }
@@ -257,29 +269,6 @@ void bte_hci_inquiry_cancel(BteHci *hci, BteHciDoneCb callback, void *userdata)
     _bte_hci_send_command(b);
 }
 
-static bool periodic_inquiry_cb(BteHci *hci, void *cb_data)
-{
-    const BteHciInquiryReply *reply = cb_data;
-    if (hci->periodic_inquiry_cb) {
-        hci->periodic_inquiry_cb(hci, reply, hci->periodic_inquiry_userdata);
-    }
-    return false;
-}
-
-static void periodic_inquiry_event_cb(BteBuffer *buffer, void *)
-{
-    BteHciDev *dev = &_bte_hci_dev;
-
-    uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_HDR_LEN;
-    BteHciInquiryReply reply;
-    reply.status = data[0];
-    reply.num_responses = dev->inquiry.num_responses;
-    reply.responses = dev->inquiry.responses;
-
-    _bte_hci_dev_foreach_hci_client(periodic_inquiry_cb, &reply);
-    _bte_hci_dev_inquiry_cleanup();
-}
-
 static void periodic_inquiry_complete_cb(BteHci *hci, BteBuffer *buffer,
                                          void *client_cb, void *userdata)
 {
@@ -288,7 +277,7 @@ static void periodic_inquiry_complete_cb(BteHci *hci, BteBuffer *buffer,
         _bte_hci_dev_install_event_handler(HCI_INQUIRY_RESULT,
                                            inquiry_result_cb, NULL);
         _bte_hci_dev_install_event_handler(HCI_INQUIRY_COMPLETE,
-                                           periodic_inquiry_event_cb, NULL);
+                                           inquiry_complete_event_cb, NULL);
     } else {
         hci->periodic_inquiry_cb = NULL;
     }
