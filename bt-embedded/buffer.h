@@ -110,7 +110,7 @@ static inline uint8_t *bte_buffer_contiguous_data(BteBuffer *buffer,
 
 static inline BteBuffer *bte_buffer_append(BteBuffer *head, BteBuffer *buffer)
 {
-    if (!head) return buffer;
+    if (!head) return bte_buffer_ref(buffer);
     BteBuffer *tail = head;
     while (tail->next) tail = tail->next;
     tail->next = bte_buffer_ref(buffer);

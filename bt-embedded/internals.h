@@ -1,6 +1,7 @@
 #ifndef BTE_INTERNALS_H
 #define BTE_INTERNALS_H
 
+#include "l2cap.h"
 #include "data_matcher.h"
 #include "hci.h"
 #include "types.h"
@@ -63,6 +64,49 @@ typedef void (*BteHciCommandStatusCb)(BteHci *hci, uint8_t status,
 typedef struct bte_hci_event_handler_t BteHciEventHandler;
 typedef void (*BteHciEventHandlerCb)(BteBuffer *buffer);
 typedef void (*BteHciDataHandlerCb)(BteBuffer *buffer);
+
+/* Maximum number of l2cap connections over the same ACL link */
+#define BTE_ACL_MAX_CLIENTS 4
+
+typedef struct l2cap_configure_data_t L2capConfigureData;
+
+struct bte_l2cap_t {
+    atomic_int ref_count;
+    void *userdata;
+
+    BteAcl *acl;
+    BteL2capPsm psm;
+    BteL2capChannelId remote_channel_id;
+    BteL2capChannelId local_channel_id;
+
+    uint16_t mtu;
+    uint16_t remote_mtu;
+
+    uint8_t expected_response_code;
+    uint8_t expected_response_id;
+    /* All expected responses must have the same code, and progressive Ids */
+    uint8_t expected_response_count;
+
+    BteL2capOnConfigureCb configure_cb;
+    void *configure_userdata;
+    /* Temporary pointer, only valid while receiving a configuration
+     * message */
+    L2capConfigureData *configure_req; /* Incoming request */
+    L2capConfigureData *configure_resp; /* Incoming response */
+
+    /* Storage for temporary data, only valid since issuing an asynchronous
+     * command till the time that its corresponding command status event
+     * has been received. */
+    union _bte_l2cap_last_async_cmd_data_u {
+        struct _bte_l2cap_tmpdata_connect {
+            BteL2capConnectCb client_cb;
+        } connect;
+        struct _bte_l2cap_tmpdata_configure {
+            BteL2capConfigureCb client_cb;
+            void *userdata;
+        } configure;
+    } last_async_cmd_data;
+};
 
 typedef struct bte_hci_dev_t {
     BteHciInitStatus init_status;

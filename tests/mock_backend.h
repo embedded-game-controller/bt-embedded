@@ -46,6 +46,13 @@ public:
         m_queuedData.push_back(buffer);
     }
 
+    void clear() {
+        m_sentCommands.clear();
+        m_sentData.clear();
+        m_queuedEvents.clear();
+        m_queuedData.clear();
+    }
+
     static MockBackend *instance() { return s_instance; }
 
     int callInit();

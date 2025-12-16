@@ -1,6 +1,8 @@
 #ifndef BTE_TEST_TYPE_UTILS_H
 #define BTE_TEST_TYPE_UTILS_H
 
+#include "bte_cpp.h"
+
 #include "bt-embedded/hci.h"
 
 #include <algorithm>
@@ -9,6 +11,28 @@
 #include <ostream>
 #include <ranges>
 #include <vector>
+
+inline std::ostream &operator<<(std::ostream &os, const Bte::Buffer &a)
+{
+    os << "Buffer<" << a.size() << ">{";
+    for (size_t i = 0; i < a.size(); i++) {
+        os << std::hex << std::setw(2) << std::setfill('0') << int(a[i]);
+        if (i < a.size() - 1) os << ' ';
+    }
+    os << '}';
+    return os;
+}
+
+inline std::ostream &operator<<(std::ostream &os,
+                                const std::vector<Bte::Buffer> &v)
+{
+    os << "vector{\n";
+    for (const auto &a: v) {
+        os << "  " << a << '\n';
+    }
+    os << '}';
+    return os;
+}
 
 inline std::ostream &operator<<(std::ostream &os, const BteBdAddr &a)
 {

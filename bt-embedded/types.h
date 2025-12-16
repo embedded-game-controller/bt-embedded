@@ -15,6 +15,7 @@ extern "C" {
 typedef struct bte_buffer_t BteBuffer;
 typedef struct bte_client_t BteClient;
 typedef struct bte_hci_t BteHci;
+typedef struct bte_l2cap_t BteL2cap;
 
 typedef struct {
     uint8_t bytes[6];
@@ -40,6 +41,9 @@ typedef uint16_t BtePacketType;
 #define BTE_PACKET_TYPE_DM5 (BtePacketType)0x8000
 
 typedef uint16_t BteConnHandle;
+
+/* The connection handle is 12 bits, so this value is certainly invalid */
+#define BTE_CONN_HANDLE_INVALID (BteConnHandle)0xffff
 
 #ifdef __cplusplus
 }

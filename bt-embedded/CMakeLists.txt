@@ -17,10 +17,12 @@ endif()
 add_library(bt-embedded STATIC
     ${DRIVERS_SOURCES}
     ${PLATFORM_SOURCES}
+    acl.c
     bte.c
     client.c
     hci.c
     hci_dev.c
+    l2cap.c
 )
 
 target_include_directories(bt-embedded

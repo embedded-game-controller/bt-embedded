@@ -9,10 +9,12 @@ FetchContent_MakeAvailable(googletest)
 
 set(SRC ${CMAKE_SOURCE_DIR}/bt-embedded)
 set(BTE_SOURCES
+    ${SRC}/acl.c
     ${SRC}/bte.c
     ${SRC}/client.c
     ${SRC}/hci.c
     ${SRC}/hci_dev.c
+    ${SRC}/l2cap.c
 )
 
 add_executable(test_commands
@@ -25,6 +27,7 @@ add_executable(test_commands
     test_data_matcher.cpp
     test_events.cpp
     test_hci_dev.cpp
+    test_l2cap_config.cpp
 )
 target_link_libraries(test_commands
     bt-embedded
