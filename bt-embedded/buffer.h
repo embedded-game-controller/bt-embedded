@@ -264,9 +264,11 @@ static inline uint16_t bte_buffer_reader_read(BteBufferReader *reader,
     while (size > 0) {
         int read_len = (reader->pos_in_packet + size <= reader->packet->size) ?
             size : (reader->packet->size - reader->pos_in_packet);
-        memcpy(ptr, reader->packet->data + reader->pos_in_packet, read_len);
+        if (ptr) {
+            memcpy(ptr, reader->packet->data + reader->pos_in_packet, read_len);
+            ptr += read_len;
+        }
         reader->pos_in_packet += read_len;
-        ptr += read_len;
         total_read += read_len;
         size -= read_len;
         if (size > 0) {
@@ -278,6 +280,12 @@ static inline uint16_t bte_buffer_reader_read(BteBufferReader *reader,
         }
     }
     return total_read;
+}
+
+static inline uint16_t bte_buffer_reader_advance(BteBufferReader *reader,
+                                                 uint16_t size)
+{
+    return bte_buffer_reader_read(reader, NULL, size);
 }
 
 /*! Get a pointer to the next contiguous area */
