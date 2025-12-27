@@ -28,6 +28,7 @@ add_executable(test_commands
     test_events.cpp
     test_hci_dev.cpp
     test_l2cap_config.cpp
+    test_l2cap_connect.cpp
 )
 target_link_libraries(test_commands
     bt-embedded

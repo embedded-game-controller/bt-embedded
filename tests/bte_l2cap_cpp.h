@@ -11,6 +11,14 @@
 #include <optional>
 #include <string>
 
+inline bool operator==(const BteL2capConnectionResponse &a,
+                       const BteL2capConnectionResponse &b)
+{
+    return a.remote_channel_id == b.remote_channel_id &&
+        a.local_channel_id == b.local_channel_id &&
+        a.result == b.result && a.status == b.status;
+}
+
 inline bool operator==(const BteL2capConfigQos &a, const BteL2capConfigQos &b)
 {
     return a.flags == b.flags && a.service_type == b.service_type &&
