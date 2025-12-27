@@ -963,10 +963,15 @@ static bool acl_l2cap_handle_response(
         if (id != l2cap->expected_response_id) continue;
         if (code == l2cap->expected_response_code ||
             code == L2CAP_SIGNAL_CMD_REJ) {
+            /* Temporary reference, since l2cap_handle_response() could destroy
+             * the l2cap object when handling the connect response, if the
+             * client doesn't care about it */
+            bte_l2cap_ref(l2cap);
             bool ok = l2cap_handle_response(l2cap, code, reader, cmd_len);
             l2cap->expected_response_count--;
             if (l2cap->expected_response_count)
                 l2cap->expected_response_id++;
+            bte_l2cap_unref(l2cap);
             return ok;
         }
     }
