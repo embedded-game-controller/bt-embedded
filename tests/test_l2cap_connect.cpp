@@ -25,6 +25,7 @@ protected:
     }
 
     void TearDown() override {
+        m_backend.onSendData({});
     }
 
     void setLocalCid(BteL2capChannelId cid) {
@@ -182,6 +183,44 @@ TEST_F(TestL2capConnect, testOutgoingHciError) {
     /* Verify that we haven't sent anything over the data channel */
     ASSERT_TRUE(m_backend.sentData().empty());
 
+    std::vector<BteL2capConnectionResponse> expectedReplies = {
+        {
+            BTE_L2CAP_CHANNEL_ID_NULL,
+            BTE_L2CAP_CHANNEL_ID_NULL,
+            BTE_L2CAP_CONN_RESP_RES_ERR_RESOURCE,
+            BTE_L2CAP_CONN_RESP_STATUS_NO_INFO
+        },
+    };
+    ASSERT_EQ(replies, expectedReplies);
+}
+
+TEST_F(TestL2capConnect, testOutgoingDataError) {
+    using L = Bte::L2cap;
+    BteBdAddr address = {1, 2, 3, 4, 5, 6};
+    std::vector<BteL2capConnectionResponse> replies;
+    auto onConnected = [&](std::optional<Bte::L2cap> l2cap,
+                           const BteL2capConnectionResponse &reply) {
+        ASSERT_FALSE(l2cap.has_value());
+        replies.push_back(reply);
+    };
+    BteL2capPsm psm = BTE_L2CAP_PSM_SDP;
+    L::connect(m_client.hci(), address, psm, {}, onConnected);
+
+    int sendDataCount = 0;
+    m_backend.onSendData([&](BteBuffer *) {
+        sendDataCount++;
+        return -1;
+    });
+
+    /* Send the status reply for HCI create connection */
+    uint8_t status = 0;
+    m_backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x5, 0x4});
+    bte_handle_events();
+    /* Send the actual reply */
+    sendHciConnectionComplete(address);
+    bte_handle_events();
+
+    ASSERT_EQ(sendDataCount, 1);
     std::vector<BteL2capConnectionResponse> expectedReplies = {
         {
             BTE_L2CAP_CHANNEL_ID_NULL,
