@@ -203,20 +203,23 @@ static void connect_status_cb(BteHci *hci, const BteHciReply *reply,
     BteAcl *acl = userdata;
 
     if (reply->status != 0) {
+        bte_acl_ref(acl);
         /* The operation failed. Notify the client */
         acl->connected_cb(acl, reply->status);
+        bte_acl_unref(acl);
     }
 }
 
 static void connect_cb(BteHci *hci, const BteHciCreateConnectionReply *reply,
                        void *userdata)
 {
-    BteAcl *acl = userdata;
+    BteAcl *acl = bte_acl_ref(userdata);
     if (reply->status == 0) {
         acl->conn_handle = reply->conn_handle;
         acl->encryption_mode = reply->encryption_mode;
     }
     acl->connected_cb(acl, reply->status);
+    bte_acl_unref(acl);
 }
 
 void bte_acl_connect(BteAcl *acl, const BteHciConnectParams *params)
