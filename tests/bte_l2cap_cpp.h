@@ -317,12 +317,12 @@ inline std::ostream &operator<<(std::ostream &os, const std::vector<T> &v)
  * https://github.com/google/googletest/issues/3458
  */
 namespace Bte {
-void PrintTo(const std::vector<L2cap::ConfigureReply> &v, std::ostream *os)
+inline void PrintTo(const std::vector<L2cap::ConfigureReply> &v, std::ostream *os)
 {
    *os << v;
 }
 
-void PrintTo(const std::vector<L2cap::ConfigureParams> &v, std::ostream *os)
+inline void PrintTo(const std::vector<L2cap::ConfigureParams> &v, std::ostream *os)
 {
    *os << v;
 }
