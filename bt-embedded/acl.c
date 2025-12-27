@@ -279,7 +279,13 @@ int bte_acl_send_message(BteAcl *acl, BteBuffer *buffer)
     dev->outgoing_acl_packets =
         bte_buffer_append(dev->outgoing_acl_packets, buffer);
     int rc = _bte_hci_send_queued_data();
-    if (UNLIKELY(rc < 0)) return rc;
+    if (UNLIKELY(rc < 0)) {
+        /* Note: we unref the buffer because this function is meant to be the
+         * final consumer of the bufferr.
+         */
+        bte_buffer_unref(buffer);
+        return rc;
+    }
 
     /* Check if our buffer is still in the queue */
     int queued_packets = 0;
