@@ -30,7 +30,7 @@ struct bte_acl_t {
     uint16_t reassembled_message_size;
 
     void (*connected_cb)(BteAcl *acl, uint8_t status);
-    void (*disconnected_cb)(BteAcl *acl);
+    void (*disconnected_cb)(BteAcl *acl, uint8_t reason);
     void (*data_received_cb)(BteAcl *acl, BteBufferReader *reader);
     void (*completed_packets_cb)(BteAcl *acl, int sent_messages);
 };

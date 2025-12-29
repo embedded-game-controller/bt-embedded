@@ -107,12 +107,17 @@ static bool bte_acl_make_public(BteAcl *acl)
     return false;
 }
 
-static void bte_acl_disconnected(BteAcl *acl)
+static void bte_acl_disconnected(BteAcl *acl, uint8_t reason)
 {
     BteHciDev *dev = &_bte_hci_dev;
 
     acl->conn_handle = BTE_CONN_HANDLE_INVALID;
-    if (acl->disconnected_cb) acl->disconnected_cb(acl);
+    if (acl->disconnected_cb) {
+        /* Make sure we don't invoke this twice for the same ACL */
+        void (*disconnected_cb)(BteAcl *acl, uint8_t reason) = acl->disconnected_cb;
+        acl->disconnected_cb = NULL;
+        disconnected_cb(acl, reason);
+    }
 
     /* Remove the pointer to this ACL from the BteHciDev */
     for (int i = 0; i < BTE_HCI_MAX_ACL; i++) {
@@ -125,7 +130,9 @@ static void bte_acl_disconnected(BteAcl *acl)
 
 static void bte_acl_free(BteAcl *acl)
 {
-    bte_acl_disconnected(acl);
+    /* Avoid calling the callbacks here */
+    acl->disconnected_cb = NULL;
+    bte_acl_disconnected(acl, HCI_CONN_TERMINATED_BY_LOCAL_HOST);
     bte_client_unref(bte_hci_get_client(acl->hci));
     free(acl);
 }
@@ -136,7 +143,7 @@ static bool on_disconnection_complete(
     BteAcl *acl = find_acl_by_conn_handle(data->conn_handle);
     if (!acl) return false;
 
-    bte_acl_disconnected(acl);
+    bte_acl_disconnected(acl, data->reason);
     return true;
 }
 

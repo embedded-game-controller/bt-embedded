@@ -235,13 +235,16 @@ static bool l2cap_connect_cb(BteL2cap *l2cap, BteBufferReader *reader,
         return false;
     }
 
+    BteL2cap *l2cap_param;
     BteL2capConnectionResponse reply;
     reply.result = le16toh(data[2]);
     if (reply.result > BTE_L2CAP_CONN_RESP_RES_PENDING) {
         /* An error occurred */
+        l2cap_param = NULL;
         reply.remote_channel_id = reply.local_channel_id = 0;
         reply.status = BTE_L2CAP_CONN_RESP_STATUS_NO_INFO;
     } else {
+        l2cap_param = l2cap;
         reply.remote_channel_id = le16toh(data[0]);
         reply.local_channel_id = le16toh(data[1]);
         reply.status = le16toh(data[3]);
@@ -255,7 +258,7 @@ static bool l2cap_connect_cb(BteL2cap *l2cap, BteBufferReader *reader,
     }
 
     BteL2capConnectCb client_cb = l2cap->last_async_cmd_data.connect.client_cb;
-    client_cb(l2cap, &reply, l2cap->userdata);
+    client_cb(l2cap_param, &reply, l2cap->userdata);
     if (reply.result != BTE_L2CAP_CONN_RESP_RES_PENDING) {
         /* No more callbacks will be invoked. The client should have taken its
          * reference to the l2cap opject; if not, it will be destroyed here */
@@ -1016,6 +1019,33 @@ static void acl_data_received_cb(BteAcl *acl, BteBufferReader *reader)
     }
 }
 
+static void l2cap_disconnect_cb(BteL2cap *l2cap, uint8_t reason)
+{
+    /* TODO: istead of guessing which state we are in, keep a member for the
+     * state machine */
+    if (l2cap->remote_channel_id == 0) {
+        /* We were attempting a connection */
+        BteL2capConnectionResponse reply = {0,};
+        /* We should probably come up with our error codes, based on reason */
+        reply.result = BTE_L2CAP_CONN_RESP_RES_ERR_RESOURCE;
+        BteL2capConnectCb client_cb = l2cap->last_async_cmd_data.connect.client_cb;
+        client_cb(NULL, &reply, l2cap->userdata);
+        bte_l2cap_unref(l2cap);
+    }
+}
+
+static void acl_disconnected_cb(BteAcl *acl, uint8_t reason)
+{
+    /* Temporary reference to ensure that we don't destroy the ACL while
+     * iterating over its clients */
+    bte_acl_ref(acl);
+    for (int i = 0; i < BTE_ACL_MAX_CLIENTS; i++) {
+        BteL2cap *l2cap = L(acl)->clients[i];
+        if (l2cap) l2cap_disconnect_cb(l2cap, reason);
+    }
+    bte_acl_unref(acl);
+}
+
 static bool acl_l2cap_add_client(BteAclL2cap *acl_l2cap, BteL2cap *client)
 {
     for (int i = 0; i < BTE_ACL_MAX_CLIENTS; i++) {
@@ -1080,6 +1110,7 @@ void bte_l2cap_connect(BteHci *hci, const BteBdAddr *address, BteL2capPsm psm,
         l2cap->acl = acl;
         acl->connected_cb = acl_connected_cb;
         acl->data_received_cb = acl_data_received_cb;
+        acl->disconnected_cb = acl_disconnected_cb;
         /* TODO: set the other signal handlers too */
         if (!params) params = default_connect_params(hci);
         bte_acl_connect(acl, params);
