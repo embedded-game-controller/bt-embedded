@@ -282,3 +282,109 @@ TEST_F(TestL2capConnect, testOutgoingDataError) {
     };
     ASSERT_EQ(replies, expectedReplies);
 }
+
+TEST_F(TestL2capConnect, testOutgoingResponseTooShortError) {
+    using L = Bte::L2cap;
+    BteBdAddr address = {1, 2, 3, 4, 5, 6};
+    std::vector<BteL2capConnectionResponse> replies;
+    auto onConnected = [&](std::optional<Bte::L2cap> l2cap,
+                           const BteL2capConnectionResponse &reply) {
+        ASSERT_FALSE(l2cap.has_value());
+        replies.push_back(reply);
+    };
+    BteL2capPsm psm = BTE_L2CAP_PSM_SDP;
+    L::connect(m_client.hci(), address, psm, {}, onConnected);
+
+    /* Send the status reply for HCI create connection */
+    uint8_t status = 0;
+    m_backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x5, 0x4});
+    bte_handle_events();
+    /* Send the actual reply */
+    sendHciConnectionComplete(address);
+    bte_handle_events();
+
+    /* Read the L2CAP connection request */
+    uint8_t reqId = m_cmdId++;
+    Buffer expectedData = makeRequest(reqId, psm);
+    ASSERT_EQ(m_backend.lastData(), expectedData);
+
+    /* Send the L2cap connect response. Make it shorter than expected */
+    uint16_t result = BTE_L2CAP_CONN_RESP_RES_OK;
+    uint16_t lstatus = BTE_L2CAP_CONN_RESP_STATUS_NO_INFO;
+    m_backend.sendData(Buffer{
+            0x00, 0x21, /* Connection handle */
+            15, 0, /* Total length */
+            11, 0, /* L2CAP length */
+            0x01, 0x00, /* Signalling channel */
+            L2CAP_SIGNAL_CONN_RSP,
+            reqId,
+            7, 0, /* command length */
+            low(m_remoteCid), high(m_remoteCid), /* dest CID */
+            low(m_localCid), high(m_localCid), /* source CID */
+            low(result), high(result),
+            low(lstatus), /* missing: high(lstatus), */
+        });
+    bte_handle_events();
+
+    /* The response should be silenty discarded */
+    ASSERT_EQ(replies.size(), 0);
+
+    /* We need to simulate a link timeout, or the l2cap object will stay alive
+     * indefinitely. */
+    BteConnHandle connHandle = 0x0100;
+    uint8_t hciStatus = 0;
+    uint8_t reason = HCI_CONN_TIMEOUT;
+    m_backend.sendEvent({ HCI_DISCONNECTION_COMPLETE, 1 + 2 + 1, hciStatus,
+                        low(connHandle), high(connHandle), reason });
+    bte_handle_events();
+
+    std::vector<BteL2capConnectionResponse> expectedReplies = {
+        {
+            BTE_L2CAP_CHANNEL_ID_NULL,
+            BTE_L2CAP_CHANNEL_ID_NULL,
+            BTE_L2CAP_CONN_RESP_RES_ERR_RESOURCE,
+            BTE_L2CAP_CONN_RESP_STATUS_NO_INFO
+        },
+    };
+    ASSERT_EQ(replies, expectedReplies);
+}
+
+TEST_F(TestL2capConnect, testOutgoingResponseError) {
+    using L = Bte::L2cap;
+    BteBdAddr address = {1, 2, 3, 4, 5, 6};
+    std::vector<BteL2capConnectionResponse> replies;
+    auto onConnected = [&](std::optional<Bte::L2cap> l2cap,
+                           const BteL2capConnectionResponse &reply) {
+        ASSERT_FALSE(l2cap.has_value());
+        replies.push_back(reply);
+    };
+    BteL2capPsm psm = BTE_L2CAP_PSM_SDP;
+    L::connect(m_client.hci(), address, psm, {}, onConnected);
+
+    /* Send the status reply for HCI create connection */
+    uint8_t status = 0;
+    m_backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x5, 0x4});
+    bte_handle_events();
+    /* Send the actual reply */
+    sendHciConnectionComplete(address);
+    bte_handle_events();
+
+    /* Read the L2CAP connection request */
+    uint8_t reqId = m_cmdId++;
+    Buffer expectedData = makeRequest(reqId, psm);
+    ASSERT_EQ(m_backend.lastData(), expectedData);
+
+    /* Send the L2cap connect response. Make it shorter than expected */
+    peerResponds(reqId, BTE_L2CAP_CONN_RESP_RES_ERR_SECBLOCK);
+    bte_handle_events();
+
+    std::vector<BteL2capConnectionResponse> expectedReplies = {
+        {
+            BTE_L2CAP_CHANNEL_ID_NULL,
+            BTE_L2CAP_CHANNEL_ID_NULL,
+            BTE_L2CAP_CONN_RESP_RES_ERR_SECBLOCK,
+            BTE_L2CAP_CONN_RESP_STATUS_NO_INFO
+        },
+    };
+    ASSERT_EQ(replies, expectedReplies);
+}
