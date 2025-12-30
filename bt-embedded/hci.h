@@ -84,7 +84,7 @@ typedef struct {
 
 typedef struct {
     uint8_t status;
-    uint8_t link_type;
+    BteLinkType link_type;
     BteConnHandle conn_handle;
     BteBdAddr address;
     uint8_t encryption_mode;
@@ -150,7 +150,7 @@ void bte_hci_reject_connection(BteHci *hci,
 typedef bool (*BteHciConnectionRequestCb)(BteHci *hci,
                                           const BteBdAddr *address,
                                           const BteClassOfDevice *cod,
-                                          uint8_t link_type,
+                                          BteLinkType link_type,
                                           void *userdata);
 void bte_hci_on_connection_request(
     BteHci *hci, BteHciConnectionRequestCb callback);

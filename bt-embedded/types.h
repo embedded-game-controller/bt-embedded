@@ -45,6 +45,12 @@ typedef uint16_t BteConnHandle;
 /* The connection handle is 12 bits, so this value is certainly invalid */
 #define BTE_CONN_HANDLE_INVALID (BteConnHandle)0xffff
 
+typedef uint8_t BteLinkType;
+
+#define BTE_LINK_TYPE_SCO  (BteLinkType)0
+#define BTE_LINK_TYPE_ACL  (BteLinkType)1
+#define BTE_LINK_TYPE_ESCO (BteLinkType)2
+
 #ifdef __cplusplus
 }
 #endif

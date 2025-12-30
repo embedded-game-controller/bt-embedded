@@ -582,7 +582,7 @@ static bool client_handle_connection_request(BteHci *hci, void *cb_data)
     const uint8_t *data = cb_data;
     const BteBdAddr *address = (void*)data;
     const BteClassOfDevice *cod = (void*)(data + 6);
-    uint8_t link_type = data[6 + 3];
+    BteLinkType link_type = data[6 + 3];
     return hci->connection_request_cb &&
         hci->connection_request_cb(hci, address, cod, link_type,
                                    hci_userdata(hci));
