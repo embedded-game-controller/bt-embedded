@@ -53,9 +53,9 @@ typedef void (*BteL2capConnectCb)(
  * \note The callback can be invoked more than once, if \a result is \c
  *       BTE_L2CAP_CONN_RESP_RES_PENDING.
  */
-void bte_l2cap_connect(BteHci *hci, const BteBdAddr *address, BteL2capPsm psm,
-                       const BteHciConnectParams *params,
-                       BteL2capConnectCb callback, void *userdata);
+void bte_l2cap_new_outgoing(BteHci *hci, const BteBdAddr *address,
+                            BteL2capPsm psm, const BteHciConnectParams *params,
+                            BteL2capConnectCb callback, void *userdata);
 
 BteL2cap *bte_l2cap_ref(BteL2cap *l2cap);
 void bte_l2cap_unref(BteL2cap *l2cap);

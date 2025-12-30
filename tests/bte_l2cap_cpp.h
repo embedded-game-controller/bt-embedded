@@ -56,14 +56,14 @@ class L2cap {
 public:
     using ConnectCb = std::function<void(
         std::optional<L2cap> l2cap, const BteL2capConnectionResponse &reply)>;
-    static void connect(
+    static void newOutgoing(
         Client::Hci &hci, const BteBdAddr &address, BteL2capPsm psm,
         const std::optional<BteHciConnectParams> &params,
         const ConnectCb &cb) {
         auto *f = new ConnectCb(cb);
-        bte_l2cap_connect(hci.m_hci, &address, psm,
-                          params ? &params.value() : nullptr,
-                          &L2cap::Callbacks::connect, f);
+        bte_l2cap_new_outgoing(hci.m_hci, &address, psm,
+                               params ? &params.value() : nullptr,
+                               &L2cap::Callbacks::connect, f);
     }
 
     L2cap(const L2cap &other): m_l2cap(bte_l2cap_ref(other.m_l2cap)) {}

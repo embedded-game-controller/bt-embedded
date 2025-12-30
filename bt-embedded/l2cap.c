@@ -1094,9 +1094,9 @@ BteL2cap *bte_l2cap_new()
     return l2cap;
 }
 
-void bte_l2cap_connect(BteHci *hci, const BteBdAddr *address, BteL2capPsm psm,
-                       const BteHciConnectParams *params,
-                       BteL2capConnectCb callback, void *userdata)
+void bte_l2cap_new_outgoing(BteHci *hci, const BteBdAddr *address,
+                            BteL2capPsm psm, const BteHciConnectParams *params,
+                            BteL2capConnectCb callback, void *userdata)
 {
     BteL2cap *l2cap = bte_l2cap_new();
 

@@ -127,7 +127,7 @@ TEST_F(TestL2capConnect, testOutgoingNoHciParams) {
         replies.push_back(reply);
     };
     BteL2capPsm psm = BTE_L2CAP_PSM_SDP;
-    L::connect(m_client.hci(), address, psm, {}, onConnected);
+    L::newOutgoing(m_client.hci(), address, psm, {}, onConnected);
 
     /* Default values */
     BtePacketType packetType = BTE_PACKET_TYPE_DM1 | BTE_PACKET_TYPE_DH1;
@@ -183,7 +183,7 @@ TEST_F(TestL2capConnect, testOutgoingWithHciParams) {
         pageScanRepMode,
         allowRoleSwitch,
     };
-    L::connect(m_client.hci(), address, psm, params, onConnected);
+    L::newOutgoing(m_client.hci(), address, psm, params, onConnected);
 
     std::vector<Buffer> expectedCommands {
         makeHciCreateConnection(address, packetType, pageScanRepMode,
@@ -224,7 +224,7 @@ TEST_F(TestL2capConnect, testOutgoingHciError) {
         replies.push_back(reply);
     };
     BteL2capPsm psm = BTE_L2CAP_PSM_SDP;
-    L::connect(m_client.hci(), address, psm, {}, onConnected);
+    L::newOutgoing(m_client.hci(), address, psm, {}, onConnected);
 
     /* Send the status reply for HCI create connection */
     uint8_t status = 3; /* HW failure */
@@ -255,7 +255,7 @@ TEST_F(TestL2capConnect, testOutgoingDataError) {
         replies.push_back(reply);
     };
     BteL2capPsm psm = BTE_L2CAP_PSM_SDP;
-    L::connect(m_client.hci(), address, psm, {}, onConnected);
+    L::newOutgoing(m_client.hci(), address, psm, {}, onConnected);
 
     int sendDataCount = 0;
     m_backend.onSendData([&](BteBuffer *) {
@@ -293,7 +293,7 @@ TEST_F(TestL2capConnect, testOutgoingResponseTooShortError) {
         replies.push_back(reply);
     };
     BteL2capPsm psm = BTE_L2CAP_PSM_SDP;
-    L::connect(m_client.hci(), address, psm, {}, onConnected);
+    L::newOutgoing(m_client.hci(), address, psm, {}, onConnected);
 
     /* Send the status reply for HCI create connection */
     uint8_t status = 0;
@@ -359,7 +359,7 @@ TEST_F(TestL2capConnect, testOutgoingResponseError) {
         replies.push_back(reply);
     };
     BteL2capPsm psm = BTE_L2CAP_PSM_SDP;
-    L::connect(m_client.hci(), address, psm, {}, onConnected);
+    L::newOutgoing(m_client.hci(), address, psm, {}, onConnected);
 
     /* Send the status reply for HCI create connection */
     uint8_t status = 0;

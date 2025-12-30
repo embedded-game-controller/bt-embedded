@@ -21,8 +21,8 @@ protected:
             ASSERT_TRUE(l2cap.has_value());
             m_l2cap.reset(new Bte::L2cap(l2cap.value()));
         };
-        Bte::L2cap::connect(m_client.hci(), address, BTE_L2CAP_PSM_SDP,
-                            {}, onConnected);
+        Bte::L2cap::newOutgoing(m_client.hci(), address, BTE_L2CAP_PSM_SDP,
+                                {}, onConnected);
         /* Send the statue reply for HCI create connection */
         uint8_t status = 0;
         m_backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x5, 0x4});
