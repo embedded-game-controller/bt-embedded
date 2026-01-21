@@ -780,6 +780,12 @@ static bool l2cap_handle_config_resp(BteL2cap *l2cap, BteBufferReader *reader,
         if (result == L2CAP_CONFIG_RES_OK) {
             bool remote = false;
             l2cap_config_apply(l2cap, &l2cap->configure_resp->params, remote);
+        } else {
+            if (l2cap->state == BTE_L2CAP_WAIT_CONFIG_RSP) {
+                l2cap_set_state(l2cap, BTE_L2CAP_WAIT_SEND_CONFIG);
+            } else if (l2cap->state == BTE_L2CAP_WAIT_CONFIG_REQ_RSP) {
+                l2cap_set_state(l2cap, BTE_L2CAP_WAIT_CONFIG);
+            }
         }
         /* No more messages following; we can deliver the reply to the
          * client */
@@ -1233,6 +1239,21 @@ static void acl_data_received_cb(BteAcl *acl, BteBufferReader *reader)
 
 static void l2cap_disconnect_cb(BteL2cap *l2cap, uint8_t reason)
 {
+    if (l2cap->state == BTE_L2CAP_WAIT_CONFIG_REQ_RSP) {
+        /* The client was waiting for a configuration response. Deliver a
+         * synthetic one. */
+        BteL2capConfigureCb client_cb =
+            l2cap->last_async_cmd_data.configure.client_cb;
+        if (client_cb) {
+            BteL2capConfigureReply reply;
+            reply.unknown_mask = 0xfffffff;
+            reply.rejected_mask = 0xfffffff;
+            memset(&reply.params, 0, sizeof(reply.params));
+            client_cb(l2cap, &reply,
+                      l2cap->last_async_cmd_data.configure.userdata);
+        }
+    }
+
     /* TODO: istead of guessing which state we are in, keep a member for the
      * state machine */
     if (l2cap->remote_channel_id == 0) {
