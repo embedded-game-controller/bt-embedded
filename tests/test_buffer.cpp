@@ -334,6 +334,7 @@ TEST(Buffer, testAppend)
     ASSERT_TRUE(buffer2 != nullptr);
 
     BteBuffer *head = bte_buffer_append(NULL, buffer0);
+    bte_buffer_unref(buffer0);
     ASSERT_EQ(head, buffer0);
 
     head = bte_buffer_append(head, buffer1);
@@ -346,5 +347,5 @@ TEST(Buffer, testAppend)
     ASSERT_EQ(head, buffer0);
     ASSERT_EQ(head->total_size, 65);
 
-    bte_buffer_unref(buffer0);
+    bte_buffer_unref(head);
 }
