@@ -31,14 +31,14 @@ struct bte_buffer_t {
     uint8_t data[0] BTE_BUFFER_ALIGN;
 } BTE_BUFFER_ALIGN;
 
-static inline void *bte_malloc(uint16_t size)
+static inline void *bte_buffer_malloc(uint16_t size)
 {
 #ifdef BTE_BUFFER_ALIGNMENT_SIZE
-    return memalign(BTE_BUFFER_ALIGNMENT_SIZE,
-                    (size + BTE_BUFFER_ALIGNMENT_SIZE - 1) &
-                    ~(BTE_BUFFER_ALIGNMENT_SIZE - 1));
+    return bte_malloc_aligned(BTE_BUFFER_ALIGNMENT_SIZE,
+                              (size + BTE_BUFFER_ALIGNMENT_SIZE - 1) &
+                              ~(BTE_BUFFER_ALIGNMENT_SIZE - 1));
 #else
-    return malloc(size);
+    return bte_malloc(size);
 #endif
 }
 
@@ -47,9 +47,9 @@ static void bte_buffer_unref(BteBuffer *buffer);
 /* Used for small packets (TODO: clarify) */
 static inline BteBuffer *bte_buffer_alloc_contiguous(uint16_t size)
 {
-    BteBuffer *b = (BteBuffer*)bte_malloc(sizeof(BteBuffer) + size);
+    BteBuffer *b = (BteBuffer*)bte_buffer_malloc(sizeof(BteBuffer) + size);
     b->ref_count = 1;
-    b->free_func = (void (*)(BteBuffer *))free;
+    b->free_func = (void (*)(BteBuffer *))bte_free;
     b->total_size = b->size = size;
     b->next = NULL;
     return b;

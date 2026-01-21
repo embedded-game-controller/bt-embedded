@@ -332,9 +332,9 @@ static void l2cap_config_apply(BteL2cap *l2cap,
 
 static void l2cap_config_params_clear(BteL2capConfigureParams *params)
 {
-    free((BteL2capConfigQos *)params->qos);
-    free((BteL2capConfigRetxFlow *)params->retx_flow);
-    free((BteL2capConfigExtFlow *)params->ext_flow);
+    bte_free((BteL2capConfigQos *)params->qos);
+    bte_free((BteL2capConfigRetxFlow *)params->retx_flow);
+    bte_free((BteL2capConfigExtFlow *)params->ext_flow);
     params->qos = NULL;
     params->retx_flow = NULL;
     params->ext_flow = NULL;
@@ -415,7 +415,7 @@ static int l2cap_config_parse(
             expected_size = 1;
             len = bte_buffer_reader_read(reader, val_u8, expected_size);
         } else {
-            param_data = malloc(expected_size);
+            param_data = bte_malloc(expected_size);
             len = bte_buffer_reader_read(reader, param_data, expected_size);
         }
 
@@ -432,7 +432,7 @@ static int l2cap_config_parse(
                     p->peak_bandwith = le32toh(p->peak_bandwith);
                     p->access_latency = le32toh(p->access_latency);
                     p->delay_variation = le32toh(p->delay_variation);
-                    free((void*)params->qos);
+                    bte_free((void*)params->qos);
                     params->qos = p;
                 }
                 break;
@@ -442,7 +442,7 @@ static int l2cap_config_parse(
                     p->retx_timeout = le16toh(p->retx_timeout);
                     p->monitor_timeout = le16toh(p->monitor_timeout);
                     p->max_pdu_size = le16toh(p->max_pdu_size);
-                    free((void*)params->retx_flow);
+                    bte_free((void*)params->retx_flow);
                     params->retx_flow = p;
                 }
                 break;
@@ -453,7 +453,7 @@ static int l2cap_config_parse(
                     p->sdu_inter_time = le32toh(p->sdu_inter_time);
                     p->access_latency = le32toh(p->access_latency);
                     p->flush_timeout = le32toh(p->flush_timeout);
-                    free((void*)params->ext_flow);
+                    bte_free((void*)params->ext_flow);
                     params->ext_flow = p;
                 }
                 break;
@@ -730,7 +730,7 @@ static bool l2cap_config_send_resp_packet(BteL2cap *l2cap, uint8_t msg_id)
     bool ok = l2cap_config_send(l2cap, conf, msg_id);
     if (!conf->has_pending_packets) {
         l2cap_config_params_clear(&conf->params);
-        free(conf);
+        bte_free(conf);
         l2cap->configure_req = NULL;
     }
     return ok;
@@ -749,7 +749,7 @@ static bool l2cap_handle_config_resp(BteL2cap *l2cap, BteBufferReader *reader,
     L2capConfigureData conf;
     if (!l2cap->configure_resp) {
         if (flags & L2CAP_CONFIG_FLAG_CONTINUATION) {
-            l2cap->configure_resp = malloc(sizeof(L2capConfigureData));
+            l2cap->configure_resp = bte_malloc(sizeof(L2capConfigureData));
         } else {
             l2cap->configure_resp = &conf;
         }
@@ -793,7 +793,7 @@ static bool l2cap_handle_config_resp(BteL2cap *l2cap, BteBufferReader *reader,
         if (l2cap->configure_resp) {
             l2cap_config_params_clear(&l2cap->configure_resp->params);
             if (l2cap->configure_resp != &conf) {
-                free(l2cap->configure_resp);
+                bte_free(l2cap->configure_resp);
             }
             l2cap->configure_resp = NULL;
         }
@@ -954,7 +954,7 @@ static bool acl_l2cap_handle_configure_req(
              * fragmentation, make sure we allocate the conf data on the heap
              */
             req_len + 2 > l2cap->remote_mtu) {
-            conf = malloc(sizeof(L2capConfigureData));
+            conf = bte_malloc(sizeof(L2capConfigureData));
         } else {
             conf = &conf_store;
         }
@@ -1006,14 +1006,14 @@ static bool acl_l2cap_handle_configure_req(
         if (UNLIKELY(conf == &conf_store)) {
             /* We need to store the configuration on the heap, since we'll be
              * using later too */
-            l2cap->configure_req = conf = malloc(sizeof(conf_store));
+            l2cap->configure_req = conf = bte_malloc(sizeof(conf_store));
             memcpy(conf, &conf_store, sizeof(conf_store));
         }
     } else if (!(flags & L2CAP_CONFIG_FLAG_CONTINUATION)) {
         /* Cleanup the temporary structures */
         l2cap_config_params_clear(&conf->params);
         if (l2cap->configure_req != &conf_store) {
-            free(l2cap->configure_req);
+            bte_free(l2cap->configure_req);
         }
         l2cap->configure_req = NULL;
     }
@@ -1290,12 +1290,12 @@ static void bte_l2cap_free(BteL2cap *l2cap)
         acl_l2cap_remove_client(L(l2cap->acl), l2cap);
         bte_acl_unref(l2cap->acl);
     }
-    free(l2cap);
+    bte_free(l2cap);
 }
 
 static BteL2cap *bte_l2cap_new()
 {
-    BteL2cap *l2cap = malloc(sizeof(BteL2cap));
+    BteL2cap *l2cap = bte_malloc(sizeof(BteL2cap));
     memset(l2cap, 0, sizeof(BteL2cap));
     l2cap->ref_count = 1;
     l2cap->mtu = L2CAP_MTU_DEFAULT;
@@ -1490,19 +1490,19 @@ void bte_l2cap_set_configure_reply(BteL2cap *l2cap,
     out->max_window_size = in->max_window_size;
     if (in->field_mask & BTE_L2CAP_CONFIG_QOS) {
         if (!out->qos) {
-            out->qos = malloc(sizeof(BteL2capConfigQos));
+            out->qos = bte_malloc(sizeof(BteL2capConfigQos));
         }
         memcpy((void*)out->qos, in->qos, sizeof(BteL2capConfigQos));
     }
     if (in->field_mask & BTE_L2CAP_CONFIG_RETX_FLOW) {
         if (!out->retx_flow) {
-            out->retx_flow = malloc(sizeof(BteL2capConfigRetxFlow));
+            out->retx_flow = bte_malloc(sizeof(BteL2capConfigRetxFlow));
         }
         memcpy((void*)out->retx_flow, in->retx_flow, sizeof(BteL2capConfigRetxFlow));
     }
     if (in->field_mask & BTE_L2CAP_CONFIG_EXT_FLOW) {
         if (!out->ext_flow) {
-            out->ext_flow = malloc(sizeof(BteL2capConfigExtFlow));
+            out->ext_flow = bte_malloc(sizeof(BteL2capConfigExtFlow));
         }
         memcpy((void*)out->ext_flow, in->ext_flow, sizeof(BteL2capConfigExtFlow));
     }

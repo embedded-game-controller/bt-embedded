@@ -1487,7 +1487,7 @@ static void read_current_iac_lap_cb(BteHci *hci, BteBuffer *buffer,
     const uint8_t *data = buffer->data + HCI_CMD_REPLY_POS_DATA;
     reply.num_laps = data[0]; data++;
     /* We trust the controller that the reply len is long enough */
-    BteLap *laps = malloc(sizeof(BteLap) * reply.num_laps);
+    BteLap *laps = bte_malloc(sizeof(BteLap) * reply.num_laps);
     for (int i = 0; i < reply.num_laps; i++) {
         BteLap lap = data[0];
         lap |= ((uint32_t)data[1] << 8);
@@ -1498,7 +1498,7 @@ static void read_current_iac_lap_cb(BteHci *hci, BteBuffer *buffer,
     reply.laps = laps;
     BteHciReadCurrentIacLapCb callback = client_cb;
     callback(hci, &reply, userdata);
-    free(laps);
+    bte_free(laps);
 }
 
 void bte_hci_read_current_iac_lap(

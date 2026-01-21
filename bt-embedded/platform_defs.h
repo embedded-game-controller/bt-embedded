@@ -15,6 +15,12 @@ extern "C" {
 #  define BTE_BUFFER_ALIGN
 #endif
 
+/* Definition of allocation functions */
+#define bte_malloc(size) malloc(size)
+#define bte_malloc_aligned(alignment, size) \
+    memalign(alignment, ((size) + alignment - 1) & ~(alignment - 1))
+#define bte_free free
+
 #ifdef __cplusplus
 }
 #endif

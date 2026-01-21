@@ -156,7 +156,7 @@ static void bte_acl_free(BteAcl *acl)
     acl->disconnected_cb = NULL;
     bte_acl_disconnected(acl, HCI_CONN_TERMINATED_BY_LOCAL_HOST);
     bte_client_unref(bte_hci_get_client(acl->hci));
-    free(acl);
+    bte_free(acl);
 }
 
 static bool on_disconnection_complete(
@@ -181,7 +181,7 @@ static bool on_nr_of_completed_packets(
 BteAcl *bte_acl_new(BteHci *hci, const BteBdAddr *address,
                     size_t struct_size)
 {
-    BteAcl *acl = malloc(struct_size);
+    BteAcl *acl = bte_malloc(struct_size);
     memset(acl, 0, struct_size);
     acl->ref_count = 1;
     acl->hci = hci;
@@ -203,7 +203,7 @@ BteAcl *bte_acl_new(BteHci *hci, const BteBdAddr *address,
 BteAcl *bte_acl_new_connected(
     BteHci *hci, const BteHciAcceptConnectionReply *reply, size_t struct_size)
 {
-    BteAcl *acl = malloc(struct_size);
+    BteAcl *acl = bte_malloc(struct_size);
     memset(acl, 0, struct_size);
     acl->ref_count = 1;
     acl->hci = hci;

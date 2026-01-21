@@ -90,7 +90,7 @@ static void bte_l2cap_server_free(BteL2capServer *l2cap_server)
         p_server = &((*p_server)->next);
     }
     *p_server = l2cap_server->next;
-    free(l2cap_server);
+    bte_free(l2cap_server);
 
     if (!s_servers) {
         bte_hci_write_scan_enable(hci, BTE_HCI_SCAN_ENABLE_OFF, NULL, NULL);
@@ -101,7 +101,7 @@ static void bte_l2cap_server_free(BteL2capServer *l2cap_server)
 BteL2capServer *bte_l2cap_server_new(BteClient *client, BteL2capPsm psm)
 {
     _bte_l2cap_handle_connection_req = l2cap_server_handle_connection_req;
-    BteL2capServer *l2cap_server = malloc(sizeof(BteL2capServer));
+    BteL2capServer *l2cap_server = bte_malloc(sizeof(BteL2capServer));
     memset(l2cap_server, 0, sizeof(BteL2capServer));
     l2cap_server->ref_count = 1;
     l2cap_server->hci = bte_hci_get(bte_client_ref(client));

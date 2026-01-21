@@ -10,7 +10,7 @@
 static void bte_client_free(BteClient *client)
 {
     _bte_hci_dev_remove_client(client);
-    free(client);
+    bte_free(client);
 }
 
 BteClient *bte_client_new(void)
@@ -19,7 +19,7 @@ BteClient *bte_client_new(void)
         return NULL;
     }
 
-    BteClient *client = malloc(sizeof(BteClient));
+    BteClient *client = bte_malloc(sizeof(BteClient));
     if (UNLIKELY(!client)) return NULL;
 
     memset(client, 0, sizeof(*client));
