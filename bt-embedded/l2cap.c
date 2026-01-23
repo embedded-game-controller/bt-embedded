@@ -217,7 +217,7 @@ static void acl_l2cap_connected_cb(BteL2cap *l2cap, uint8_t status)
     /* We couldn't get an ACL connection or request a L2CAP one */
     if (UNLIKELY(status != 0 || !l2cap_connection_request(l2cap))) {
         BteL2capConnectCb client_cb =
-            l2cap->last_async_cmd_data.connect.client_cb;
+            l2cap->cmd_data.connect.client_cb;
         BteL2capConnectionResponse reply = {
             BTE_L2CAP_CHANNEL_ID_NULL,
             BTE_L2CAP_CHANNEL_ID_NULL,
@@ -296,7 +296,7 @@ static bool l2cap_connect_cb(BteL2cap *l2cap, BteBufferReader *reader,
         }
     }
 
-    BteL2capConnectCb client_cb = l2cap->last_async_cmd_data.connect.client_cb;
+    BteL2capConnectCb client_cb = l2cap->cmd_data.connect.client_cb;
     client_cb(reply.result == BTE_L2CAP_CONN_RESP_RES_OK ? l2cap : NULL,
               &reply, l2cap->userdata);
     if (reply.result != BTE_L2CAP_CONN_RESP_RES_PENDING) {
@@ -794,8 +794,8 @@ static bool l2cap_handle_config_resp(BteL2cap *l2cap, BteBufferReader *reader,
         reply.rejected_mask = l2cap->configure_resp->rejected_mask;
         reply.params = l2cap->configure_resp->params;
         BteL2capConfigureCb client_cb =
-            l2cap->last_async_cmd_data.configure.client_cb;
-        client_cb(l2cap, &reply, l2cap->last_async_cmd_data.configure.userdata);
+            l2cap->cmd_data.configure.client_cb;
+        client_cb(l2cap, &reply, l2cap->cmd_data.configure.userdata);
         if (l2cap->configure_resp) {
             l2cap_config_params_clear(&l2cap->configure_resp->params);
             if (l2cap->configure_resp != &conf) {
@@ -1248,14 +1248,14 @@ static void l2cap_disconnect_cb(BteL2cap *l2cap, uint8_t reason)
         /* The client was waiting for a configuration response. Deliver a
          * synthetic one. */
         BteL2capConfigureCb client_cb =
-            l2cap->last_async_cmd_data.configure.client_cb;
+            l2cap->cmd_data.configure.client_cb;
         if (client_cb) {
             BteL2capConfigureReply reply;
             reply.unknown_mask = 0xfffffff;
             reply.rejected_mask = 0xfffffff;
             memset(&reply.params, 0, sizeof(reply.params));
             client_cb(l2cap, &reply,
-                      l2cap->last_async_cmd_data.configure.userdata);
+                      l2cap->cmd_data.configure.userdata);
         }
     }
 
@@ -1266,7 +1266,7 @@ static void l2cap_disconnect_cb(BteL2cap *l2cap, uint8_t reason)
         BteL2capConnectionResponse reply = {0,};
         /* We should probably come up with our error codes, based on reason */
         reply.result = BTE_L2CAP_CONN_RESP_RES_ERR_RESOURCE;
-        BteL2capConnectCb client_cb = l2cap->last_async_cmd_data.connect.client_cb;
+        BteL2capConnectCb client_cb = l2cap->cmd_data.connect.client_cb;
         client_cb(NULL, &reply, l2cap->userdata);
         bte_l2cap_unref(l2cap);
     }
@@ -1367,7 +1367,7 @@ void bte_l2cap_new_outgoing(BteClient *client, const BteBdAddr *address,
 
     l2cap->userdata = userdata;
     l2cap->psm = psm;
-    l2cap->last_async_cmd_data.connect.client_cb = callback;
+    l2cap->cmd_data.connect.client_cb = callback;
 }
 
 BteL2cap *_bte_l2cap_new_connected(
@@ -1481,8 +1481,8 @@ void bte_l2cap_configure(
     L2capConfigureData conf = { 0, 0, *params };
     bool ok = l2cap_config_send(l2cap, &conf, 0);
     if (LIKELY(ok)) {
-        l2cap->last_async_cmd_data.configure.client_cb = callback;
-        l2cap->last_async_cmd_data.configure.userdata = userdata;
+        l2cap->cmd_data.configure.client_cb = callback;
+        l2cap->cmd_data.configure.userdata = userdata;
     } else {
         BteL2capConfigureReply reply;
         reply.rejected_mask = 0xffffffff;

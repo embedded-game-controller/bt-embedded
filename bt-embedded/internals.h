@@ -113,7 +113,7 @@ struct bte_l2cap_t {
             BteL2capConfigureCb client_cb;
             void *userdata;
         } configure;
-    } last_async_cmd_data;
+    } cmd_data;
 };
 
 typedef BteL2cap *(*BteL2capConnectionRequestCb)(
