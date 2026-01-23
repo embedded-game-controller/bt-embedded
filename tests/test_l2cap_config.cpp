@@ -349,11 +349,58 @@ TEST_F(TestL2capConfig, testIncomingEmpty) {
     ASSERT_EQ(incomingParams, expectedParams);
 
     /* Check that our reply was sent */
+    Buffer configDefault {
+        L2CAP_CONFIG_MTU, 2, low(672), high(672),
+    };
     std::vector<Buffer> expectedData = {
-        makeConfigResponse({}, reqId, m_remoteCid),
+        makeConfigResponse(configDefault, reqId, m_remoteCid),
     };
     ASSERT_EQ(m_backend.sentData(), expectedData);
     ASSERT_EQ(m_l2cap->remoteMtu(), 672);
+}
+
+TEST_F(TestL2capConfig, testIncomingAutomaticResponse) {
+    uint8_t reqId = 56;
+    /* Send an empty request */
+    sendConfigRequest({}, reqId);
+    bte_handle_events();
+
+    /* Check that our reply was sent even if we didn't explicitly handle it */
+    Buffer configDefault {
+        L2CAP_CONFIG_MTU, 2, low(672), high(672),
+    };
+    std::vector<Buffer> expectedData = {
+        makeConfigResponse(configDefault, reqId, m_remoteCid),
+    };
+    ASSERT_EQ(m_backend.sentData(), expectedData);
+    ASSERT_EQ(m_l2cap->remoteMtu(), 672);
+}
+
+TEST_F(TestL2capConfig, testIncomingAutomaticResponseMtu) {
+    using L = Bte::L2cap;
+    std::vector<L::ConfigureParams> incomingParams;
+    m_l2cap->onConfigureRequest([&](const L::ConfigureParams &params) {
+        incomingParams.push_back(params);
+    });
+
+    uint8_t reqId = 56;
+    Buffer config { L2CAP_CONFIG_MTU, 2, low(400), high(400), };
+    sendConfigRequest(config, reqId);
+    bte_handle_events();
+
+    L::ConfigureParams expectedParams;
+    expectedParams.setMtu(400);
+    std::vector<L::ConfigureParams> expectedParamsArray = {
+        expectedParams,
+    };
+    ASSERT_EQ(incomingParams, expectedParamsArray);
+
+    /* Check that our reply was sent */
+    std::vector<Buffer> expectedData = {
+        makeConfigResponse(config, reqId, m_remoteCid),
+    };
+    ASSERT_EQ(m_backend.sentData(), expectedData);
+    ASSERT_EQ(m_l2cap->remoteMtu(), 400);
 }
 
 TEST_F(TestL2capConfig, testIncomingUnknownParam) {
@@ -411,6 +458,7 @@ TEST_F(TestL2capConfig, testIncomingUnknownParamHint) {
 
     /* Check that our reply was sent */
     Buffer configOk {
+        L2CAP_CONFIG_MTU, 2, low(672), high(672),
         L2CAP_CONFIG_FLUSH_TIMEOUT, 2, 0x11, 0x22,
     };
     std::vector<Buffer> expectedData = {
@@ -571,7 +619,11 @@ TEST_F(TestL2capConfig, testStateInitiatiorFirst) {
     bte_handle_events();
 
     /* Check that our reply was sent */
-    expectedData = makeConfigResponse({}, incomingReqId, m_remoteCid);
+    Buffer configDefault {
+        L2CAP_CONFIG_MTU, 2, low(672), high(672),
+    };
+    expectedData =
+        makeConfigResponse(configDefault, incomingReqId, m_remoteCid);
     ASSERT_EQ(m_backend.lastData(), expectedData);
     ASSERT_EQ(state, BTE_L2CAP_OPEN);
 }

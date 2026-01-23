@@ -1003,6 +1003,11 @@ static bool acl_l2cap_handle_configure_req(
         if (conf->rejected_mask == 0) {
             bool remote = true;
             l2cap_config_apply(l2cap, &conf->params, remote);
+            if (!(conf->params.field_mask & BTE_L2CAP_CONFIG_MTU)) {
+                /* Always send the MTU in the response */
+                conf->params.mtu = l2cap->remote_mtu;
+                conf->params.field_mask |= BTE_L2CAP_CONFIG_MTU;
+            }
         }
 
         l2cap_config_send(l2cap, conf, id);
