@@ -1,6 +1,5 @@
-#include "l2cap.h"
+#include "l2cap_priv.h"
 
-#include "acl.h"
 #include "buffer.h"
 #include "client.h"
 #include "hci.h"
@@ -10,12 +9,6 @@
 
 #include <stdlib.h>
 #include <sys/param.h>
-
-typedef struct bte_acl_l2cap_t {
-    BteAcl acl;
-
-    BteL2cap *clients[BTE_ACL_MAX_CLIENTS];
-} BteAclL2cap;
 
 struct l2cap_configure_data_t {
     uint32_t rejected_mask;

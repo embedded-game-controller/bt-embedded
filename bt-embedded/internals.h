@@ -65,9 +65,6 @@ typedef struct bte_hci_event_handler_t BteHciEventHandler;
 typedef void (*BteHciEventHandlerCb)(BteBuffer *buffer);
 typedef void (*BteHciDataHandlerCb)(BteBuffer *buffer);
 
-/* Maximum number of l2cap connections over the same ACL link */
-#define BTE_ACL_MAX_CLIENTS 4
-
 typedef struct l2cap_configure_data_t L2capConfigureData;
 
 struct bte_l2cap_t {
