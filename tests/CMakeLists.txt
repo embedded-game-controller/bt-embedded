@@ -46,8 +46,29 @@ target_compile_definitions(test_commands PRIVATE
     -DBUILDING_BT_EMBEDDED
 )
 
+#
+# This is to test the case where some functionality of the library is not being
+# reuqested; the goal is to verify that the resulting binary does not contain
+# the symbols that are not used.
+#
+add_executable(test_minimal
+    ${BTE_SOURCES}
+    dummy_driver.c
+    mock_backend.cpp
+    test_minimal_l2cap.cpp
+)
+target_link_libraries(test_minimal
+    bt-embedded
+    GTest::gtest_main
+)
+target_compile_definitions(test_minimal PRIVATE
+    -DBUILDING_BT_EMBEDDED
+)
+
+
 set(UNIT_TESTS
     test_commands
+    test_minimal
 )
 include(GoogleTest)
 gtest_discover_tests(${UNIT_TESTS})
