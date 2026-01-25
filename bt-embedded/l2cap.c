@@ -125,9 +125,9 @@ static inline bool acl_l2cap_create_message(
     return true;
 }
 
-static bool acl_l2cap_create_cmd(BteAclL2cap *acl_l2cap,
-                                 BteBufferWriter *writer,
-                                 uint8_t code, uint8_t id, uint16_t size)
+bool acl_l2cap_create_cmd(BteAclL2cap *acl_l2cap,
+                          BteBufferWriter *writer,
+                          uint8_t code, uint8_t id, uint16_t size)
 {
     uint16_t cmd_size = L2CAP_SIGNAL_HDR_LEN + size;
     bool ok = acl_l2cap_create_message(acl_l2cap, writer, cmd_size,
@@ -1025,6 +1025,21 @@ static bool acl_l2cap_handle_configure_req(
     return true;
 }
 
+static bool l2cap_handle_echo_resp(BteL2cap *l2cap, BteBufferReader *reader,
+                                   uint16_t resp_len)
+{
+    BteL2capEchoCb client_cb = l2cap->cmd_data.echo.client_cb;
+    client_cb(l2cap, reader, l2cap->cmd_data.echo.userdata);
+    return true;
+}
+
+__attribute__((weak))
+bool acl_l2cap_handle_echo_req(BteAclL2cap *acl_l2cap, uint8_t id,
+                               BteBufferReader *, uint16_t)
+{
+    return acl_l2cap_cmd_reply(acl_l2cap, L2CAP_SIGNAL_ECHO_RSP, id, NULL, 0);
+}
+
 static bool l2cap_send_disconnect_req(BteL2cap *l2cap)
 {
     uint16_t data[2];
@@ -1112,6 +1127,9 @@ static bool acl_l2cap_handle_request(
     case L2CAP_SIGNAL_CONFIG_REQ:
         ok = acl_l2cap_handle_configure_req(acl_l2cap, id, reader, req_len);
         break;
+    case L2CAP_SIGNAL_ECHO_REQ:
+        ok = acl_l2cap_handle_echo_req(acl_l2cap, id, reader, req_len);
+        break;
     case L2CAP_SIGNAL_DISCONN_REQ:
         ok = acl_l2cap_handle_disconnect_req(acl_l2cap, id, reader, req_len);
         break;
@@ -1135,6 +1153,9 @@ static bool l2cap_handle_response(BteL2cap *l2cap, uint8_t code,
             l2cap->state == BTE_L2CAP_WAIT_CONFIG_REQ_RSP) {
             ok = l2cap_handle_config_resp(l2cap, reader, resp_len);
         }
+        break;
+    case L2CAP_SIGNAL_ECHO_RSP:
+        ok = l2cap_handle_echo_resp(l2cap, reader, resp_len);
         break;
     case L2CAP_SIGNAL_DISCONN_RSP:
         if (l2cap->state == BTE_L2CAP_WAIT_DISCONNECT) {
@@ -1567,6 +1588,25 @@ void bte_l2cap_on_message_received(BteL2cap *l2cap,
 {
     assert(l2cap != NULL);
     l2cap->message_received_cb = callback;
+}
+
+bool bte_l2cap_echo(BteL2cap *l2cap, const void *data, uint16_t size,
+                    BteL2capEchoCb callback, void *userdata)
+{
+    if (UNLIKELY(l2cap->expected_response_count > 0)) {
+        return false;
+    }
+
+    BteBuffer *buffer = l2cap_signal(l2cap, L2CAP_SIGNAL_ECHO_REQ,
+                                     data, size);
+    if (UNLIKELY(!buffer)) return false;
+
+    bool ok = bte_acl_send_message(l2cap->acl, buffer) >= 0;
+    if (LIKELY(ok)) {
+        l2cap->cmd_data.echo.client_cb = callback;
+        l2cap->cmd_data.echo.userdata = userdata;
+    }
+    return ok;
 }
 
 void bte_l2cap_on_disconnected(BteL2cap *l2cap, BteL2capDisconnectCb callback,

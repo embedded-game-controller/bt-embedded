@@ -23,6 +23,7 @@ add_library(bt-embedded STATIC
     hci.c
     hci_dev.c
     l2cap.c
+    l2cap_echo.c
     l2cap_server.c
 )
 

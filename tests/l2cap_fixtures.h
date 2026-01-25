@@ -222,6 +222,35 @@ protected:
         }
     }
 
+    Buffer makeEchoSignal(uint8_t code, const Buffer &data, uint8_t reqId) {
+        uint8_t dataSize = data.size();
+        return Buffer{
+            0x00, 0x21, /* 0x100 handle + flushable flag */
+            low(8 + dataSize), high(8 + dataSize), /* Total length */
+            low(4 + dataSize), high(4 + dataSize), /* L2CAP length */
+            0x01, 0x00, /* signalling channel */
+            code,
+            reqId,
+            low(dataSize), high(dataSize),
+        } + data;
+    }
+
+    Buffer makeEchoRequest(const Buffer &data, uint8_t reqId) {
+        return makeEchoSignal(L2CAP_SIGNAL_ECHO_REQ, data, reqId);
+    }
+
+    void sendEchoRequest(const Buffer &config, uint8_t reqId) {
+        m_backend.sendData(makeEchoRequest(config, reqId));
+    }
+
+    Buffer makeEchoResponse(const Buffer &data, uint8_t reqId) {
+        return makeEchoSignal(L2CAP_SIGNAL_ECHO_RSP, data, reqId);
+    }
+
+    void sendEchoResponse(const Buffer &config, uint8_t reqId) {
+        m_backend.sendData(makeEchoResponse(config, reqId));
+    }
+
     Buffer makeHciCreateDisconnection(const BteBdAddr &address,
                                    BtePacketType packetType,
                                    uint8_t pageScanRepMode,

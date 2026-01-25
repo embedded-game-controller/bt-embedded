@@ -96,6 +96,9 @@ struct bte_l2cap_t {
 
     BteL2capMessageReceivedCb message_received_cb;
 
+    BteL2capOnEchoCb echo_cb;
+    void *echo_userdata;
+
     BteL2capDisconnectCb disconnect_cb;
     void *disconnect_userdata;
 
@@ -110,6 +113,10 @@ struct bte_l2cap_t {
             BteL2capConfigureCb client_cb;
             void *userdata;
         } configure;
+        struct _bte_l2cap_tmpdata_echo {
+            BteL2capEchoCb client_cb;
+            void *userdata;
+        } echo;
     } cmd_data;
 };
 

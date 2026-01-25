@@ -179,6 +179,21 @@ typedef void (*BteL2capMessageReceivedCb)(
 void bte_l2cap_on_message_received(BteL2cap *l2cap,
                                    BteL2capMessageReceivedCb callback);
 
+typedef void (*BteL2capEchoCb)(
+    BteL2cap *l2cap, BteBufferReader *reader, void *userdata);
+bool bte_l2cap_echo(BteL2cap *l2cap, const void *data, uint16_t size,
+                    BteL2capEchoCb callback, void *userdata);
+/* This is first called with the \a writer set to NULL. If the client returns a
+ * value bigger than 0, this is interpreted as a sign that the client wants to
+ * send that amount of data back to the peer, and then the callback is invoked
+ * again with a valid \a writer (on the second invocation, return value should
+ * be 0). */
+typedef uint16_t (*BteL2capOnEchoCb)(
+    BteL2cap *l2cap, BteBufferReader *reader, BteBufferWriter *writer,
+    void *userdata);
+void bte_l2cap_on_echo(
+    BteL2cap *l2cap, BteL2capOnEchoCb callback, void *userdata);
+
 /* For the reason we reuse the HCI error codes; if a disconnection is requested
  * via the L2CAP protocol, reason is 0x13 (if the peer requested the
  * termination) or 0x16 (if we did). TODO: make these codes public */

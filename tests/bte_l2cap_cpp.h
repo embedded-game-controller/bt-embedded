@@ -278,6 +278,20 @@ public:
             m_l2cap, &L2cap::Callbacks::onMessageReceived);
     }
 
+    using EchoCb = std::function<void(BufferList::Reader &reader)>;
+    bool echo(const Buffer &data, const EchoCb &cb) {
+        auto *f = new EchoCb(cb);
+        return bte_l2cap_echo(m_l2cap, data.data(), data.size(),
+                              &L2cap::Callbacks::echo, f);
+    }
+
+    using OnEchoCb = std::function<uint16_t(BufferList::Reader &reader,
+                                            BufferList::Writer *writer)>;
+    void onEcho(const OnEchoCb &cb) {
+        m_onEcho = cb;
+        bte_l2cap_on_echo(m_l2cap, &L2cap::Callbacks::onEcho, this);
+    }
+
     void disconnect() {
         bte_l2cap_disconnect(m_l2cap);
     }
@@ -343,6 +357,29 @@ private:
             }
         }
 
+        static void echo(BteL2cap *l2cap, BteBufferReader *reader, void *d) {
+            EchoCb *cb = static_cast<EchoCb*>(d);
+            BufferList::Reader r(*reader);
+            (*cb)(r);
+            delete cb;
+        }
+
+        static uint16_t onEcho(BteL2cap *l2cap, BteBufferReader *reader,
+                               BteBufferWriter *writer, void *d) {
+            L2cap *_this = static_cast<L2cap*>(d);
+            if (!_this->m_onEcho) return 0;
+            BufferList::Reader r(*reader);
+            BufferList::Writer w;
+            if (writer) {
+                w.m_writer = *writer;
+            }
+            uint16_t len = _this->m_onEcho(r, writer ? &w : nullptr);
+            if (writer) {
+                *writer = w.m_writer;
+            }
+            return len;
+        }
+
         static void onDisconnected(BteL2cap *l2cap, uint8_t reason, void *d) {
             L2cap *_this = static_cast<L2cap*>(d);
             if (_this->m_onDisconnected)
@@ -354,6 +391,7 @@ private:
     ConfigureRequestCb m_onConfigureRequest;
     StateChangedCb m_onStateChanged;
     MessageReceivedCb m_onMessageReceived;
+    OnEchoCb m_onEcho;
     DisconnectedCb m_onDisconnected;
 };
 

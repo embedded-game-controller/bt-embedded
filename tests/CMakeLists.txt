@@ -18,6 +18,9 @@ set(BTE_SOURCES
     ${SRC}/l2cap_server.c
 )
 
+#
+# This tests most of the functionality of the library
+#
 add_executable(test_commands
     ${BTE_SOURCES}
     dummy_driver.c
@@ -32,6 +35,7 @@ add_executable(test_commands
     test_l2cap_connect.cpp
     test_l2cap_data.cpp
     test_l2cap_disconnect.cpp
+    test_l2cap_echo.cpp
     test_l2cap_server.cpp
 )
 target_link_libraries(test_commands

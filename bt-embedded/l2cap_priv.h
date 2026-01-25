@@ -18,6 +18,10 @@ typedef struct bte_acl_l2cap_t {
     BteL2cap *clients[BTE_ACL_MAX_CLIENTS];
 } BteAclL2cap;
 
+bool acl_l2cap_create_cmd(BteAclL2cap *acl_l2cap,
+                          BteBufferWriter *writer,
+                          uint8_t code, uint8_t id, uint16_t size);
+
 #ifdef __cplusplus
 }
 #endif
