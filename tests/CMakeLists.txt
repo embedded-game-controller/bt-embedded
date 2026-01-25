@@ -18,6 +18,19 @@ set(BTE_SOURCES
     ${SRC}/l2cap_server.c
 )
 
+include(GoogleTest)
+
+function(make_test TEST_NAME)
+    target_link_libraries(${TEST_NAME}
+        bt-embedded
+        GTest::gtest_main
+    )
+    target_compile_definitions(${TEST_NAME} PRIVATE
+        -DBUILDING_BT_EMBEDDED
+    )
+    gtest_discover_tests(${TEST_NAME})
+endfunction()
+
 #
 # This tests most of the functionality of the library
 #
@@ -38,13 +51,7 @@ add_executable(test_commands
     test_l2cap_echo.cpp
     test_l2cap_server.cpp
 )
-target_link_libraries(test_commands
-    bt-embedded
-    GTest::gtest_main
-)
-target_compile_definitions(test_commands PRIVATE
-    -DBUILDING_BT_EMBEDDED
-)
+make_test(test_commands)
 
 #
 # This is to test the case where some functionality of the library is not being
@@ -57,21 +64,13 @@ add_executable(test_minimal
     mock_backend.cpp
     test_minimal_l2cap.cpp
 )
-target_link_libraries(test_minimal
-    bt-embedded
-    GTest::gtest_main
-)
-target_compile_definitions(test_minimal PRIVATE
-    -DBUILDING_BT_EMBEDDED
-)
+make_test(test_minimal)
 
 
 set(UNIT_TESTS
     test_commands
     test_minimal
 )
-include(GoogleTest)
-gtest_discover_tests(${UNIT_TESTS})
 
 if(ENABLE_COVERAGE)
     include(CodeCoverage)
