@@ -87,3 +87,11 @@ if(ENABLE_COVERAGE)
         EXECUTABLE ctest
         DEPENDENCIES ${UNIT_TESTS})
 endif()
+
+set(CHECKED_SYMBOLS
+    acl_l2cap_handle_echo_req
+)
+add_test(NAME compare_sizes
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/check_symbol_sizes.sh
+    test_minimal test_commands ${CHECKED_SYMBOLS}
+)
