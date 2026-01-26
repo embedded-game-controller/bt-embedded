@@ -44,5 +44,4 @@ target_link_options(bt-embedded PRIVATE
 
 target_link_libraries(bt-embedded PRIVATE
     ${EXTRA_LIBS}
-    gcc
 )
