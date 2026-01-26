@@ -1033,11 +1033,77 @@ static bool l2cap_handle_echo_resp(BteL2cap *l2cap, BteBufferReader *reader,
     return true;
 }
 
+static bool l2cap_handle_info_resp(BteL2cap *l2cap, BteBufferReader *reader,
+                                   uint16_t resp_len)
+{
+    uint16_t header[2];
+    BteL2capInfo info;
+    bool ok = read_signal_header(reader, resp_len, &header, sizeof(header));
+    if (UNLIKELY(!ok)) return false;
+
+    info.type = le16toh(header[0]);
+    info.result = le16toh(header[1]);
+    if (info.result == BTE_L2CAP_INFO_RESP_RES_OK) {
+        if (info.type == BTE_L2CAP_INFO_TYPE_MTU) {
+            uint16_t mtu = 0;
+            bte_buffer_reader_read(reader, &mtu, sizeof(mtu));
+            info.u.connectionless_mtu = le16toh(mtu);
+        } else if (info.type == BTE_L2CAP_INFO_TYPE_EXT_FEATURES) {
+            uint32_t mask = 0;
+            bte_buffer_reader_read(reader, &mask, sizeof(mask));
+            info.u.ext_feature_mask = le32toh(mask);
+        } else if (info.type == BTE_L2CAP_INFO_TYPE_FIXED_CHANNELS) {
+            uint64_t mask = 0;
+            bte_buffer_reader_read(reader, &mask, sizeof(mask));
+            info.u.fixed_channels_mask = le64toh(mask);
+        }
+    }
+    BteL2capInfoCb client_cb = l2cap->cmd_data.info.client_cb;
+    client_cb(l2cap, &info, l2cap->cmd_data.info.userdata);
+    return true;
+}
+
 __attribute__((weak))
 bool acl_l2cap_handle_echo_req(BteAclL2cap *acl_l2cap, uint8_t id,
                                BteBufferReader *, uint16_t)
 {
     return acl_l2cap_cmd_reply(acl_l2cap, L2CAP_SIGNAL_ECHO_RSP, id, NULL, 0);
+}
+
+static bool acl_l2cap_handle_info_req(BteAclL2cap *acl_l2cap, uint8_t id,
+                                      BteBufferReader *reader,
+                                      uint16_t req_len)
+{
+    uint16_t header;
+    if (UNLIKELY(!read_signal_header(reader, req_len,
+                                     &header, sizeof(header)))) {
+        return false;
+    }
+    uint16_t type = le16toh(header);
+    /* If the need arises, we should let the client hook into this request and
+     * alter the response. For the time being let's send a fixed response */
+    uint16_t resp_len = 4, result = BTE_L2CAP_INFO_RESP_RES_OK;
+    uint8_t resp[sizeof(BteL2capInfo)];
+    switch (type) {
+    case BTE_L2CAP_INFO_TYPE_MTU:
+        write_le16(48, resp + resp_len);
+        resp_len += 2;
+        break;
+    case BTE_L2CAP_INFO_TYPE_EXT_FEATURES:
+        write_le32(0, resp + resp_len);
+        resp_len += 4;
+        break;
+    case BTE_L2CAP_INFO_TYPE_FIXED_CHANNELS:
+        write_le64(0x2, resp + resp_len);
+        resp_len += 8;
+        break;
+    default:
+        result = BTE_L2CAP_INFO_RESP_RES_UNSUPPORTED;
+    }
+
+    write_le16(type, resp);
+    write_le16(result, resp + 2);
+    return acl_l2cap_cmd_reply(acl_l2cap, L2CAP_SIGNAL_INFO_RSP, id, resp, resp_len);
 }
 
 static bool l2cap_send_disconnect_req(BteL2cap *l2cap)
@@ -1130,6 +1196,9 @@ static bool acl_l2cap_handle_request(
     case L2CAP_SIGNAL_ECHO_REQ:
         ok = acl_l2cap_handle_echo_req(acl_l2cap, id, reader, req_len);
         break;
+    case L2CAP_SIGNAL_INFO_REQ:
+        ok = acl_l2cap_handle_info_req(acl_l2cap, id, reader, req_len);
+        break;
     case L2CAP_SIGNAL_DISCONN_REQ:
         ok = acl_l2cap_handle_disconnect_req(acl_l2cap, id, reader, req_len);
         break;
@@ -1156,6 +1225,9 @@ static bool l2cap_handle_response(BteL2cap *l2cap, uint8_t code,
         break;
     case L2CAP_SIGNAL_ECHO_RSP:
         ok = l2cap_handle_echo_resp(l2cap, reader, resp_len);
+        break;
+    case L2CAP_SIGNAL_INFO_RSP:
+        ok = l2cap_handle_info_resp(l2cap, reader, resp_len);
         break;
     case L2CAP_SIGNAL_DISCONN_RSP:
         if (l2cap->state == BTE_L2CAP_WAIT_DISCONNECT) {
@@ -1605,6 +1677,26 @@ bool bte_l2cap_echo(BteL2cap *l2cap, const void *data, uint16_t size,
     if (LIKELY(ok)) {
         l2cap->cmd_data.echo.client_cb = callback;
         l2cap->cmd_data.echo.userdata = userdata;
+    }
+    return ok;
+}
+
+bool bte_l2cap_query_info(BteL2cap *l2cap, BteL2capInfoType type,
+                          BteL2capInfoCb callback, void *userdata)
+{
+    if (UNLIKELY(l2cap->expected_response_count > 0)) {
+        return false;
+    }
+
+    uint16_t data = htole16(type);
+    BteBuffer *buffer = l2cap_signal(l2cap, L2CAP_SIGNAL_INFO_REQ,
+                                     &data, sizeof(data));
+    if (UNLIKELY(!buffer)) return false;
+
+    bool ok = bte_acl_send_message(l2cap->acl, buffer) >= 0;
+    if (LIKELY(ok)) {
+        l2cap->cmd_data.info.client_cb = callback;
+        l2cap->cmd_data.info.userdata = userdata;
     }
     return ok;
 }

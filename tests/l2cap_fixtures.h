@@ -47,6 +47,10 @@ protected:
         return v >> 8;
     }
 
+    static uint8_t byte(int index, uint64_t v) {
+        return (v >> (index * 8)) & 0xff;
+    }
+
     Buffer makeConnectResponse(
         uint8_t reqId,
         BteL2capChannelId destCid, BteL2capChannelId sourceCid,
@@ -249,6 +253,71 @@ protected:
 
     void sendEchoResponse(const Buffer &config, uint8_t reqId) {
         m_backend.sendData(makeEchoResponse(config, reqId));
+    }
+
+    Buffer makeInfoRequest(BteL2capInfoType type, uint8_t reqId) {
+        return Buffer{
+            0x00, 0x21, /* 0x100 handle + flushable flag */
+            low(10), high(10), /* Total length */
+            low(6), high(6), /* L2CAP length */
+            0x01, 0x00, /* signalling channel */
+            L2CAP_SIGNAL_INFO_REQ,
+            reqId,
+            2, 0, /* command length */
+            low(type), high(type),
+        };
+    }
+
+    void sendInfoRequest(BteL2capInfoType type, uint8_t reqId) {
+        m_backend.sendData(makeInfoRequest(type, reqId));
+    }
+
+    Buffer makeInfoResponse(uint8_t reqId, BteL2capInfoType type,
+                            uint16_t result, const Buffer &data = {}) {
+        const uint16_t dataSize = data.size();
+        return Buffer{
+            0x00, 0x21, /* 0x100 handle + flushable flag */
+            low(12 + dataSize), high(12 + dataSize), /* Total length */
+            low(8 + dataSize), high(8 + dataSize), /* L2CAP length */
+            0x01, 0x00, /* signalling channel */
+            L2CAP_SIGNAL_INFO_RSP,
+            reqId,
+            low(4 + dataSize), high(4 + dataSize),
+            low(type), high(type),
+            low(result), high(result),
+        } + data;
+    }
+
+    Buffer makeInfoResponse(uint8_t reqId, BteL2capInfoType type,
+                            uint16_t result, uint16_t mtu) {
+        return makeInfoResponse(reqId, type, result, { low(mtu), high(mtu) });
+    }
+
+    Buffer makeInfoResponse(uint8_t reqId, BteL2capInfoType type,
+                            uint16_t result, uint32_t features) {
+        Buffer data {
+            byte(0, features), byte(1, features),
+            byte(2, features), byte(3, features),
+        };
+        return makeInfoResponse(reqId, type, result, data);
+    }
+
+    Buffer makeInfoResponse(uint8_t reqId, BteL2capInfoType type,
+                            uint16_t result, uint64_t channels) {
+        Buffer data {
+            byte(0, channels), byte(1, channels),
+            byte(2, channels), byte(3, channels),
+            byte(4, channels), byte(5, channels),
+            byte(6, channels), byte(7, channels),
+        };
+        return makeInfoResponse(reqId, type, result, data);
+    }
+
+    template <typename ...Params>
+    void sendInfoResponse(uint8_t reqId, BteL2capInfoType type,
+                          uint16_t result, Params&&... params) {
+        m_backend.sendData(makeInfoResponse(reqId, type, result,
+                                            std::forward<Params>(params)...));
     }
 
     Buffer makeHciCreateDisconnection(const BteBdAddr &address,

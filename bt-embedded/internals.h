@@ -117,6 +117,10 @@ struct bte_l2cap_t {
             BteL2capEchoCb client_cb;
             void *userdata;
         } echo;
+        struct _bte_l2cap_tmpdata_info {
+            BteL2capInfoCb client_cb;
+            void *userdata;
+        } info;
     } cmd_data;
 };
 

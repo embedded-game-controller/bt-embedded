@@ -49,6 +49,21 @@ inline bool operator==(const BteL2capConfigExtFlow &a,
         a.flush_timeout == b.flush_timeout;
 }
 
+inline bool operator==(const BteL2capInfo &a, const BteL2capInfo &b)
+{
+    if (a.type != b.type || a.result != b.result) return false;
+    if (a.result == BTE_L2CAP_INFO_RESP_RES_UNSUPPORTED) return true;
+    switch (a.type) {
+    case BTE_L2CAP_INFO_TYPE_MTU:
+        return a.u.connectionless_mtu == b.u.connectionless_mtu;
+    case BTE_L2CAP_INFO_TYPE_EXT_FEATURES:
+        return a.u.ext_feature_mask == b.u.ext_feature_mask;
+    case BTE_L2CAP_INFO_TYPE_FIXED_CHANNELS:
+        return a.u.fixed_channels_mask == b.u.fixed_channels_mask;
+    }
+    return false;
+}
+
 class TestL2capConfig;
 class TestL2capFixtureConnected;
 class TestL2capFixtureConfigured;
@@ -292,6 +307,12 @@ public:
         bte_l2cap_on_echo(m_l2cap, &L2cap::Callbacks::onEcho, this);
     }
 
+    using InfoCb = std::function<void(const BteL2capInfo &info)>;
+    bool queryInfo(BteL2capInfoType type, const InfoCb &cb) {
+        auto *f = new InfoCb(cb);
+        return bte_l2cap_query_info(m_l2cap, type, &L2cap::Callbacks::queryInfo, f);
+    }
+
     void disconnect() {
         bte_l2cap_disconnect(m_l2cap);
     }
@@ -361,6 +382,13 @@ private:
             EchoCb *cb = static_cast<EchoCb*>(d);
             BufferList::Reader r(*reader);
             (*cb)(r);
+            delete cb;
+        }
+
+        static void queryInfo(BteL2cap *l2cap, const BteL2capInfo *info,
+                              void *d) {
+            InfoCb *cb = static_cast<InfoCb*>(d);
+            (*cb)(*info);
             delete cb;
         }
 

@@ -49,6 +49,7 @@ add_executable(test_commands
     test_l2cap_data.cpp
     test_l2cap_disconnect.cpp
     test_l2cap_echo.cpp
+    test_l2cap_info.cpp
     test_l2cap_server.cpp
 )
 make_test(test_commands)

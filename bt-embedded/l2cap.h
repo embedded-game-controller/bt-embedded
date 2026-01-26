@@ -194,6 +194,29 @@ typedef uint16_t (*BteL2capOnEchoCb)(
 void bte_l2cap_on_echo(
     BteL2cap *l2cap, BteL2capOnEchoCb callback, void *userdata);
 
+typedef uint16_t BteL2capInfoType;
+#define BTE_L2CAP_INFO_TYPE_MTU            (BteL2capInfoType)0x0001
+#define BTE_L2CAP_INFO_TYPE_EXT_FEATURES   (BteL2capInfoType)0x0002
+#define BTE_L2CAP_INFO_TYPE_FIXED_CHANNELS (BteL2capInfoType)0x0003
+
+#define BTE_L2CAP_INFO_RESP_RES_OK          (uint16_t)0
+#define BTE_L2CAP_INFO_RESP_RES_UNSUPPORTED (uint16_t)1
+
+typedef struct {
+    BteL2capInfoType type;
+    uint16_t result;
+    union {
+        uint16_t connectionless_mtu;
+        uint32_t ext_feature_mask;
+        uint64_t fixed_channels_mask;
+    } u;
+} BteL2capInfo;
+
+typedef void (*BteL2capInfoCb)(
+    BteL2cap *l2cap, const BteL2capInfo *info, void *userdata);
+bool bte_l2cap_query_info(BteL2cap *l2cap, BteL2capInfoType type,
+                          BteL2capInfoCb callback, void *userdata);
+
 /* For the reason we reuse the HCI error codes; if a disconnection is requested
  * via the L2CAP protocol, reason is 0x13 (if the peer requested the
  * termination) or 0x16 (if we did). TODO: make these codes public */
