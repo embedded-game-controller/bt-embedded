@@ -31,3 +31,18 @@ target_link_libraries(bte-obex PRIVATE
     bt-embedded
     fat
 )
+
+add_executable(bte-wiimote
+    wiimote.c
+    terminal.c
+)
+
+target_include_directories(bte-wiimote PRIVATE
+    ..
+)
+
+target_link_libraries(bte-wiimote PRIVATE
+    ${EXTRA_LIBS}
+    bt-embedded
+    fat
+)
