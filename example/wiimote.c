@@ -980,9 +980,11 @@ static void inquiry_cb(BteHci *hci, const BteHciInquiryReply *reply, void *)
             }
         }
 
-        const uint8_t *b = r->address.bytes;
-        printf(" - %02x:%02x:%02x:%02x:%02x:%02x (skip = %d)\n",
-               b[5], b[4], b[3], b[2], b[1], b[0], skip);
+        uint8_t *b = r->class_of_device.bytes;
+        printf(" - " BD_ADDR_FMT " COD %02x%02x%02x offs %d RSSI %d (skip = %d)\n",
+               BD_ADDR_DATA(&r->address),
+               b[2], b[1], b[0],
+               r->clock_offset, r->rssi, skip);
         if (skip) continue;
 
         /* New device, we'll query its name */
@@ -1049,10 +1051,58 @@ static bool link_key_notification_cb(
     return true;
 }
 
+typedef void (*HciNextFunction)(BteHci *hci);
+
+static void generic_command_cb(BteHci *hci, const BteHciReply *reply, void *userdata)
+{
+    if (reply->status != 0) {
+        WIIUSE_ERROR("Command completed with status %d", reply->status);
+        return;
+    }
+
+    HciNextFunction f = userdata;
+    f(hci);
+}
+
+static void init_done(BteHci *hci)
+{
+    WPAD_Search();
+}
+
+static void init_set_page_timeout(BteHci *hci)
+{
+    bte_hci_write_page_timeout(hci, 0x2000, generic_command_cb, init_done);
+}
+
+static void init_set_cod(BteHci *hci)
+{
+    BteClassOfDevice cod = {{0x04, 0x02,0x40}};
+    bte_hci_write_class_of_device(hci, &cod, generic_command_cb,
+                                  init_set_page_timeout);
+}
+
+static void init_set_inquiry_scan_type(BteHci *hci)
+{
+    bte_hci_write_inquiry_scan_type(hci, BTE_HCI_INQUIRY_SCAN_TYPE_INTERLACED,
+                                    generic_command_cb, init_set_cod);
+}
+
+static void init_set_page_scan_type(BteHci *hci)
+{
+    bte_hci_write_page_scan_type(hci, BTE_HCI_PAGE_SCAN_TYPE_INTERLACED,
+                                 generic_command_cb, init_set_inquiry_scan_type);
+}
+
+static void init_set_inquiry_mode(BteHci *hci)
+{
+    bte_hci_write_inquiry_mode(hci, BTE_HCI_INQUIRY_MODE_RSSI,
+                               generic_command_cb, init_set_page_scan_type);
+}
+
 static void read_bd_addr_cb(BteHci *hci, const BteHciReadBdAddrReply *reply, void *userdata)
 {
     s_local_address = reply->address;
-    WPAD_Search();
+    init_set_inquiry_mode(hci);
 }
 
 static void initialized_cb(BteHci *hci, bool success, void *)
