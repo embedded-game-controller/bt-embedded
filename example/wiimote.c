@@ -14,6 +14,7 @@
 #include "bt-embedded/client.h"
 #include "bt-embedded/hci.h"
 #include "bt-embedded/l2cap.h"
+#include "bt-embedded/l2cap_server.h"
 #include "bt-embedded/services/hid.h"
 
 #ifndef __wii__
@@ -121,6 +122,8 @@ static struct {
 } *s_inquiry_responses = NULL;
 
 static BteClient *s_client;
+static BteL2capServer *s_l2cap_server_hid_ctrl;
+static BteL2capServer *s_l2cap_server_hid_intr;
 static enum {
     WPAD_PAIR_MODE_NORMAL,
     WPAD_PAIR_MODE_TEMPORARY,
@@ -813,6 +816,18 @@ static void l2cap_configure_cb(
     }
 }
 
+static void device_hid_intr_connected(BteL2cap *l2cap)
+{
+    WpadDevice *device = wpad_device_from_addr(bte_l2cap_get_address(l2cap));
+    if (!device) return; /* Should never happen */
+
+    device->hid_intr = bte_l2cap_ref(l2cap);
+    bte_l2cap_set_userdata(l2cap, device);
+    /* Default configuration parameters are fine */
+    bte_l2cap_configure(l2cap, NULL, l2cap_configure_cb, NULL);
+    bte_l2cap_on_state_changed(l2cap, hid_intr_state_changed_cb);
+}
+
 static void hid_intr_connect_cb(
     BteL2cap *l2cap, const BteL2capConnectionResponse *reply, void *userdata)
 {
@@ -825,11 +840,7 @@ static void hid_intr_connect_cb(
     WpadDevice *device = wpad_device_from_addr(bte_l2cap_get_address(l2cap));
     if (!device) return; /* Should never happen */
 
-    device->hid_intr = bte_l2cap_ref(l2cap);
-    bte_l2cap_set_userdata(l2cap, device);
-    bte_l2cap_on_state_changed(l2cap, hid_intr_state_changed_cb);
-    /* Default configuration parameters are fine */
-    bte_l2cap_configure(l2cap, NULL, l2cap_configure_cb, NULL);
+    device_hid_intr_connected(l2cap);
 }
 
 static void hid_ctrl_state_changed_cb(BteL2cap *l2cap, BteL2capState state,
@@ -838,11 +849,22 @@ static void hid_ctrl_state_changed_cb(BteL2cap *l2cap, BteL2capState state,
     WpadDevice *device = userdata;
     printf("%s: state %d\n", __func__, state);
     if (state == BTE_L2CAP_OPEN) {
-        /* COnnect the HID data channel. Since the ACL is already there, the
+        /* Connect the HID data channel. Since the ACL is already there, the
          * connection parameters are ignored. */
         bte_l2cap_new_outgoing(s_client, &device->address, BTE_L2CAP_PSM_HID_INTR,
                                NULL, 0, hid_intr_connect_cb, NULL);
     }
+}
+
+static void device_hid_ctrl_connected(BteL2cap *l2cap)
+{
+    WpadDevice *device = wpad_device_from_addr(bte_l2cap_get_address(l2cap));
+    if (!device) return; /* Should never happen */
+
+    device->hid_ctrl = bte_l2cap_ref(l2cap);
+    bte_l2cap_set_userdata(l2cap, device);
+    /* Default configuration parameters are fine */
+    bte_l2cap_configure(l2cap, NULL, l2cap_configure_cb, NULL);
 }
 
 static void hid_ctrl_connect_cb(
@@ -854,14 +876,29 @@ static void hid_ctrl_connect_cb(
         return;
     }
 
-    WpadDevice *device = wpad_device_from_addr(bte_l2cap_get_address(l2cap));
-    if (!device) return; /* Should never happen */
-
-    device->hid_ctrl = bte_l2cap_ref(l2cap);
-    bte_l2cap_set_userdata(l2cap, device);
+    device_hid_ctrl_connected(l2cap);
     bte_l2cap_on_state_changed(l2cap, hid_ctrl_state_changed_cb);
-    /* Default configuration parameters are fine */
-    bte_l2cap_configure(l2cap, NULL, l2cap_configure_cb, NULL);
+}
+
+static void device_init(WpadDevice *device, const BteBdAddr *address)
+{
+    memset(device, 0, sizeof(*device));
+    bd_address_copy(&device->address, address);
+    device->unid = device - s_devices;
+    device->speaker_volume = 0x40;
+}
+
+static WpadDevice *device_allocate(const BteBdAddr *address)
+{
+    for (int slot = 0; slot < WPAD_MAX_DEVICES; slot++) {
+        WpadDevice *device = &s_devices[slot];
+        if (device->hid_ctrl == NULL) {
+            device_init(device, address);
+            return device;
+        }
+    }
+
+    return NULL;
 }
 
 static bool add_new_device(BteHci *hci, const BteHciInquiryResponse *info,
@@ -898,10 +935,7 @@ static bool add_new_device(BteHci *hci, const BteHciInquiryResponse *info,
 
     if (slot < WPAD_MAX_DEVICES) {
         WpadDevice *device = &s_devices[slot];
-        memset(device, 0, sizeof(*device));
-        device->unid = slot;
-        device->speaker_volume = 0x40;
-        bd_address_copy(&device->address, &info->address);
+        device_init(device, &info->address);
         BteHciConnectParams params = {
             s_packet_types,
             info->clock_offset,
@@ -909,7 +943,8 @@ static bool add_new_device(BteHci *hci, const BteHciInquiryResponse *info,
             true, /* Allow role switch */
         };
         BteL2CapConnectFlags flags = BTE_L2CAP_CONNECT_FLAG_AUTH;
-        bte_l2cap_new_outgoing(s_client, &info->address, BTE_L2CAP_PSM_HID_CTRL,
+        BteClient *client = bte_hci_get_client(hci);
+        bte_l2cap_new_outgoing(client, &info->address, BTE_L2CAP_PSM_HID_CTRL,
                                &params, flags, hid_ctrl_connect_cb, NULL);
         /* TODO: shouldn't we do this only after the connection is successful? */
         __wpads_used |= (0x01 << slot);
@@ -1066,7 +1101,7 @@ static void generic_command_cb(BteHci *hci, const BteHciReply *reply, void *user
 
 static void init_done(BteHci *hci)
 {
-    WPAD_Search();
+    //WPAD_Search();
 }
 
 static void init_set_page_timeout(BteHci *hci)
@@ -1099,10 +1134,67 @@ static void init_set_inquiry_mode(BteHci *hci)
                                generic_command_cb, init_set_page_scan_type);
 }
 
+static void init_set_scan_enable(BteHci *hci)
+{
+    bte_hci_write_scan_enable(hci, BTE_HCI_SCAN_ENABLE_PAGE,
+                              generic_command_cb, init_set_inquiry_mode);
+}
+
+static void init_set_local_name(BteHci *hci)
+{
+    bte_hci_write_local_name(hci, "Wii",
+                             generic_command_cb, init_set_scan_enable);
+}
+
 static void read_bd_addr_cb(BteHci *hci, const BteHciReadBdAddrReply *reply, void *userdata)
 {
     s_local_address = reply->address;
-    init_set_inquiry_mode(hci);
+    init_set_local_name(hci);
+}
+
+static bool connection_request_cb(BteL2capServer *l2cap_server,
+                                  const BteBdAddr *address,
+                                  const BteClassOfDevice *cod,
+                                  void *userdata)
+{
+    WIIUSE_DEBUG("from " BD_ADDR_FMT, BD_ADDR_DATA(address));
+
+    /* TODO: check device type, CONF */
+    WpadDevice *device = device_allocate(address);
+    if (!device) return false; /* No more slots */
+
+    return true;
+}
+
+static bool decline_connection(BteL2capServer *l2cap_server,
+                               const BteBdAddr *address,
+                               const BteClassOfDevice *cod,
+                               void *userdata)
+{
+    WIIUSE_DEBUG("from " BD_ADDR_FMT, BD_ADDR_DATA(address));
+    return false;
+}
+
+static void incoming_ctrl_connected_cb(
+    BteL2capServer *l2cap_server, BteL2cap *l2cap, void *userdata)
+{
+    WIIUSE_DEBUG("l2cap != NULL %d", l2cap != NULL);
+    if (!l2cap) {
+        return;
+    }
+
+    device_hid_ctrl_connected(l2cap);
+}
+
+static void incoming_intr_connected_cb(
+    BteL2capServer *l2cap_server, BteL2cap *l2cap, void *userdata)
+{
+    WIIUSE_DEBUG("l2cap != NULL %d", l2cap != NULL);
+    if (!l2cap) {
+        /* TODO: deallocate the WpadDevice */
+        return;
+    }
+    device_hid_intr_connected(l2cap);
 }
 
 static void initialized_cb(BteHci *hci, bool success, void *)
@@ -1117,6 +1209,24 @@ static void initialized_cb(BteHci *hci, bool success, void *)
     bte_hci_on_pin_code_request(hci, pin_code_request_cb);
     bte_hci_on_link_key_notification(hci, link_key_notification_cb);
     bte_hci_read_bd_addr(hci, read_bd_addr_cb, NULL);
+
+    s_l2cap_server_hid_ctrl = bte_l2cap_server_new(s_client,
+                                                   BTE_L2CAP_PSM_HID_CTRL);
+    s_l2cap_server_hid_intr = bte_l2cap_server_new(s_client,
+                                                   BTE_L2CAP_PSM_HID_INTR);
+    bte_l2cap_server_set_needs_auth(s_l2cap_server_hid_ctrl, true);
+    bte_l2cap_server_set_role(s_l2cap_server_hid_ctrl, BTE_HCI_ROLE_MASTER);
+    bte_l2cap_server_on_connected(s_l2cap_server_hid_ctrl,
+                                  incoming_ctrl_connected_cb, NULL);
+    bte_l2cap_server_on_connected(s_l2cap_server_hid_intr,
+                                  incoming_intr_connected_cb, NULL);
+    bte_l2cap_server_on_connection_request(s_l2cap_server_hid_ctrl,
+                                           connection_request_cb, NULL);
+    /* Since HID clients are required to connect to the control PSM first, the
+     * ACL connection is always received on the BteL2capServer handling the
+     * control connection. */
+    bte_l2cap_server_on_connection_request(s_l2cap_server_hid_intr,
+                                           decline_connection, NULL);
 }
 
 int main(int argc, char **argv)
