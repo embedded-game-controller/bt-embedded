@@ -2,6 +2,8 @@
 #include "mock_backend.h"
 #include "type_utils.h"
 
+#include "bt-embedded/hci_priv.h"
+
 #include <gtest/gtest.h>
 
 TEST(CppAPI, testConcurrentRequests)

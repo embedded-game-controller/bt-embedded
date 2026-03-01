@@ -1,6 +1,7 @@
 #include "hci.h"
 
 #include "buffer.h"
+#include "hci_priv.h"
 #include "internals.h"
 #include "logging.h"
 
@@ -144,9 +145,9 @@ BtePacketType bte_hci_packet_types_from_features(
     BteHciFeatures features)
 {
     BtePacketType type = BTE_PACKET_TYPE_DM1 | BTE_PACKET_TYPE_DH1;
-    if (features & HCI_FEAT_3_SLOT_PACKETS)
+    if (features & BTE_HCI_FEAT_3_SLOT_PACKETS)
         type |= (BTE_PACKET_TYPE_DM3 | BTE_PACKET_TYPE_DH3);
-    if (features & HCI_FEAT_5_SLOT_PACKETS)
+    if (features & BTE_HCI_FEAT_5_SLOT_PACKETS)
         type |= (BTE_PACKET_TYPE_DM5 | BTE_PACKET_TYPE_DH5);
     return type;
 }
@@ -1325,7 +1326,7 @@ void bte_hci_write_local_name(BteHci *hci, const char *name,
         hci, HCI_W_LOCAL_NAME_OCF, HCI_HC_BB_OGF, HCI_W_LOCAL_NAME_PLEN,
         command_complete_cb, callback, userdata);
     if (UNLIKELY(!b)) return;
-    strncpy((char *)b->data + HCI_CMD_HDR_LEN, name, HCI_MAX_NAME_LEN);
+    strncpy((char *)b->data + HCI_CMD_HDR_LEN, name, BTE_HCI_MAX_NAME_LEN);
     _bte_hci_send_command(b);
 }
 

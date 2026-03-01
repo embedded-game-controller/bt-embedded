@@ -1145,7 +1145,7 @@ static bool l2cap_handle_disconnect_resp(
 
     l2cap_set_state(l2cap, BTE_L2CAP_CLOSED);
     if (l2cap->disconnect_cb) {
-        l2cap->disconnect_cb(l2cap, HCI_CONN_TERMINATED_BY_LOCAL_HOST,
+        l2cap->disconnect_cb(l2cap, BTE_HCI_CONN_TERMINATED_BY_LOCAL_HOST,
                              l2cap->disconnect_userdata);
     }
     return true;
@@ -1182,7 +1182,7 @@ static bool acl_l2cap_handle_disconnect_req(
     l2cap_send_disconnect_resp(l2cap, id);
     l2cap_set_state(l2cap, BTE_L2CAP_CLOSED);
     if (l2cap->disconnect_cb) {
-        l2cap->disconnect_cb(l2cap, HCI_OTHER_END_TERMINATED_CONN_USER_ENDED,
+        l2cap->disconnect_cb(l2cap, BTE_HCI_OTHER_END_TERMINATED_CONN_USER_ENDED,
                              l2cap->disconnect_userdata);
     }
     return true;
@@ -1656,7 +1656,7 @@ void bte_l2cap_disconnect(BteL2cap *l2cap)
     } else {
         l2cap_set_state(l2cap, BTE_L2CAP_CLOSED);
         if (l2cap->disconnect_cb) {
-            l2cap->disconnect_cb(l2cap, HCI_CONN_TERMINATED_BY_LOCAL_HOST,
+            l2cap->disconnect_cb(l2cap, BTE_HCI_CONN_TERMINATED_BY_LOCAL_HOST,
                                  l2cap->disconnect_userdata);
         }
     }

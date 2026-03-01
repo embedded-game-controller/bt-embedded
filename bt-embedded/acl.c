@@ -154,7 +154,7 @@ static void bte_acl_free(BteAcl *acl)
 {
     /* Avoid calling the callbacks here */
     acl->disconnected_cb = NULL;
-    bte_acl_disconnected(acl, HCI_CONN_TERMINATED_BY_LOCAL_HOST);
+    bte_acl_disconnected(acl, BTE_HCI_CONN_TERMINATED_BY_LOCAL_HOST);
     bte_client_unref(bte_hci_get_client(acl->hci));
     bte_free(acl);
 }
@@ -305,7 +305,7 @@ void bte_acl_disconnect(BteAcl *acl)
         return;
     }
     bte_hci_disconnect(acl->hci, acl->conn_handle,
-                       HCI_OTHER_END_TERMINATED_CONN_USER_ENDED,
+                       BTE_HCI_OTHER_END_TERMINATED_CONN_USER_ENDED,
                        /* No callback, as there's nothing we should do in case
                         * of error */
                        NULL, NULL);

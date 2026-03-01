@@ -106,7 +106,7 @@ TEST_F(TestL2capNewConfigured, testConnectHciError) {
     m_backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x5, 0x4});
     bte_handle_events();
     /* Send the actual reply */
-    sendHciConnectionComplete(address, 0, HCI_CONN_TIMEOUT);
+    sendHciConnectionComplete(address, 0, BTE_HCI_CONN_TIMEOUT);
     bte_handle_events();
 
     ASSERT_TRUE(m_backend.sentData().empty());

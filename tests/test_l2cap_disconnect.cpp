@@ -27,7 +27,7 @@ TEST_F(TestL2capFixtureConnected, testWeDisconnect) {
     sendDisconnectResponse(reqId);
     bte_handle_events();
     std::vector<uint8_t> expectedReasons {
-        HCI_CONN_TERMINATED_BY_LOCAL_HOST,
+        BTE_HCI_CONN_TERMINATED_BY_LOCAL_HOST,
     };
     ASSERT_EQ(disconnectReasons, expectedReasons);
     ASSERT_EQ(state, BTE_L2CAP_CLOSED);
@@ -50,7 +50,7 @@ TEST_F(TestL2capFixtureConnected, testRemoteDisconnects) {
     bte_handle_events();
 
     std::vector<uint8_t> expectedReasons {
-        HCI_OTHER_END_TERMINATED_CONN_USER_ENDED,
+        BTE_HCI_OTHER_END_TERMINATED_CONN_USER_ENDED,
     };
     ASSERT_EQ(disconnectReasons, expectedReasons);
     ASSERT_EQ(state, BTE_L2CAP_CLOSED);

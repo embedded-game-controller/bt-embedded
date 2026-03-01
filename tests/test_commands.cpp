@@ -372,7 +372,7 @@ TEST(Commands, InquiryFailed) {
     uint32_t requestedLap = 0xaabbcc;
     uint8_t requestedLen = 4;
     uint8_t requestedMaxResp = 9;
-    uint8_t status = HCI_HW_FAILURE;
+    uint8_t status = BTE_HCI_HW_FAILURE;
 
     AsyncCommandInvoker<StoredInquiryReply, BteHciInquiryReply> invoker(
         [&](BteHci *hci, BteHciDoneCb statusCb,
@@ -571,7 +571,7 @@ TEST(Commands, testCreateConnection) {
      * receive the second, and have no leaks */
     callbacks.replies.clear();
     callbacks.statusReplies.clear();
-    uint8_t status0 = HCI_NO_CONNECTION;
+    uint8_t status0 = BTE_HCI_NO_CONNECTION;
     bte_hci_create_connection(hci, &address0, &params0,
                               &Callbacks::st0, &Callbacks::cb0, &callbacks);
     backend.sendEvent({HCI_COMMAND_STATUS, 4, status0, 1, 0x5, 0x4});
@@ -585,7 +585,7 @@ TEST(Commands, testCreateConnection) {
     bte_handle_events();
 
     expectedStatusReplies = {
-        { 0, HCI_NO_CONNECTION },
+        { 0, BTE_HCI_NO_CONNECTION },
         { 1, 0 },
     };
     ASSERT_EQ(callbacks.statusReplies, expectedStatusReplies);
@@ -710,7 +710,7 @@ TEST(Commands, testRejectConnection) {
     /* Emit the ConnectionComplete event */
     MockBackend &backend = invoker.backend();
     const uint8_t eventSize = 1 + 2 + 6 + 1 + 1;
-    status = HCI_CONN_TERMINATED_BY_LOCAL_HOST;
+    status = BTE_HCI_CONN_TERMINATED_BY_LOCAL_HOST;
     backend.sendEvent(
         Buffer{HCI_CONNECTION_COMPLETE, eventSize, status, 0x0, 0x0} +
         address + Buffer{0, 0});
@@ -718,7 +718,7 @@ TEST(Commands, testRejectConnection) {
 
     /* Verify that our callback has been invoked */
     std::vector<BteHciRejectConnectionReply> expectedReplies = {
-        { HCI_CONN_TERMINATED_BY_LOCAL_HOST, 0, 0, address, 0, },
+        { BTE_HCI_CONN_TERMINATED_BY_LOCAL_HOST, 0, 0, address, 0, },
     };
     ASSERT_EQ(invoker.receivedReplies(), expectedReplies);
 }
@@ -1029,7 +1029,7 @@ TEST(Commands, testReadRemoteNameError) {
         });
 
     /* Send the error status reply */
-    uint8_t status = HCI_HW_FAILURE;
+    uint8_t status = BTE_HCI_HW_FAILURE;
     backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x19, 0x4});
     bte_handle_events();
 

@@ -4,6 +4,7 @@
 #include "l2cap.h"
 #include "data_matcher.h"
 #include "hci.h"
+#include "hci_priv.h"
 #include "types.h"
 #include "utils.h"
 

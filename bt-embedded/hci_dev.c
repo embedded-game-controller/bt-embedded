@@ -129,7 +129,7 @@ static void handle_info_param(uint16_t ocf, const uint8_t *data, uint8_t len)
     BteHciDev *dev = &_bte_hci_dev;
     switch (ocf) {
     case HCI_R_LOC_FEAT_OCF:
-        if (data[0] == HCI_SUCCESS) {
+        if (data[0] == BTE_HCI_SUCCESS) {
             dev->supported_features = read_le64(data + 1);
         } else {
             dev->supported_features = 0;
@@ -440,7 +440,7 @@ error_command:
     bte_buffer_unref(buffer);
 error_buffer:
     if (base_cb) {
-        BteHciReply reply = { HCI_MEMORY_FULL };
+        BteHciReply reply = { BTE_HCI_MEMORY_FULL };
         base_cb(hci, &reply, userdata);
     }
     return NULL;

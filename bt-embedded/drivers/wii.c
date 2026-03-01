@@ -7,7 +7,7 @@
 #include <assert.h>
 
 #define STOP_ON_FAILURE(hci, reply)                                            \
-    if (reply->status != HCI_SUCCESS) {                                        \
+    if (reply->status != BTE_HCI_SUCCESS) {                                    \
         _bte_hci_dev_set_status(BTE_HCI_INIT_STATUS_FAILED);                   \
         bte_client_unref(bte_hci_get_client(hci));                             \
         return;                                                                \

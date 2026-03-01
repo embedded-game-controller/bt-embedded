@@ -375,7 +375,7 @@ protected:
     }
 
     void sendHciDisconnectionComplete(BteConnHandle handle,
-                                      uint8_t reason = HCI_HOST_TIMEOUT)
+                                      uint8_t reason = BTE_HCI_HOST_TIMEOUT)
     {
         const uint8_t eventSize = 1 + 2 + 1;
         uint8_t status = 0;

@@ -7,6 +7,7 @@
 #include "bt-embedded/client.h"
 #include "bt-embedded/bte.h"
 #include "bt-embedded/hci.h"
+#include "bt-embedded/hci_priv.h"
 
 #include <type_traits>
 

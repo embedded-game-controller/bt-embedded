@@ -340,7 +340,7 @@ TEST_F(TestL2capConnect, testOutgoingResponseTooShortError) {
      * indefinitely. */
     BteConnHandle connHandle = 0x0100;
     uint8_t hciStatus = 0;
-    uint8_t reason = HCI_CONN_TIMEOUT;
+    uint8_t reason = BTE_HCI_CONN_TIMEOUT;
     m_backend.sendEvent({ HCI_DISCONNECTION_COMPLETE, 1 + 2 + 1, hciStatus,
                         low(connHandle), high(connHandle), reason });
     bte_handle_events();
