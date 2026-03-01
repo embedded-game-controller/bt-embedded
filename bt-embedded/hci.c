@@ -392,13 +392,15 @@ static void conn_complete_event_cb(BteBuffer *buffer)
     void *userdata = pc->userdata;
     _bte_hci_dev_free_command(pc);
 
-    create_connection_cb(hci, &reply, userdata);
+    if (create_connection_cb) {
+        create_connection_cb(hci, &reply, userdata);
+    }
 }
 
 static void create_connection_status_cb(
     BteHci *hci, uint8_t status, BteHciPendingCommand *pc)
 {
-    if (status != 0) goto error;
+    if (status != 0 || !hci) goto error;
 
     struct _bte_hci_tmpdata_create_connection_t *tmpdata =
         &hci->last_async_cmd_data.create_connection;
@@ -590,11 +592,13 @@ void bte_hci_reject_connection(BteHci *hci,
         create_connection_status_cb, status_cb, userdata);
     if (UNLIKELY(!b)) return;
 
-    /* In the status callback we read this and setup the event matcher */
-    struct _bte_hci_tmpdata_create_connection_t *tmpdata =
-        &hci->last_async_cmd_data.create_connection;
-    memcpy(&tmpdata->address, address, sizeof(*address));
-    tmpdata->client_cb = callback;
+    if (hci) {
+        /* In the status callback we read this and setup the event matcher */
+        struct _bte_hci_tmpdata_create_connection_t *tmpdata =
+            &hci->last_async_cmd_data.create_connection;
+        memcpy(&tmpdata->address, address, sizeof(*address));
+        tmpdata->client_cb = callback;
+    }
 
     uint8_t *data = b->data + HCI_CMD_HDR_LEN;
     memcpy(data, address, sizeof(*address));
@@ -617,7 +621,13 @@ static bool client_handle_connection_request(BteHci *hci, void *cb_data)
 static void connection_request_event_cb(BteBuffer *buffer)
 {
     uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
-    _bte_hci_dev_foreach_hci_client(client_handle_connection_request, data);
+    bool handled =
+        _bte_hci_dev_foreach_hci_client(client_handle_connection_request, data);
+    if (!handled) {
+        const BteBdAddr *address = (void*)data;
+        bte_hci_reject_connection(NULL, address, BTE_HCI_HOST_REJECTED_BD_ADDR,
+                                  NULL, NULL, NULL);
+    }
 }
 
 void bte_hci_on_connection_request(BteHci *hci, BteHciConnectionRequestCb callback)

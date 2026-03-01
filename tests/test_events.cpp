@@ -135,6 +135,39 @@ TEST(Events, testConnectionRequested)
     ASSERT_EQ(calls, expectedCalls);
 }
 
+TEST(Events, testConnectionRequestedIgnored)
+{
+    MockBackend backend;
+    Bte::Client client0, client1;
+    auto &hci0 = client0.hci();
+    auto &hci1 = client1.hci();
+
+    hci0.onConnectionRequest([&](const BteBdAddr &address,
+                                 const BteClassOfDevice &cod,
+                                 uint8_t link_type) {
+        return false;
+    });
+    hci1.onConnectionRequest([&](const BteBdAddr &address,
+                                 const BteClassOfDevice &cod,
+                                 uint8_t link_type) {
+        return false;
+    });
+
+    /* Emit the ConnectionRequest event */
+    BteBdAddr address = {1, 2, 3, 4, 5, 6};
+    BteClassOfDevice cod = {7, 8, 9};
+    uint8_t link_type = 2;
+    backend.sendEvent(
+        Buffer{ HCI_CONNECTION_REQUEST, 6 + 3 + 1 } + address + cod +
+        Buffer{link_type});
+    bte_handle_events();
+
+    /* We should have sent a rejection */
+    Buffer expectedCommand = Buffer{0xa, 0x4, 6 + 1} + address +
+        Buffer{BTE_HCI_HOST_REJECTED_BD_ADDR};
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+}
+
 TEST(Events, testLinkKeyRequested)
 {
     MockBackend backend;
