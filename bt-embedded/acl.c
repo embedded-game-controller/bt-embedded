@@ -305,7 +305,7 @@ void bte_acl_disconnect(BteAcl *acl)
         return;
     }
     bte_hci_disconnect(acl->hci, acl->conn_handle,
-                       BTE_HCI_OTHER_END_TERMINATED_CONN_USER_ENDED,
+                       BTE_HCI_OTHER_END_CLOSED_CONN_USER,
                        /* No callback, as there's nothing we should do in case
                         * of error */
                        NULL, NULL);
