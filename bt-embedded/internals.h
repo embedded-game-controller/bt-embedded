@@ -89,7 +89,6 @@ struct bte_l2cap_t {
     BteL2capStateChangedCb state_changed_cb;
 
     BteL2capOnConfigureCb configure_cb;
-    void *configure_userdata;
     /* Temporary pointer, only valid while receiving a configuration
      * message */
     L2capConfigureData *configure_req; /* Incoming request */
@@ -98,7 +97,6 @@ struct bte_l2cap_t {
     BteL2capMessageReceivedCb message_received_cb;
 
     BteL2capOnEchoCb echo_cb;
-    void *echo_userdata;
 
     BteL2capDisconnectCb disconnect_cb;
     BteL2capDisconnectCb acl_disconnect_cb;

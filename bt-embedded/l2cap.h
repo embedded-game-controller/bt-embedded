@@ -162,8 +162,7 @@ void bte_l2cap_configure(
 typedef void (*BteL2capOnConfigureCb)(
     BteL2cap *l2cap, const BteL2capConfigureParams *params, void *userdata);
 
-void bte_l2cap_on_configure(
-    BteL2cap *l2cap, BteL2capOnConfigureCb callback, void *userdata);
+void bte_l2cap_on_configure(BteL2cap *l2cap, BteL2capOnConfigureCb callback);
 /* Can only be called from within a BteL2capOnConfigureCb callback */
 void bte_l2cap_set_configure_reply(BteL2cap *l2cap,
                                    const BteL2capConfigureReply *reply);
@@ -197,8 +196,7 @@ bool bte_l2cap_echo(BteL2cap *l2cap, const void *data, uint16_t size,
 typedef uint16_t (*BteL2capOnEchoCb)(
     BteL2cap *l2cap, BteBufferReader *reader, BteBufferWriter *writer,
     void *userdata);
-void bte_l2cap_on_echo(
-    BteL2cap *l2cap, BteL2capOnEchoCb callback, void *userdata);
+void bte_l2cap_on_echo(BteL2cap *l2cap, BteL2capOnEchoCb callback);
 
 typedef uint16_t BteL2capInfoType;
 #define BTE_L2CAP_INFO_TYPE_MTU            (BteL2capInfoType)0x0001

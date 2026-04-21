@@ -265,8 +265,8 @@ public:
     void onConfigureRequest(const ConfigureRequestCb &cb)
     {
         m_onConfigureRequest = cb;
-        bte_l2cap_on_configure(m_l2cap,
-                               &L2cap::Callbacks::onConfigureRequest, this);
+        bte_l2cap_set_userdata(m_l2cap, this);
+        bte_l2cap_on_configure(m_l2cap, &L2cap::Callbacks::onConfigureRequest);
     }
 
     void setConfigureReply(const ConfigureReply &reply)
@@ -311,7 +311,8 @@ public:
                                             BufferList::Writer *writer)>;
     void onEcho(const OnEchoCb &cb) {
         m_onEcho = cb;
-        bte_l2cap_on_echo(m_l2cap, &L2cap::Callbacks::onEcho, this);
+        bte_l2cap_set_userdata(m_l2cap, this);
+        bte_l2cap_on_echo(m_l2cap, &L2cap::Callbacks::onEcho);
     }
 
     using InfoCb = std::function<void(const BteL2capInfo &info)>;

@@ -19,7 +19,7 @@ bool acl_l2cap_handle_echo_req(BteAclL2cap *acl_l2cap, uint8_t id,
             /* Create a copy of the reader, since the callback will likely
              * modify it */
             BteBufferReader r = *reader;
-            rsp_len = l->echo_cb(l, &r, NULL, l->echo_userdata);
+            rsp_len = l->echo_cb(l, &r, NULL, l->userdata);
             if (rsp_len > 0) {
                 l2cap = l;
                 break;
@@ -33,16 +33,14 @@ bool acl_l2cap_handle_echo_req(BteAclL2cap *acl_l2cap, uint8_t id,
     if (UNLIKELY(!ok)) return false;
 
     if (l2cap) {
-        l2cap->echo_cb(l2cap, reader, &writer, l2cap->echo_userdata);
+        l2cap->echo_cb(l2cap, reader, &writer, l2cap->userdata);
     }
 
     bte_acl_send_message(&acl_l2cap->acl, bte_buffer_writer_end(&writer));
     return true;
 }
 
-void bte_l2cap_on_echo(
-    BteL2cap *l2cap, BteL2capOnEchoCb callback, void *userdata)
+void bte_l2cap_on_echo(BteL2cap *l2cap, BteL2capOnEchoCb callback)
 {
     l2cap->echo_cb = callback;
-    l2cap->echo_userdata = userdata;
 }

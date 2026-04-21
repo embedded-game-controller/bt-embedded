@@ -998,7 +998,7 @@ static bool acl_l2cap_handle_configure_req(
         /* All went OK, and no more messages following; we can deliver the
          * reply to the client */
         if (l2cap->configure_cb) {
-            l2cap->configure_cb(l2cap, params, l2cap->configure_userdata);
+            l2cap->configure_cb(l2cap, params, l2cap->userdata);
         }
         /* This sets the rejected mask as needed */
         l2cap_config_validate(l2cap, conf);
@@ -1608,11 +1608,9 @@ void bte_l2cap_configure(
     }
 }
 
-void bte_l2cap_on_configure(
-    BteL2cap *l2cap, BteL2capOnConfigureCb callback, void *userdata)
+void bte_l2cap_on_configure(BteL2cap *l2cap, BteL2capOnConfigureCb callback)
 {
     l2cap->configure_cb = callback;
-    l2cap->configure_userdata = userdata;
 }
 
 void bte_l2cap_set_configure_reply(BteL2cap *l2cap,
