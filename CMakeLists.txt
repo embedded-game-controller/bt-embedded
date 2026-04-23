@@ -37,11 +37,6 @@ endif(WITH_OPENOBEX)
 
 include(GNUInstallDirs)
 
-configure_file(bt-embedded.pc.in bt-embedded.pc @ONLY)
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/bt-embedded.pc
-        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
-
 if(BUILD_TESTS AND ENABLE_COVERAGE)
     include(CodeCoverage)
     append_coverage_compiler_flags()

@@ -8,6 +8,7 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "NintendoWii")
     set(DRIVERS_SOURCES
         drivers/wii.c
     )
+    set(PC_EXTRA_LIBS "${PC_EXTRA_LIBS} -logc")
 elseif(LibUSB_FOUND)
     list(APPEND EXTRA_LIBS PkgConfig::LibUSB)
     set(PLATFORM_SOURCES
@@ -16,6 +17,7 @@ elseif(LibUSB_FOUND)
     set(DRIVERS_SOURCES
         drivers/generic.c
     )
+    set(PC_EXTRA_REQUIRES "${PC_EXTRA_REQUIRES} libusb-1.0")
 else()
     message(WARNING "No available platform backend")
 endif()
@@ -81,6 +83,8 @@ set(PUBLIC_HEADERS
 # I didn't find a way to preserve the relative path, so installing these
 # manually:
 install(FILES
+    services/hid.h
+    services/hid_constants.h
     services/obex.h
     services/sdp.h
     services/sdp_constants.h
@@ -97,3 +101,8 @@ install(TARGETS bt-embedded
     RUNTIME
     PUBLIC_HEADER DESTINATION "include/bt-embedded"
 )
+
+configure_file(../bt-embedded.pc.in bt-embedded.pc @ONLY)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/bt-embedded.pc
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")

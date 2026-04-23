@@ -5,6 +5,7 @@ includedir=${prefix}/include
 Name: BtEmbedded
 Description: Bluetooth for embedded devices
 Version: @PROJECT_VERSION@
-Libs.private: -logc -lm
+Requires: @PC_EXTRA_REQUIRES@
+Libs.private: @PC_EXTRA_LIBS@ -lm
 Libs: -L${libdir} -lbt-embedded
 Cflags: -I${includedir}
