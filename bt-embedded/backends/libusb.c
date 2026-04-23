@@ -40,6 +40,7 @@ static const struct {
 static bool s_external_context = false;
 static libusb_context *s_context = NULL;
 static libusb_device_handle *s_handle = NULL;
+static int s_num_events = 0;
 
 static int read_intr();
 static int read_bulk();
@@ -51,6 +52,7 @@ static void read_bulk_cb(struct libusb_transfer *transfer)
     if (transfer->status == LIBUSB_TRANSFER_COMPLETED) {
         bte_buffer_shrink(buf, transfer->actual_length);
         _bte_hci_dev_handle_data(buf);
+        s_num_events++;
     }
     libusb_free_transfer(transfer);
     bte_buffer_unref(buf);
@@ -88,6 +90,7 @@ static void read_intr_cb(struct libusb_transfer *transfer)
     if (transfer->status == LIBUSB_TRANSFER_COMPLETED) {
         bte_buffer_shrink(buf, transfer->actual_length);
         _bte_hci_dev_handle_event(buf);
+        s_num_events++;
     }
     libusb_free_transfer(transfer);
     bte_buffer_unref(buf);
@@ -211,16 +214,16 @@ static int usb_backend_handle_events(bool wait_for_events, uint32_t timeout_us)
         tv.tv_sec = timeout_us / 1000000;
         tv.tv_usec = timeout_us % 1000000;
     }
-    int completed = 0;
+    s_num_events = 0;
     int rc = libusb_handle_events_timeout_completed(s_context,
                                                     wait_for_events ? &tv : NULL,
-                                                    &completed);
+                                                    &s_num_events);
     if (UNLIKELY(rc != 0)) {
         BTE_WARN("Failed to read events: %s", libusb_strerror(rc));
         return -EAGAIN;
     }
 
-    return completed;
+    return s_num_events;
 }
 
 static void hci_send_command_cb(struct libusb_transfer *transfer)
