@@ -19,7 +19,27 @@ extern "C" {
 
 #define BTE_PACKED __attribute__((packed))
 
+/**
+ * @brief Data buffer
+ * @ingroup bufferG
+ *
+ * Object representing a data buffer, meant to be sent as a packet in the HCI,
+ * ACL or L2CAP layers.
+ *
+ * Buffers are structured as linked lists, where each element can be thought as
+ * a packet of data. While the structure members can be seen in the header
+ * file, it's recommended that they be not used directly: instead, use the @ref
+ * BteBufferReader and @ref BteBufferWriter objects to read and write data
+ * buffers.
+ */
 typedef struct bte_buffer_t BteBuffer;
+/**
+ * @brief Handle to a bt-embedded client
+ *
+ * An opaque handle to a bt-embedded client.
+ *
+ * @sa bte_client_new()
+ */
 typedef struct bte_client_t BteClient;
 /**
  * @brief Handle to the HCI interface
@@ -29,6 +49,15 @@ typedef struct bte_client_t BteClient;
  * @sa bte_hci_get()
  */
 typedef struct bte_hci_t BteHci;
+
+/**
+ * @brief Handle to an L2CAP channel
+ *
+ * An opaque handle to an L2CAP channel. L2CAP functions are described in
+ * @ref l2capG
+ *
+ * @sa bte_l2cap_new_outgoing(), bte_l2cap_new_configured()
+ */
 typedef struct bte_l2cap_t BteL2cap;
 
 /**
