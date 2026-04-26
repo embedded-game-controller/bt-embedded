@@ -50,9 +50,10 @@ typedef struct {
 typedef void (*BteL2capConnectCb)(
     BteL2cap *l2cap, const BteL2capConnectionResponse *reply, void *userdata);
 
-typedef uint32_t BteL2CapConnectFlags;
-#define BTE_L2CAP_CONNECT_FLAG_NONE (BteL2CapConnectFlags)0
-#define BTE_L2CAP_CONNECT_FLAG_AUTH (BteL2CapConnectFlags)1
+typedef enum {
+    BTE_L2CAP_CONNECT_FLAG_NONE = 0,
+    BTE_L2CAP_CONNECT_FLAG_AUTH = 1 << 0,
+} BteL2CapConnectFlags;
 
 /**
  * \note The callback can be invoked more than once, if \a result is \c

@@ -112,7 +112,8 @@ protected:
             ASSERT_TRUE(l2cap.has_value());
             newL2cap = l2cap.value();
         };
-        Bte::L2cap::newOutgoing(m_client, address, psm, {}, 0, onConnected);
+        Bte::L2cap::newOutgoing(m_client, address, psm, {},
+                                BTE_L2CAP_CONNECT_FLAG_NONE, onConnected);
         /* Send the statue reply for HCI create connection */
         uint8_t status = 0;
         m_backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x5, 0x4});

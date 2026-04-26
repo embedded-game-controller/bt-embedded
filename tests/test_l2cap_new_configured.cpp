@@ -25,7 +25,8 @@ TEST_F(TestL2capNewConfigured, testDefaults) {
         l2cap = l2capOpt.value();
     };
     BteL2capPsm psm = BTE_L2CAP_PSM_SDP;
-    L::newConfigured(m_client, address, psm, {}, 0, {}, onConnected);
+    L::newConfigured(m_client, address, psm, {}, BTE_L2CAP_CONNECT_FLAG_NONE,
+                     {}, onConnected);
 
     /* Default values */
     BtePacketType packetType = BTE_PACKET_TYPE_DM1 | BTE_PACKET_TYPE_DH1;
@@ -93,7 +94,8 @@ TEST_F(TestL2capNewConfigured, testConnectHciError) {
     BteHciConnectParams params = {
         packetType, clockOffset, pageScanRepMode, roleSwitch
     };
-    L::newConfigured(m_client, address, psm, params, 0, {}, onConnected);
+    L::newConfigured(m_client, address, psm, params, BTE_L2CAP_CONNECT_FLAG_NONE,
+                     {}, onConnected);
 
     std::vector<Buffer> expectedCommands {
         makeHciCreateConnection(address, packetType, pageScanRepMode,
@@ -127,7 +129,8 @@ TEST_F(TestL2capNewConfigured, testConnectError) {
         replies.push_back(reply);
     };
     BteL2capPsm psm = BTE_L2CAP_PSM_SDP;
-    L::newConfigured(m_client, address, psm, {}, 0, {}, onConnected);
+    L::newConfigured(m_client, address, psm, {}, BTE_L2CAP_CONNECT_FLAG_NONE,
+                     {}, onConnected);
 
     /* This is the HCI connect request */
     ASSERT_EQ(m_backend.sentCommands().size(), 1);
@@ -174,7 +177,8 @@ TEST_F(TestL2capNewConfigured, testConfigurationError) {
     BteL2capPsm psm = BTE_L2CAP_PSM_SDP;
     L::ConfigureParams conf;
     conf.setMtu(800);
-    L::newConfigured(m_client, address, psm, {}, 0, conf, onConnected);
+    L::newConfigured(m_client, address, psm, {}, BTE_L2CAP_CONNECT_FLAG_NONE,
+                     conf, onConnected);
 
     /* This is the HCI connect request */
     ASSERT_EQ(m_backend.sentCommands().size(), 1);
