@@ -91,6 +91,12 @@ install(FILES
     DESTINATION "include/bt-embedded/services"
 )
 
+install(FILES
+    backends/libusb.h
+    backends/wii.h
+    DESTINATION "include/bt-embedded/backends"
+)
+
 set_target_properties(bt-embedded PROPERTIES
     PUBLIC_HEADER "${PUBLIC_HEADERS}"
 )
