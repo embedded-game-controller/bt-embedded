@@ -825,7 +825,15 @@ static void on_message_received(BteL2cap *l2cap, BteBufferReader *reader,
 
     uint16_t param_len = read_be16(hdr + 3);
     uint8_t *params = bte_buffer_reader_read_n(reader, param_len);
-    if (UNLIKELY(!params)) return;
+    void *params_buffer = NULL;
+    if (UNLIKELY(!params)) {
+        /* The buffer is fragmented, let's copy its data */
+        params_buffer = bte_malloc(param_len);
+        if (UNLIKELY(!params_buffer)) return;
+
+        bte_buffer_reader_read(reader, params_buffer, param_len);
+        params = params_buffer;
+    }
 
     /* We might be invoking user callbacks, and they might unref our object.
      * Keep a temporary reference to it */
@@ -847,8 +855,7 @@ static void on_message_received(BteL2cap *l2cap, BteBufferReader *reader,
             bool ok = parse_service_search_reply(params, param_len,
                                                  &reply, &cont_state);
             if (UNLIKELY(!ok)) {
-                bte_sdp_client_unref(sdp); /* temp reference */
-                return;
+                goto end;
             }
             req_complete = !reply.has_more;
         }
@@ -868,8 +875,7 @@ static void on_message_received(BteL2cap *l2cap, BteBufferReader *reader,
             bool ok = parse_service_attr_reply(sdp, params, param_len,
                                                &reply, &cont_state);
             if (UNLIKELY(!ok)) {
-                bte_sdp_client_unref(sdp); /* temp reference */
-                return;
+                goto end;
             }
             req_complete = cont_state[0] == 0;
         }
@@ -887,7 +893,9 @@ static void on_message_received(BteL2cap *l2cap, BteBufferReader *reader,
     } else {
         send_continuation_request(sdp, cont_state);
     }
-    bte_sdp_client_unref(sdp);
+end:
+    if (params_buffer) bte_free(params_buffer);
+    bte_sdp_client_unref(sdp); /* temp reference */
 }
 
 static void bte_sdp_client_free(BteSdpClient *sdp)
