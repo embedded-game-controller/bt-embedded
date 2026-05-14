@@ -78,6 +78,7 @@ static void on_data_received(BteBuffer *buffer)
             bte_buffer_append(acl->fragmented_message, buffer);
         BteBuffer *head = acl->fragmented_message;
         acl->fragmented_message = NULL;
+        acl->fragmented_message_size = 0;
 
         BteBufferReader reader;
         bte_buffer_reader_init(&reader, head);
