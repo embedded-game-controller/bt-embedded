@@ -75,6 +75,7 @@ set(PUBLIC_HEADERS
     hci.h
     hci_proto.h
     l2cap.h
+    l2cap_server.h
     platform_defs.h
     types.h
 )
