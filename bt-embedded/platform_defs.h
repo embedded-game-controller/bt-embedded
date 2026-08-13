@@ -6,9 +6,7 @@ extern "C" {
 #endif
 
 #ifdef __wii__
-#  include <ogc/system.h>
 #  define BTE_BUFFER_ALIGNMENT_SIZE 32
-#  define BTE_LOG(fmt, ...) kprintf(fmt, __VA_ARGS__)
 #endif
 
 #ifdef BTE_BUFFER_ALIGNMENT_SIZE
