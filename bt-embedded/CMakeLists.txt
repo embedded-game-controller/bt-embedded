@@ -32,7 +32,7 @@ if(WITH_DEBUG)
     list(APPEND EXTRA_DEFINITIONS -DWITH_DEBUG)
 endif()
 
-add_library(bt-embedded STATIC
+add_library(bt-embedded-objects OBJECT
     ${DRIVERS_SOURCES}
     ${PLATFORM_SOURCES}
     ${EXTRA_SOURCES}
@@ -48,24 +48,30 @@ add_library(bt-embedded STATIC
     services/sdp.c
 )
 
-target_include_directories(bt-embedded
+target_include_directories(bt-embedded-objects
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
-target_compile_definitions(bt-embedded PRIVATE
+target_compile_definitions(bt-embedded-objects PRIVATE
     -DBUILDING_BT_EMBEDDED
     ${EXTRA_DEFINITIONS}
 )
 
-target_link_options(bt-embedded PRIVATE
+target_link_options(bt-embedded-objects PRIVATE
     ${EXTRA_LDFLAGS}
 )
 
-target_link_libraries(bt-embedded PRIVATE
+target_link_libraries(bt-embedded-objects PRIVATE
     ${EXTRA_LIBS}
+)
+
+add_library(bt-embedded STATIC "")
+
+target_link_libraries(bt-embedded PUBLIC
+    bt-embedded-objects
 )
 
 set(PUBLIC_HEADERS
