@@ -640,7 +640,12 @@ static bool client_handle_link_key_request(BteHci *hci, void *cb_data)
 static void link_key_request_event_cb(BteBuffer *buffer)
 {
     uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
-    _bte_hci_dev_foreach_hci_client(client_handle_link_key_request, data);
+    bool handled =
+        _bte_hci_dev_foreach_hci_client(client_handle_link_key_request, data);
+    if (!handled) {
+        const BteBdAddr *address = (void *)data;
+        bte_hci_link_key_req_neg_reply(NULL, address, NULL, NULL);
+    }
 }
 
 void bte_hci_on_link_key_request(BteHci *hci, BteHciLinkKeyRequestCb callback)
@@ -728,7 +733,12 @@ static bool client_handle_pin_code_request(BteHci *hci, void *cb_data)
 static void pin_code_request_event_cb(BteBuffer *buffer)
 {
     uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
-    _bte_hci_dev_foreach_hci_client(client_handle_pin_code_request, data);
+    bool handled =
+        _bte_hci_dev_foreach_hci_client(client_handle_pin_code_request, data);
+    if (!handled) {
+        const BteBdAddr *address = (void *)data;
+        bte_hci_pin_code_req_neg_reply(NULL, address, NULL, NULL);
+    }
 }
 
 void bte_hci_on_pin_code_request(BteHci *hci, BteHciPinCodeRequestCb callback)

@@ -208,6 +208,31 @@ TEST(Events, testLinkKeyRequested)
     ASSERT_EQ(calls, expectedCalls);
 }
 
+TEST(Events, testLinkKeyRequestedIgnored)
+{
+    MockBackend backend;
+    Bte::Client client0, client1;
+    auto &hci0 = client0.hci();
+    auto &hci1 = client1.hci();
+
+    hci0.onLinkKeyRequest([&](const BteBdAddr &address) {
+        return false;
+    });
+    hci1.onLinkKeyRequest([&](const BteBdAddr &address) {
+        return false;
+    });
+
+    /* Emit the LinkKeyRequest event */
+    BteBdAddr address = {1, 2, 3, 4, 5, 6};
+    backend.sendEvent(Buffer{HCI_LINK_KEY_REQUEST, 6} + address);
+    bte_handle_events();
+
+    /* We should have sent a rejection */
+    Buffer expectedCommand =
+        Buffer{HCI_LINK_KEY_REQ_NEG_REP_OCF, 0x4, 6} + address;
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+}
+
 TEST(Events, testLinkKeyNotification)
 {
     MockBackend backend;
@@ -286,6 +311,31 @@ TEST(Events, testPinCodeRequested)
         {1, address},
     };
     ASSERT_EQ(calls, expectedCalls);
+}
+
+TEST(Events, testPinCodeRequestedIgnored)
+{
+    MockBackend backend;
+    Bte::Client client0, client1;
+    auto &hci0 = client0.hci();
+    auto &hci1 = client1.hci();
+
+    hci0.onPinCodeRequest([&](const BteBdAddr &address) {
+        return false;
+    });
+    hci1.onPinCodeRequest([&](const BteBdAddr &address) {
+        return false;
+    });
+
+    /* Emit the PinCodeRequest event */
+    BteBdAddr address = {1, 2, 3, 4, 5, 6};
+    backend.sendEvent(Buffer{HCI_PIN_CODE_REQUEST, 6} + address);
+    bte_handle_events();
+
+    /* We should have sent a rejection */
+    Buffer expectedCommand =
+        Buffer{HCI_PIN_CODE_REQ_NEG_REP_OCF, 0x4, 6} + address;
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
 }
 
 TEST(Events, testModeChange)
