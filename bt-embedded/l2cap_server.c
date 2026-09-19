@@ -10,7 +10,7 @@ struct bte_l2cap_server_t {
     atomic_int ref_count;
     BteHci *hci;
     BteL2capPsm psm;
-    uint8_t role;
+    BteRole role;
     bool needs_auth;
     BteL2capServerConnectedCb connected_cb;
     void *userdata;
@@ -168,7 +168,7 @@ void bte_l2cap_server_set_needs_auth(BteL2capServer *l2cap_server,
     l2cap_server->needs_auth = needs_auth;
 }
 
-void bte_l2cap_server_set_role(BteL2capServer *l2cap_server, uint8_t role)
+void bte_l2cap_server_set_role(BteL2capServer *l2cap_server, BteRole role)
 {
     l2cap_server->role = role;
 }
