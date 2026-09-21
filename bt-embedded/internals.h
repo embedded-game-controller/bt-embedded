@@ -50,6 +50,7 @@ typedef enum {
 typedef enum {
     BTE_HCI_INFO_GOT_FEATURES = 1 << 0,
     BTE_HCI_INFO_GOT_BUFFER_SIZE = 1 << 1,
+    BTE_HCI_INFO_GOT_BD_ADDR = 1 << 2,
 } BteHciInfo;
 
 typedef struct bte_acl_t BteAcl;

@@ -121,6 +121,16 @@ BteHciFeatures bte_hci_get_supported_features(BteHci *)
     return _bte_hci_dev.supported_features;
 }
 
+bool bte_hci_get_bd_address(BteHci *hci, BteBdAddr *address)
+{
+    if (_bte_hci_dev.info_flags & BTE_HCI_INFO_GOT_BD_ADDR) {
+        *address = _bte_hci_dev.address;
+        return true;
+    } else {
+        return false;
+    }
+}
+
 uint16_t bte_hci_get_acl_mtu(BteHci *hci)
 {
     return _bte_hci_dev.acl_mtu;
@@ -1840,6 +1850,11 @@ static void read_bd_addr_cb(
     BteHciReadBdAddrReply reply;
     reply.status = buffer->data[HCI_CMD_REPLY_POS_STATUS];
     memcpy(&reply.address, data, sizeof(reply.address));
+    BteHciDev *dev = &_bte_hci_dev;
+    if (!(dev->info_flags & BTE_HCI_INFO_GOT_BD_ADDR)) {
+        dev->address = reply.address;
+        dev->info_flags |= BTE_HCI_INFO_GOT_BD_ADDR;
+    }
     BteHciReadBdAddrCb callback = client_cb;
     callback(hci, &reply, userdata);
 }

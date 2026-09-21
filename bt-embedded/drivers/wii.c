@@ -131,12 +131,10 @@ static void on_read_local_features(BteHci *hci,
 static void on_bd_addr_done(BteHci *hci, const BteHciReadBdAddrReply *reply,
                             void *userdata)
 {
-    BteHciDev *dev = userdata;
-
     BTE_DEBUG("");
     STOP_ON_FAILURE(hci, reply);
 
-    dev->address = reply->address;
+    /* hci_dev itself saves the result */
     bte_hci_read_local_features(hci, on_read_local_features, userdata);
 }
 

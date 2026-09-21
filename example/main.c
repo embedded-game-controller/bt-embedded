@@ -117,17 +117,6 @@ static void inquiry_cb(BteHci *hci, const BteHciInquiryReply *reply, void *)
     query_next_name(hci);
 }
 
-static void read_bd_addr_cb(BteHci *hci, const BteHciReadBdAddrReply *reply,
-                            void *userdata)
-{
-    static int count = 0;
-    const uint8_t *b = reply->address.bytes;
-    printf("%s: (%d), %02x:%02x:%02x:%02x:%02x:%02x\n", __func__, count, b[0],
-           b[1], b[2], b[3], b[4], b[5]);
-    count++;
-    // bte_hci_read_bd_addr(hci, read_bd_addr_cb);
-}
-
 static void read_stored_link_key_cb(BteHci *hci,
                                     const BteHciReadStoredLinkKeyReply *reply,
                                     void *userdata)
@@ -148,10 +137,14 @@ static void initialized_cb(BteHci *hci, bool success, void *)
     printf("ACL MTU=%d, max packets=%d\n",
            bte_hci_get_acl_mtu(hci),
            bte_hci_get_acl_max_packets(hci));
-    // bte_hci_read_bd_addr(hci, read_bd_addr_cb, NULL);
     bte_hci_periodic_inquiry(hci, 4, 5, BTE_LAP_GIAC, 3, 0,
                              inquiry_status_cb, inquiry_cb, NULL);
     //bte_hci_read_stored_link_key(hci, NULL, read_stored_link_key_cb, NULL);
+    BteBdAddr address;
+    bte_hci_get_bd_address(hci, &address);
+        const uint8_t *b = address.bytes;
+    printf("%s: %02x:%02x:%02x:%02x:%02x:%02x\n", __func__, b[0],
+           b[1], b[2], b[3], b[4], b[5]);
 }
 
 int main(int argc, char **argv)

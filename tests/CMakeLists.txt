@@ -31,6 +31,7 @@ add_executable(test_commands
     test_cpp_api.cpp
     test_data_matcher.cpp
     test_events.cpp
+    test_getters.cpp
     test_hci_dev.cpp
     test_l2cap_config.cpp
     test_l2cap_connect.cpp
