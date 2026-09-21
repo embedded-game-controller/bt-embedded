@@ -89,6 +89,19 @@ typedef uint64_t BteHciFeatures;
 BteHciFeatures bte_hci_get_supported_features(BteHci *hci);
 
 /**
+ * @brief Get the local host's BD address
+ *
+ * Return the host's bluetooth device address. If this function is called
+ * before the device has been initialized, it will return false and no address
+ * will be copied into \a address.
+ *
+ * @param hci The HCI handle
+ * @param address Pointer to where the address will be stored
+ * @return \c true if the address was read, \c false otherwise
+ */
+bool bte_hci_get_bd_address(BteHci *hci, BteBdAddr *address);
+
+/**
  * @brief Get the ACL MTU
  *
  * @param hci The HCI handle

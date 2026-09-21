@@ -280,6 +280,10 @@ public:
             bte_hci_on_initialized(m_hci, &Hci::Callbacks::initialized, this);
         }
 
+        bool getBdAddr(BteBdAddr *address) const {
+            return bte_hci_get_bd_address(m_hci, address);
+        }
+
         using DoneCb = std::function<void(const BteHciReply &)>;
         void nop(const DoneCb &cb) {
             bte_hci_nop(m_hci, wrap<TAG>(cb), this);
