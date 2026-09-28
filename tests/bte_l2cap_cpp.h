@@ -99,7 +99,7 @@ public:
 
     L2cap &operator=(const L2cap &other) {
         if (m_l2cap) bte_l2cap_unref(m_l2cap);
-        m_l2cap = bte_l2cap_ref(other.m_l2cap);
+        m_l2cap = other.m_l2cap ? bte_l2cap_ref(other.m_l2cap) : nullptr;
         return *this;
     }
 
