@@ -169,6 +169,126 @@ TEST_F(TestL2capConnect, testOutgoingWithAuthentication) {
     ASSERT_EQ(replies, expectedReplies);
 }
 
+TEST_F(TestL2capConnect, testOutgoingWithAddedAuthentication) {
+    /* We want to test that if a L2CAP channel is created with the
+     * BTE_L2CAP_CONNECT_FLAG_AUTH flag after another L2CAP channel has been
+     * created on the same ACL without authentication, the authentication is
+     * performed.
+     * This can be the case with HID devices, where the SDP channel might be
+     * opened on an unauthenticated ACL, followed by the authenticated HID
+     * channels. */
+    using L = Bte::L2cap;
+    BteBdAddr address = {1, 2, 3, 4, 5, 6};
+    std::vector<BteL2capConnectionResponse> replies;
+    Bte::L2cap createdChannel;
+    auto onConnected = [&](std::optional<Bte::L2cap> l2cap,
+                           const BteL2capConnectionResponse &reply) {
+        ASSERT_TRUE(l2cap.has_value());
+        createdChannel = l2cap.value();
+        replies.push_back(reply);
+    };
+    BteL2capPsm psm = BTE_L2CAP_PSM_SDP;
+    BteL2CapConnectFlags flags = BTE_L2CAP_CONNECT_FLAG_NONE;
+    L::newOutgoing(m_client, address, psm, {}, flags, onConnected);
+
+    /* Default values */
+    BtePacketType packetType = BTE_PACKET_TYPE_DM1 | BTE_PACKET_TYPE_DH1;
+    uint16_t clockOffset = 0;
+    uint8_t pageScanRepMode = 1;
+    bool roleSwitch = true;
+    std::vector<Buffer> expectedCommands {
+        makeHciCreateConnection(address, packetType, pageScanRepMode,
+                                clockOffset, roleSwitch),
+    };
+    ASSERT_EQ(m_backend.sentCommands(), expectedCommands);
+
+    /* Send the status reply for HCI create connection */
+    uint8_t status = 0;
+    m_backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x5, 0x4});
+    bte_handle_events();
+    /* Send the actual reply */
+    sendHciConnectionComplete(address);
+    bte_handle_events();
+
+    /* Read the L2CAP connection request */
+    uint8_t reqId = m_cmdId++;
+    Buffer expectedData = makeConnectRequest(reqId, m_connHandle, psm);
+    ASSERT_EQ(m_backend.lastData(), expectedData);
+
+    /* Send the L2cap connect response */
+    sendConnectResponse(reqId);
+    bte_handle_events();
+    Bte::L2cap sdpChannel(createdChannel);
+
+    std::vector<BteL2capConnectionResponse> expectedReplies = {
+        {0x40, 0x40, 0, 0},
+    };
+    ASSERT_EQ(replies, expectedReplies);
+    m_backend.clear();
+    replies.clear();
+
+    /* Now create a new L2CAP channel, requiring authentication */
+    m_remoteCid++;
+    m_localCid++;
+    psm = BTE_L2CAP_PSM_HID_CTRL;
+    flags = BTE_L2CAP_CONNECT_FLAG_AUTH;
+    L::newOutgoing(m_client, address, psm, {}, flags, onConnected);
+
+    /* We should have requested the authentication */
+    expectedCommands = { makeHciAuthRequested(m_connHandle) };
+    ASSERT_EQ(m_backend.sentCommands(), expectedCommands);
+
+    /* Send the command status... */
+    m_backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x11, 0x4});
+    bte_handle_events();
+    /* ..And the reply */
+    sendHciAuthComplete(m_connHandle);
+    bte_handle_events();
+
+    /* Read the L2CAP connection request */
+    reqId = m_cmdId++;
+    expectedData = makeConnectRequest(reqId, m_connHandle, psm);
+    ASSERT_EQ(m_backend.lastData(), expectedData);
+
+    /* Send the L2cap connect response */
+    sendConnectResponse(reqId);
+    bte_handle_events();
+    Bte::L2cap hidCtrlChannel = createdChannel;
+
+    expectedReplies = {
+        {0x41, 0x41, 0, 0},
+    };
+    ASSERT_EQ(replies, expectedReplies);
+    m_backend.clear();
+    replies.clear();
+
+    /* Open yet another channel, it should just work no matter whether the
+     * authentication flag is set. */
+    m_remoteCid++;
+    m_localCid++;
+    psm = BTE_L2CAP_PSM_HID_INTR;
+    flags = BTE_L2CAP_CONNECT_FLAG_NONE;
+    L::newOutgoing(m_client, address, psm, {}, flags, onConnected);
+
+    /* We should have requested the authentication */
+    ASSERT_TRUE(m_backend.sentCommands().empty());
+
+    /* Read the L2CAP connection request */
+    reqId = m_cmdId++;
+    expectedData = makeConnectRequest(reqId, m_connHandle, psm);
+    ASSERT_EQ(m_backend.lastData(), expectedData);
+
+    /* Send the L2cap connect response */
+    sendConnectResponse(reqId);
+    bte_handle_events();
+    Bte::L2cap hidIntrChannel = createdChannel;
+
+    expectedReplies = {
+        {0x42, 0x42, 0, 0},
+    };
+    ASSERT_EQ(replies, expectedReplies);
+}
+
 TEST_F(TestL2capConnect, testOutgoingPending) {
     using L = Bte::L2cap;
     BteBdAddr address = {1, 2, 3, 4, 5, 6};
