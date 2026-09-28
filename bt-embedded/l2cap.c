@@ -192,6 +192,8 @@ static void l2cap_handle_error(BteL2cap *l2cap)
 
 static bool l2cap_connection_request(BteL2cap *l2cap)
 {
+    if (l2cap->state > BTE_L2CAP_WAIT_CONNECT) return true;
+
     uint16_t data[2];
     data[0] = htole16(l2cap->psm);
     l2cap->local_channel_id = next_local_channel_id();
@@ -1449,6 +1451,10 @@ void bte_l2cap_new_outgoing(BteClient *client, const BteBdAddr *address,
     BteAcl *acl = bte_acl_get_for_address(hci, address);
     if (acl) {
         l2cap->acl = bte_acl_ref(acl);
+        if (flags & BTE_L2CAP_CONNECT_FLAG_AUTH) {
+            acl->authentication_required = true;
+            bte_acl_request_auth(l2cap->acl);
+        }
     } else {
         acl = bte_acl_new(hci, address, sizeof(BteAclL2cap));
         l2cap_setup_acl(acl);
@@ -1470,7 +1476,8 @@ void bte_l2cap_new_outgoing(BteClient *client, const BteBdAddr *address,
     l2cap->userdata = userdata;
     l2cap->psm = psm;
     l2cap->cmd_data.connect.client_cb = callback;
-    if (acl->conn_handle != BTE_CONN_HANDLE_INVALID) {
+    if (acl->conn_handle != BTE_CONN_HANDLE_INVALID &&
+        acl->authentication_completed == acl->authentication_required) {
         bool ok = l2cap_connection_request(l2cap);
         if (UNLIKELY(!ok)) {
             bte_l2cap_unref(l2cap);

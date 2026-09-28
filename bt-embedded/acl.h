@@ -25,7 +25,9 @@ struct bte_acl_t {
     BteConnHandle conn_handle;
     uint8_t encryption_mode;
     bool is_incoming : 1;
+    bool authentication_required : 1;
     bool authentication_requested : 1;
+    bool authentication_completed : 1;
 
     BteBuffer *fragmented_message;
     uint16_t fragmented_message_size;
@@ -58,6 +60,8 @@ typedef uint32_t BteAclConnectFlags;
 void bte_acl_connect(BteAcl *acl, const BteHciConnectParams *params,
                      BteAclConnectFlags flags);
 void bte_acl_disconnect(BteAcl *acl);
+
+void bte_acl_request_auth(BteAcl *acl);
 
 #define BTE_ACL_BROADCAST_PTP    (uint8_t)0
 #define BTE_ACL_BROADCAST_ACTIVE (uint8_t)1
