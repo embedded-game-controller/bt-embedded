@@ -846,17 +846,14 @@ static void on_message_received(BteL2cap *l2cap, BteBufferReader *reader,
 
         BteSdpServiceSearchReply reply;
         reply.error_code = error_code;
-        if (UNLIKELY(error_code != 0)) {
+        if (UNLIKELY(error_code != 0 ||
+                     !parse_service_search_reply(params, param_len,
+                                                 &reply, &cont_state))) {
             reply.total_count = reply.count = 0;
             reply.has_more = false;
             reply.handles = NULL;
             req_complete = true;
         } else {
-            bool ok = parse_service_search_reply(params, param_len,
-                                                 &reply, &cont_state);
-            if (UNLIKELY(!ok)) {
-                goto end;
-            }
             req_complete = !reply.has_more;
         }
         bool wants_more =
@@ -868,15 +865,12 @@ static void on_message_received(BteL2cap *l2cap, BteBufferReader *reader,
 
         BteSdpServiceAttrReply reply;
         reply.error_code = error_code;
-        if (UNLIKELY(error_code != 0)) {
+        if (UNLIKELY(error_code != 0 ||
+                     !parse_service_attr_reply(sdp, params, param_len,
+                                               &reply, &cont_state))) {
             reply.attr_list_de = NULL;
             req_complete = true;
         } else {
-            bool ok = parse_service_attr_reply(sdp, params, param_len,
-                                               &reply, &cont_state);
-            if (UNLIKELY(!ok)) {
-                goto end;
-            }
             req_complete = cont_state[0] == 0;
         }
         if (req_complete) {
@@ -893,7 +887,7 @@ static void on_message_received(BteL2cap *l2cap, BteBufferReader *reader,
     } else {
         send_continuation_request(sdp, cont_state);
     }
-end:
+
     if (params_buffer) bte_free(params_buffer);
     bte_sdp_client_unref(sdp); /* temp reference */
 }

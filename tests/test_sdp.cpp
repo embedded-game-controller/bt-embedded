@@ -215,6 +215,40 @@ TEST_F(TestSdpClient, testServiceSearchFragmented) {
     ASSERT_TRUE(m_backend.sentData().empty());
 }
 
+TEST_F(TestSdpClient, testServiceSearchUnparsable) {
+    std::vector<uint16_t> pattern = { 0x1122, 0x3344, 0x5566 };
+    std::vector<ServiceSearchReply> replies;
+    bool ok = m_sdp->serviceSearchReq(
+        pattern, 4, [&](const ServiceSearchReply &reply) {
+        replies.push_back(reply);
+        return false;
+    });
+    ASSERT_TRUE(ok);
+
+    uint8_t reqId = m_reqId++;
+
+    /* Verify that our request is as expected */
+    Buffer patternDe = {
+        0x35, 9,
+        0x19, 0x11, 0x22,
+        0x19, 0x33, 0x44,
+        0x19, 0x55, 0x66,
+    };
+    std::vector<Buffer> expectedData = {
+        makeServiceSearchReq(reqId, patternDe, 4),
+    };
+    ASSERT_EQ(m_backend.sentData(), expectedData);
+
+    /* Send a reply */
+    m_backend.sendData(makeSdpMsg(m_localCid, reqId, 0x03, Buffer{0xff}));
+    bte_handle_events();
+
+    std::vector<ServiceSearchReply> expectedReplies = {
+        ServiceSearchReply {},
+    };
+    ASSERT_EQ(replies, expectedReplies);
+}
+
 TEST_F(TestSdpClient, testServiceAttrSimple) {
     Buffer idList {
         0x35, 5,
@@ -363,6 +397,48 @@ TEST_F(TestSdpClient, testServiceSearchAttrSimple) {
         ServiceAttrReply {
             0, attrList
         },
+    };
+    ASSERT_EQ(replies, expectedReplies);
+}
+
+TEST_F(TestSdpClient, testServiceSearchAttrUnparsable) {
+    Buffer pattern {
+        0x35, 6,
+        0x19, 0x11, 0x22,
+        0x19, 0x33, 0x44,
+    };
+    Buffer idList {
+        0x35, 5,
+        0x0a, 0x00, 0x00, 0xff, 0xff,
+    };
+    std::vector<ServiceAttrReply> replies;
+    uint16_t maxCount = 0x1234;
+    bool ok =
+        m_sdp->serviceSearchAttrReq(pattern.data(), maxCount, idList.data(),
+                                    [&](const ServiceAttrReply &reply) {
+        replies.push_back(reply);
+    });
+    ASSERT_TRUE(ok);
+
+    uint8_t reqId = m_reqId++;
+
+    /* Verify that our request is as expected */
+    std::vector<Buffer> expectedData = {
+        makeServiceSearchAttrReq(reqId, pattern, maxCount, idList),
+    };
+    ASSERT_EQ(m_backend.sentData(), expectedData);
+
+    /* Send a reply */
+    Buffer attrList = {
+        0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff,
+    };
+    sendServiceSearchAttrRsp(reqId, attrList.size(), attrList);
+    bte_handle_events();
+
+    std::vector<ServiceAttrReply> expectedReplies = {
+        ServiceAttrReply {},
     };
     ASSERT_EQ(replies, expectedReplies);
 }
