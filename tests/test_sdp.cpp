@@ -244,7 +244,7 @@ TEST_F(TestSdpClient, testServiceSearchUnparsable) {
     bte_handle_events();
 
     std::vector<ServiceSearchReply> expectedReplies = {
-        ServiceSearchReply {},
+        ServiceSearchReply { BTE_SDP_ERROR_PARSER, },
     };
     ASSERT_EQ(replies, expectedReplies);
 }
@@ -438,7 +438,7 @@ TEST_F(TestSdpClient, testServiceSearchAttrUnparsable) {
     bte_handle_events();
 
     std::vector<ServiceAttrReply> expectedReplies = {
-        ServiceAttrReply {},
+        ServiceAttrReply { BTE_SDP_ERROR_PARSER, },
     };
     ASSERT_EQ(replies, expectedReplies);
 }

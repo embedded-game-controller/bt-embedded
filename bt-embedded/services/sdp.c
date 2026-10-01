@@ -853,6 +853,9 @@ static void on_message_received(BteL2cap *l2cap, BteBufferReader *reader,
             reply.has_more = false;
             reply.handles = NULL;
             req_complete = true;
+            if (!reply.error_code) {
+                reply.error_code = BTE_SDP_ERROR_PARSER;
+            }
         } else {
             req_complete = !reply.has_more;
         }
@@ -870,6 +873,9 @@ static void on_message_received(BteL2cap *l2cap, BteBufferReader *reader,
                                                &reply, &cont_state))) {
             reply.attr_list_de = NULL;
             req_complete = true;
+            if (!reply.error_code) {
+                reply.error_code = BTE_SDP_ERROR_PARSER;
+            }
         } else {
             req_complete = cont_state[0] == 0;
         }
