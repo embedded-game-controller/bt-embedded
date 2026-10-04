@@ -131,6 +131,11 @@
 #define BTE_SDP_ATTR_ID_ICON_URL          0x000C
 #define BTE_SDP_ATTR_ID_ADD_PROTO_DESC    0x000D
 
+/* Universal attributes, relative to LanguageBaseAttributeIDList */
+#define BTE_SDP_ATTR_ID_LANG_SRV_NAME  0x0000
+#define BTE_SDP_ATTR_ID_LANG_SRV_DESC  0x0001
+#define BTE_SDP_ATTR_ID_LANG_PROV_NAME 0x0002
+
 /* Object Push Profile (OPP) */
 #define BTE_SDP_ATTR_ID_GOEP_L2CAP_PSM 0x0200
 #define BTE_SDP_ATTR_ID_SRV_VER        0x0300
