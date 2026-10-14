@@ -151,16 +151,11 @@ static void on_buffer_size_done(BteHci *hci,
                                 const BteHciReadBufferSizeReply *reply,
                                 void *userdata)
 {
-    BteHciDev *dev = userdata;
-
     BTE_DEBUG("");
     STOP_ON_FAILURE(hci, reply);
 
-    dev->acl_mtu = reply->acl_mtu;
-    dev->sco_mtu = reply->sco_mtu;
-    dev->acl_max_packets = reply->acl_max_packets;
-    dev->sco_max_packets = reply->sco_max_packets;
-    dev->info_flags |= BTE_HCI_INFO_GOT_BUFFER_SIZE;
+    _bte_hci_dev_set_buffer_size(reply->acl_mtu, reply->acl_max_packets,
+                                 reply->sco_mtu, reply->sco_max_packets);
     /* TODO libogc here would call:
      * - write_cod
      * - write_local_name
