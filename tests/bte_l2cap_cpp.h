@@ -115,6 +115,8 @@ public:
 
     uint16_t mtu() const { return bte_l2cap_get_mtu(m_l2cap); }
     uint16_t remoteMtu() const { return bte_l2cap_get_remote_mtu(m_l2cap); }
+    Client client() const { return Client(bte_l2cap_get_client(m_l2cap)); }
+    Client::Hci hci() const { return Client::Hci(bte_l2cap_get_hci(m_l2cap)); }
 
     BteL2capState state() const {
         return bte_l2cap_get_state(m_l2cap);
