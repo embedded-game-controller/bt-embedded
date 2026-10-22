@@ -1199,6 +1199,46 @@ TEST(Commands, testSetSniffMode) {
     ASSERT_EQ(invoker.receivedReply(), BteHciReply{0});
 }
 
+TEST(Commands, testQosSetup) {
+    MockBackend backend;
+    Bte::Client client;
+    auto &hci = client.hci();
+
+    BteConnHandle handle = 0x1234;
+    BteHciQosSetupData setupParams = {
+        BTE_HCI_SERVICE_TYPE_GUARANTEED,
+        0x11223344,
+        0x55667788,
+        0x99010203,
+        0x04050607,
+    };
+    std::vector<BteHciReply> replies;
+    hci.qosSetup(handle, setupParams, [&](const BteHciReply &r) {
+        replies.push_back(r);
+    });
+
+    Buffer expectedCommand{
+        0x7, 0x8,
+        0x14, /* size */
+        0x34, 0x12,/* Connection */
+        0x00, /* flags, unused */
+        0x02, /* service type */
+        0x44, 0x33, 0x22, 0x11,
+        0x88, 0x77, 0x66, 0x55,
+        0x03, 0x02, 0x01, 0x99,
+        0x07, 0x06, 0x05, 0x04,
+    };
+    ASSERT_EQ(backend.lastCommand(), expectedCommand);
+
+    uint8_t status = 0;
+    backend.sendEvent({HCI_COMMAND_STATUS, 4, status, 1, 0x7, 0x8});
+    bte_handle_events();
+
+    /* Verify that our callback has been invoked */
+    std::vector<BteHciReply> expectedReplies = { { 0 }, };
+    ASSERT_EQ(replies, expectedReplies);
+}
+
 TEST(Commands, testReadLinkPolicySettings) {
     BteConnHandle conn = 0x0123;
     GetterInvoker<BteHciReadLinkPolicySettingsReply> invoker(

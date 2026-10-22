@@ -395,6 +395,86 @@ TEST(Events, testModeChange)
     ASSERT_EQ(calls, std::vector<Call>{});
 }
 
+TEST(Events, testQosSetupComplete)
+{
+    MockBackend backend;
+    Bte::Client client;
+    auto &hci = client.hci();
+
+    using Call = BteHciQosSetupCompleteData;
+    std::vector<Call> calls;
+    BteConnHandle conn_handle = 0x1234;
+    bool cbReturnValue = false;
+    auto handler = [&](const BteHciQosSetupCompleteData &reply) {
+        calls.push_back(reply);
+        return cbReturnValue;
+    };
+    hci.onQosSetupComplete(conn_handle, handler);
+
+    Buffer event = {
+        HCI_QOS_SETUP_COMPLETE,
+        7, /* size */
+        0, /* status */
+        0x34, 0x12, /* Connection */
+        0x00, /* flags, unused */
+        0x02, /* service type */
+        0x44, 0x33, 0x22, 0x11,
+        0x88, 0x77, 0x66, 0x55,
+        0x03, 0x02, 0x01, 0x99,
+        0x07, 0x06, 0x05, 0x04,
+    };
+    /* Emit the QoS Setup event for another connection */
+    event[3] = 0x56;
+    event[4] = 0x57;
+    backend.sendEvent(event);
+    bte_handle_events();
+    ASSERT_EQ(calls, std::vector<Call>{});
+
+    /* Now emit it for our connection */
+    event[3] = 0x34;
+    event[4] = 0x12;
+    backend.sendEvent(event);
+    bte_handle_events();
+    std::vector<Call> expectedCalls = {
+        {
+            0, conn_handle, {BTE_HCI_SERVICE_TYPE_GUARANTEED,
+                0x11223344,
+                0x55667788,
+                0x99010203,
+                0x04050607,
+            }
+        }
+    };
+    ASSERT_EQ(calls, expectedCalls);
+    calls.clear();
+
+    /* One more, but this time return true to unsubscribe */
+    cbReturnValue = true;
+    backend.sendEvent(event);
+    bte_handle_events();
+    ASSERT_EQ(calls, expectedCalls);
+    calls.clear();
+
+    /* Now we should be unsubscribed */
+    backend.sendEvent(event);
+    bte_handle_events();
+    ASSERT_EQ(calls, std::vector<Call>{});
+
+    /* Test the explicit disconnection; first, reconnect */
+    cbReturnValue = false;
+    hci.onQosSetupComplete(conn_handle, handler);
+    backend.sendEvent(event);
+    bte_handle_events();
+    ASSERT_EQ(calls, expectedCalls);
+    calls.clear();
+
+    /* Now disconnect */
+    hci.onQosSetupComplete(conn_handle, {});
+    backend.sendEvent(event);
+    bte_handle_events();
+    ASSERT_EQ(calls, std::vector<Call>{});
+}
+
 TEST(Events, testVendorEvent)
 {
     MockBackend backend;

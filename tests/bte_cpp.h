@@ -507,6 +507,23 @@ public:
                                    cb ? &Hci::Callbacks::modeChange : nullptr);
         }
 
+        using QosSetupCompleteCb =
+            std::function<bool(const BteHciQosSetupCompleteData &data)>;
+        void onQosSetupComplete(BteConnHandle conn_handle,
+                                const QosSetupCompleteCb &cb) {
+            m_qosSetupCompleteCb = cb;
+            bte_hci_on_qos_setup_complete(
+                m_hci, conn_handle,
+                cb ? &Hci::Callbacks::qosSetupComplete : nullptr);
+        }
+
+        void qosSetup(BteConnHandle conn_handle,
+                      const BteHciQosSetupData &setupParams,
+                      const DoneCb &cb) {
+            bte_hci_qos_setup(m_hci, conn_handle, &setupParams,
+                              wrap<TAG>(cb), this);
+        }
+
         void writeLinkPolicySettings(BteConnHandle conn_handle,
                                      BteHciLinkPolicySettings settings,
                                      const DoneCb &cb) {
@@ -854,6 +871,11 @@ public:
                                    void *cb_data) {
                 return _this(cb_data)->m_modeChangeCb(*reply);
             }
+            static bool qosSetupComplete(
+                BteHci *hci, const BteHciQosSetupCompleteData *data,
+                void *cb_data) {
+                return _this(cb_data)->m_qosSetupCompleteCb(*data);
+            }
             static bool vendorEvent(BteHci *hci, BteBuffer *buffer,
                                     void *cb_data) {
                 return _this(cb_data)->m_vendorEventCb(buffer);
@@ -884,6 +906,7 @@ public:
         LinkKeyNotificationCb m_linkKeyNotificationCb;
         PinCodeRequestCb m_pinCodeRequestCb;
         ModeChangeCb m_modeChangeCb;
+        QosSetupCompleteCb m_qosSetupCompleteCb;
         VendorEventCb m_vendorEventCb;
         BteHci *m_hci;
     };

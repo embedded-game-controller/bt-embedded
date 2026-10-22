@@ -1080,6 +1080,95 @@ void bte_hci_on_mode_change(BteHci *hci, BteConnHandle conn_handle,
                                        mode_change_event_cb);
 }
 
+static bool client_handle_qos_setup_complete(BteHci *hci, void *cb_data)
+{
+    const BteHciQosSetupCompleteData *event = cb_data;
+    return hci->qos_setup_complete_cb &&
+        hci->qos_setup_complete_cb(hci, event, hci_userdata(hci));
+}
+
+static void qos_setup_complete_event_cb(BteBuffer *buffer)
+{
+    if (UNLIKELY(buffer->size < HCI_QOS_SETUP_COMPLETE_LEN)) return;
+
+    BteHciPendingCommand *pc = _bte_hci_dev_find_pending_command(buffer);
+    if (UNLIKELY(!pc)) return;
+
+    BteHci *hci = pc->hci;
+    uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
+
+    BteHciQosSetupCompleteData event;
+    event.status = data[0];
+    event.conn_handle = read_le16(data + 1);
+    /* Byte 3 is unused */
+    event.data.service_type = data[4];
+    data += 5;
+    event.data.token_rate = read_le32(data);
+    data += 4;
+    event.data.peak_bandwidth = read_le32(data);
+    data += 4;
+    event.data.latency = read_le32(data);
+    data += 4;
+    event.data.delay_variation = read_le32(data);
+
+    BteHciQosSetupCompleteCb cb = pc->command_cb.event_qos_setup_complete.client_cb;
+    if (cb(hci, &event, hci_userdata(hci))) {
+        _bte_hci_dev_free_command(pc);
+    }
+}
+
+void bte_hci_on_qos_setup_complete(
+    BteHci *hci, BteConnHandle conn_handle, BteHciQosSetupCompleteCb callback)
+{
+    BteDataMatcher matcher;
+    bte_data_matcher_init(&matcher);
+    uint8_t event_type = HCI_QOS_SETUP_COMPLETE;
+    bte_data_matcher_add_rule(&matcher, &event_type, 1, 0);
+    uint8_t handle_le[2];
+    write_le16(conn_handle, &handle_le);
+    bte_data_matcher_add_rule(&matcher, handle_le, 2,
+                              /* 1 for the status byte */
+                              HCI_CMD_EVENT_POS_DATA + 1);
+    if (!callback) {
+        /* We must remove our listener */
+        BteHciPendingCommand *ev = _bte_hci_dev_get_pending_command(&matcher);
+        if (ev && ev->hci == hci) _bte_hci_dev_free_command(ev);
+        return;
+    }
+    BteHciPendingCommand *ev = _bte_hci_dev_alloc_command(&matcher);
+    if (UNLIKELY(!ev)) return; /* already installed */
+
+    ev->hci = hci;
+    ev->command_cb.event_qos_setup_complete.client_cb = callback;
+    _bte_hci_dev_install_event_handler(HCI_QOS_SETUP_COMPLETE,
+                                       qos_setup_complete_event_cb);
+}
+
+void bte_hci_qos_setup(
+    BteHci *hci, BteConnHandle conn_handle,
+    const BteHciQosSetupData *setup_data,
+    BteHciDoneCb status_cb, void *userdata)
+{
+    BteBuffer *b = _bte_hci_dev_add_pending_async_command(
+        hci, HCI_QOS_SETUP_OCF, HCI_LINK_POLICY_OGF, HCI_QOS_SETUP_PLEN,
+        NULL, status_cb, userdata);
+    if (UNLIKELY(!b)) return;
+    uint8_t *data = b->data + HCI_CMD_HDR_LEN;
+    write_le16(conn_handle, data);
+    /* byte 2 is unused, must be 0 */
+    data[2] = 0;
+    data[3] = setup_data->service_type;
+    data += 4;
+    write_le32(setup_data->token_rate, data);
+    data += 4;
+    write_le32(setup_data->peak_bandwidth, data);
+    data += 4;
+    write_le32(setup_data->latency, data);
+    data += 4;
+    write_le32(setup_data->delay_variation, data);
+    _bte_hci_send_command(b);
+}
+
 static void read_link_policy_settings_cb(BteHci *hci, BteBuffer *buffer,
                                          void *client_cb, void *userdata)
 {

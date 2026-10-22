@@ -130,6 +130,23 @@ inline bool operator==(const BteHciModeChangeReply &a,
         a.current_mode == b.current_mode && a.interval == b.interval;
 }
 
+inline bool operator==(const BteHciQosSetupData &a,
+                       const BteHciQosSetupData &b)
+{
+    return a.service_type == b.service_type &&
+        a.token_rate == b.token_rate &&
+        a.peak_bandwidth == b.peak_bandwidth &&
+        a.latency == b.latency &&
+        a.delay_variation == b.delay_variation;
+}
+
+inline bool operator==(const BteHciQosSetupCompleteData &a,
+                       const BteHciQosSetupCompleteData &b)
+{
+    return a.status == b.status && a.conn_handle == b.conn_handle &&
+        a.data == b.data;
+}
+
 inline bool operator==(const BteHciReadLinkPolicySettingsReply &a,
                        const BteHciReadLinkPolicySettingsReply &b)
 {
