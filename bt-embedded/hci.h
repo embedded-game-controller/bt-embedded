@@ -1132,6 +1132,93 @@ typedef bool (*BteHciModeChangeCb)(BteHci *hci,
 void bte_hci_on_mode_change(BteHci *hci, BteConnHandle conn_handle,
                             BteHciModeChangeCb callback);
 
+/** @defgroup BteHciServiceTypeG Type of service
+ *
+ * @sa bte_hci_qos_setup(), bte_hci_on_qos_setup_complete(), BteHciQosSetupData
+ * @{ */
+#define BTE_HCI_SERVICE_TYPE_NO_TRAFFIC  (uint8_t)0 /**< No traffic */
+#define BTE_HCI_SERVICE_TYPE_BEST_EFFORT (uint8_t)1 /**< Best effort */
+#define BTE_HCI_SERVICE_TYPE_GUARANTEED  (uint8_t)2 /**< Guaranteed */
+/** @} */
+
+/**
+ * @brief Quality of Service (QoS) setup information
+ */
+typedef struct {
+    /** The service type, one of @ref BteHciServiceTypeG */
+    uint8_t service_type;
+    /** Token rate in bytes per second */
+    uint32_t token_rate;
+    /** Peak bandwidth in bytes per second */
+    uint32_t peak_bandwidth;
+    /** Latency in microseconds */
+    uint32_t latency;
+    /** Delay variation in microseconds */
+    uint32_t delay_variation;
+} BteHciQosSetupData;
+
+/**
+ * @brief Quality of Service (QoS) setup reply
+ */
+typedef struct {
+    /** Error code for the operation. @sa BteErrorG */
+    uint8_t status;
+    /** Connection handle */
+    BteConnHandle conn_handle;
+    /** The QoS parameters for this connection */
+    BteHciQosSetupData data;
+} BteHciQosSetupCompleteData;
+
+/**
+ * @brief Result callback for bte_hci_qos_setup()
+ *
+ * Invoked when the Quality of Service setup operation has been completed.
+ *
+ * @param hci The HCI handle
+ * @param data Contains the Quality of Service information
+ * @param userdata The client data set on the BteClient object
+ *
+ * @return \c true if the client has handled the event (this should be the case
+ *         if the connection handle belongs to this client)
+ * @sa bte_hci_on_qos_setup_complete(), bte_hci_qos_setup()
+ */
+typedef bool (*BteHciQosSetupCompleteCb)(
+    BteHci *hci, const BteHciQosSetupCompleteData *data, void *userdata);
+/**
+ * @brief Watch QoS setup events
+ *
+ * Register a callback to be invoked when the Quality of Service (QoS) setup
+ * complete event is emitted. Callbacks are invoked on the clients in the order
+ * they subscribed; if a client returns \c true from the callback, the event
+ * will not be further propagated to other clients.
+ *
+ * @param hci The HCI handle
+ * @param conn_handle The connection handle
+ * @param callback Function to be invoked when the event triggers
+ */
+void bte_hci_on_qos_setup_complete(
+    BteHci *hci, BteConnHandle conn_handle, BteHciQosSetupCompleteCb callback);
+
+/**
+ * @brief Specify Quality of Service parameters
+ *
+ * Specify Quality of Service (QoS) parameters for the given connection.
+ * The if a callback has been registered with bte_hci_on_qos_setup_complete(),
+ * it will be invoked after this operation has been completed.
+ *
+ * @param hci The HCI handle
+ * @param conn_handle The connection handle
+ * @param setup_data The QoS setup data
+ * @param status_cb Status callback, can be \c NULL
+ * @param userdata Client data to pass to \a status_cb
+ *
+ * @sa bte_hci_on_qos_setup_complete()
+ */
+void bte_hci_qos_setup(BteHci *hci, BteConnHandle conn_handle,
+                       const BteHciQosSetupData *setup_data,
+                       BteHciDoneCb status_cb,
+                       void *userdata);
+
 /** @defgroup BteHciLinkPolicySettingsG Link policy settings
  * @sa bte_hci_read_link_policy_settings(), bte_hci_write_link_policy_settings()
  * @{ */

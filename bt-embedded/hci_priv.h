@@ -79,6 +79,7 @@ extern "C" {
 #define HCI_EXIT_SNIFF_MODE_OCF 0x04
 #define HCI_PARK_MODE_OCF       0x05
 #define HCI_EXIT_PARK_MODE_OCF  0x06
+#define HCI_QOS_SETUP_OCF       0x07
 #define HCI_R_LINK_POLICY_OCF   0x0C
 #define HCI_W_LINK_POLICY_OCF   0x0D
 
@@ -163,6 +164,7 @@ extern "C" {
 #define HCI_SNIFF_MODE_PLEN    13
 #define HCI_R_LINK_POLICY_PLEN 5
 #define HCI_W_LINK_POLICY_PLEN 7
+#define HCI_QOS_SETUP_PLEN     23
 
 /* Host-Controller and Baseband Commands */
 #define HCI_SET_EV_MASK_PLEN         11
@@ -263,6 +265,9 @@ extern "C" {
 /* Vendor specific event codes */
 #define HCI_VENDOR_BEGIN_PAIRING        0x08
 #define HCI_VENDOR_CLEAR_PAIRED_DEVICES 0x09
+
+/* Event lengths */
+#define HCI_QOS_SETUP_COMPLETE_LEN (HCI_CMD_EVENT_POS_DATA + 21)
 
 #ifdef __cplusplus
 }

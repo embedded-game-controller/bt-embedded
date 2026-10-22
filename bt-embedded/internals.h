@@ -185,6 +185,9 @@ typedef struct bte_hci_dev_t {
             struct bte_hci_event_mode_change_t {
                 BteHciModeChangeCb client_cb;
             } event_mode_change;
+            struct bte_hci_event_qos_setup_complete_t {
+                BteHciQosSetupCompleteCb client_cb;
+            } event_qos_setup_complete;
         } command_cb;
     } pending_commands[BTE_HCI_MAX_PENDING_COMMANDS];
 
@@ -231,6 +234,7 @@ struct bte_client_t {
         BteHciNrOfCompletedPacketsCb nr_of_completed_packets_cb;
         BteHciDisconnectionCompleteCb disconnection_complete_cb;
         BteHciConnectionRequestCb connection_request_cb;
+        BteHciQosSetupCompleteCb qos_setup_complete_cb;
         BteHciLinkKeyRequestCb link_key_request_cb;
         BteHciLinkKeyNotificationCb link_key_notification_cb;
         BteHciPinCodeRequestCb pin_code_request_cb;
