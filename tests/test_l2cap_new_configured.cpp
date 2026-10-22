@@ -74,6 +74,10 @@ TEST_F(TestL2capNewConfigured, testDefaults) {
         {BTE_L2CAP_CONN_RESP_RES_OK},
     };
     ASSERT_EQ(replies, expectedReplies);
+
+    /* Check the getters */
+    ASSERT_EQ(l2cap.client(), m_client);
+    ASSERT_EQ(l2cap.hci(), m_client.hci());
 }
 
 TEST_F(TestL2capNewConfigured, testConnectHciError) {

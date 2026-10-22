@@ -195,9 +195,7 @@ public:
 
 class Client {
 public:
-    Client(): m_client(bte_client_new()), m_hci(bte_hci_get(m_client)) {
-        init();
-    }
+    Client(): Client(bte_client_new()) {}
     Client(const Client &other):
         m_client(bte_client_ref(other.m_client)),
         m_hci(bte_hci_get(m_client)) {
@@ -274,6 +272,10 @@ public:
         };
 
     public:
+        bool operator==(const Hci &other) const {
+            return m_hci == other.m_hci;
+        }
+
         using InitializedCb = std::function<void(bool)>;
         void onInitialized(const InitializedCb &cb) {
             m_initializedCb = cb;
@@ -889,7 +891,15 @@ public:
     Hci &hci() { return m_hci; }
     BteClient *c_type() const { return m_client; }
 
+    bool operator==(const Client &other) const {
+        return m_client == other.m_client;
+    }
+
 private:
+    Client(BteClient *client): m_client(bte_client_ref(client)), m_hci(bte_hci_get(m_client)) {
+        init();
+    }
+
     void init() {
         bte_client_set_userdata(m_client, &m_hci);
     }

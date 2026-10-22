@@ -1566,6 +1566,16 @@ uint16_t bte_l2cap_get_remote_mtu(BteL2cap *l2cap)
     return l2cap->remote_mtu;
 }
 
+BteClient *bte_l2cap_get_client(BteL2cap *l2cap)
+{
+    return bte_hci_get_client(l2cap->acl->hci);
+}
+
+BteHci *bte_l2cap_get_hci(BteL2cap *l2cap)
+{
+    return l2cap->acl->hci;
+}
+
 BteL2capState bte_l2cap_get_state(BteL2cap *l2cap)
 {
     assert(l2cap != NULL);
