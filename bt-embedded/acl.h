@@ -28,6 +28,7 @@ struct bte_acl_t {
     bool authentication_required : 1;
     bool authentication_requested : 1;
     bool authentication_completed : 1;
+    bool is_master : 1; /* true if the local controller is the master */
 
     BteBuffer *fragmented_message;
     uint16_t fragmented_message_size;

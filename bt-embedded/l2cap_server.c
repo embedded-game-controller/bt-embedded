@@ -60,6 +60,13 @@ static BteL2cap *l2cap_server_handle_connection_req(
     return l2cap;
 }
 
+static void on_connected(BteL2cap *l2cap, const BteL2capNewConfiguredReply *reply, void *userdata)
+{
+    BteL2capServer *l2cap_server = userdata;
+    BTE_DEBUG("WE CONNECTED!!! ##############################");
+    rely_to_client(l2cap_server, l2cap);
+}
+
 static void hci_accept_connection_cb(BteHci *hci,
                                      const BteHciAcceptConnectionReply *reply,
                                      void *userdata)
@@ -73,7 +80,17 @@ static void hci_accept_connection_cb(BteHci *hci,
     }
     /* The BteAcl object that we created here has the "is_incoming" flag set,
      * so it will unreference itself upon disconnection. */
-    _bte_l2cap_acl_new_connected(hci, reply);
+    BteAcl *acl = _bte_l2cap_acl_new_connected(hci, reply);
+    if (acl && acl->is_master) {
+        BTE_DEBUG("WE TRY TO CONNECT!**************************************");
+        /* The peer has requested a role change and we have become the master.
+         * Let's initiate the L2CAP connection ourselves. */
+        bte_l2cap_new_configured(bte_hci_get_client(hci),
+                                 &acl->address,
+                                 l2cap_server->psm, NULL,
+                                 BTE_L2CAP_CONNECT_FLAG_NONE, NULL,
+                                 on_connected, l2cap_server);
+    }
 }
 
 static bool hci_connection_request_cb(BteHci *hci,

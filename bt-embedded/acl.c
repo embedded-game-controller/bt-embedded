@@ -188,6 +188,21 @@ static bool on_nr_of_completed_packets(
     return acl != NULL;
 }
 
+static bool on_role_change(BteHci *hci, const BteHciRoleChangeData *event,
+                           void *userdata)
+{
+    BteAcl *acl = bte_acl_get_for_address(hci, &event->address);
+    if (!acl) return false;
+
+    if (event->status == 0x35) { /* TODO define error */
+        acl->is_master = event->role != BTE_HCI_ROLE_MASTER;
+    } else {
+        acl->is_master = event->role == BTE_HCI_ROLE_MASTER;
+    }
+    BTE_DEBUG("is master: %d", acl->is_master);
+    return true;
+}
+
 BteAcl *bte_acl_new(BteHci *hci, const BteBdAddr *address,
                     size_t struct_size)
 {
@@ -220,6 +235,7 @@ BteAcl *bte_acl_new_connected(
     acl->address = reply->address;
     acl->conn_handle = reply->conn_handle;
     acl->is_incoming = true;
+    acl->is_master = false;
     if (UNLIKELY(!bte_acl_make_public(acl))) {
         bte_acl_free(acl);
         return NULL;
@@ -230,6 +246,7 @@ BteAcl *bte_acl_new_connected(
     bte_client_ref(bte_hci_get_client(hci));
     bte_hci_on_disconnection_complete(hci, on_disconnection_complete);
     bte_hci_on_nr_of_completed_packets(hci, on_nr_of_completed_packets);
+    bte_hci_on_role_change(hci, on_role_change);
     return acl;
 }
 
@@ -286,6 +303,8 @@ static void connect_cb(BteHci *hci, const BteHciCreateConnectionReply *reply,
     if (reply->status == 0) {
         acl->conn_handle = reply->conn_handle;
         acl->encryption_mode = reply->encryption_mode;
+        acl->is_master = true;
+        bte_hci_on_role_change(hci, on_role_change);
         if (acl->authentication_required && !acl->authentication_completed) {
             bte_acl_request_auth(acl);
             return;
