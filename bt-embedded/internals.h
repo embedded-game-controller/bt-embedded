@@ -231,6 +231,7 @@ struct bte_client_t {
     struct bte_hci_t {
         BteHciInquiryCb periodic_inquiry_cb;
         void *periodic_inquiry_userdata;
+        BteHciRoleChangeCb role_change_cb;
         BteHciNrOfCompletedPacketsCb nr_of_completed_packets_cb;
         BteHciDisconnectionCompleteCb disconnection_complete_cb;
         BteHciConnectionRequestCb connection_request_cb;

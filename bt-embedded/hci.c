@@ -481,6 +481,31 @@ void bte_hci_disconnect(BteHci *hci, BteConnHandle handle, uint8_t reason,
     _bte_hci_send_command(b);
 }
 
+static bool client_handle_role_change(BteHci *hci, void *cb_data)
+{
+    const BteHciRoleChangeData *data = cb_data;
+    return hci->role_change_cb &&
+        hci->role_change_cb(hci, data, hci_userdata(hci));
+}
+
+static void role_change_event_cb(BteBuffer *buffer)
+{
+    uint8_t *data = buffer->data + HCI_CMD_EVENT_POS_DATA;
+    BteHciRoleChangeData event;
+    event.status = data[0];
+    data++;
+    event.address = *(BteBdAddr*)data;
+    data += sizeof(BteBdAddr);
+    event.role = data[0];
+    _bte_hci_dev_foreach_hci_client(client_handle_role_change, &event);
+}
+
+void bte_hci_on_role_change(BteHci *hci, BteHciRoleChangeCb callback)
+{
+    hci->role_change_cb = callback;
+    _bte_hci_dev_install_event_handler(HCI_ROLE_CHANGE, role_change_event_cb);
+}
+
 static bool client_handle_nr_of_completed_packets(BteHci *hci, void *cb_data)
 {
     const BteHciNrOfCompletedPacketsData *event = cb_data;

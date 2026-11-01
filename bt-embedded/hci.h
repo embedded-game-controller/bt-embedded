@@ -409,6 +409,46 @@ void bte_hci_create_connection_cancel(BteHci *hci, const BteBdAddr *address,
                                       BteHciDoneCb callback, void *userdata);
 
 /**
+ * @brief Role change event
+ *
+ * @sa bte_hci_on_role_change()
+ */
+typedef struct {
+    /** Error code for the operation. @sa BteErrorG */
+    uint8_t status;
+    /** BD address of the device for which the role has changed */
+    BteBdAddr address;
+    /** The new role of the local device in respect to the peer */
+    BteRole role;
+} BteHciRoleChangeData;
+
+/**
+ * @brief Callback for the role change event
+ *
+ * Invoked when the HCI controller reports a role change event.
+ *
+ * @param hci The HCI handle
+ * @param data Information on the role change event
+ * @param userdata The client data set on the BteClient object
+ *
+ * @return \c true if the client has handled the event (this should be the case
+ *         if the remote address is known to this client)
+ * @sa bte_hci_on_role_change()
+ */
+typedef bool (*BteHciRoleChangeCb)(
+    BteHci *hci, const BteHciRoleChangeData *data, void *userdata);
+/**
+ * @brief Watch emissions of the Role Change event
+ *
+ * Register a callback to be invoked when the "Role Change" event is emitted by
+ * the HCI controller.
+ *
+ * @param hci The HCI handle
+ * @param callback Function to be invoked when the event triggers
+ */
+void bte_hci_on_role_change(BteHci *hci, BteHciRoleChangeCb callback);
+
+/**
  * @brief Number of completed packets on a connection
  *
  * @sa bte_hci_on_nr_of_completed_packets()
