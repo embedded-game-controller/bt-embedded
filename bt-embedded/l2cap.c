@@ -209,6 +209,11 @@ static bool l2cap_connection_request(BteL2cap *l2cap)
 
 static void acl_l2cap_connected_cb(BteL2cap *l2cap, uint8_t status)
 {
+    if (l2cap->state >= BTE_L2CAP_WAIT_CONFIG) {
+        /* We already invoked the callback on this client. */
+        return;
+    }
+
     /* We couldn't get an ACL connection or request a L2CAP one */
     if (UNLIKELY(status != 0 || !l2cap_connection_request(l2cap))) {
         BteL2capConnectCb client_cb =
